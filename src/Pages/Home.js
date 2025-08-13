@@ -124,6 +124,7 @@ function Home() {
   <div className="footer-social">
     <a href="#"><i className="fab fa-instagram"></i></a>
     <a href="#"><i className="fab fa-twitter"></i></a>
+    <a href="#"><i className="fab fa-tiktok"></i></a>
     <a href="#"><i className="fab fa-twitch"></i></a>
     <a href="#"><i className="fab fa-facebook"></i></a>
     <a href="#"><i className="fab fa-youtube"></i></a>
@@ -136,26 +137,25 @@ function Home() {
 
     {/* Legal and Help Links */}
     <div className="footer-legal-links">
-      <a href="/howitworks">HOW IT WORKS</a> / <a href="/supportpage">SUPPORT</a> / <a href="#">BLOG</a> / 
-      <a href="/termsofuse">TERMS</a> / <a href="/privacypolicy">PRIVACY</a> / <a href="/cookiepolicy">COOKIES</a> / 
+      <a href="/howitworks">HOW IT WORKS</a> / <a href="/supportpage">SUPPORT</a>  / 
+      <a href="/termsofuse">TERMS</a> / <a href="/privacypolicy">PRIVACY</a>  / 
       <a href="/about">ABOUT US</a> / <a href="/responsiblegaming">RESPONSIBLE GAMING</a>
     </div>
 
     {/* Responsible Gaming Warning */}
     <p className="footer-warning">
       Gaming too much? If you or someone you know is struggling, call or text the Problem Gaming Helpline: 
-      <strong> 1-800-522-4700</strong> or visit <a href="https://www.ncpgambling.org" target="_blank" rel="noopener noreferrer">ncpgambling.org</a>.
+      <strong> 0726883960 </strong> or visit <a href="https://gamhelpkenya.com/services/gambling-oversight/" target="_blank" rel="noopener noreferrer">gamhelpkenya</a>.
     </p>
   </div>
-
-  {/* Icons for Payment + 18+ */}
+{/* Gaming icons */}
   <div className="footer-icons">
-    <img src="https://img.icons8.com/ios-filled/50/ffffff/18-plus.png" alt="18+" />
-    <img src="https://img.icons8.com/color/48/visa.png" alt="Visa" />
-    <img src="https://img.icons8.com/color/48/mastercard-logo.png" alt="Mastercard" />
-    <img src="https://img.icons8.com/color/48/amex.png" alt="Amex" />
-    <img src="https://img.icons8.com/color/48/discover.png" alt="Discover" />
-  </div>
+  <img src="https://img.icons8.com/ios-filled/50/ffffff/18-plus.png" alt="18+" />
+  <img src="https://img.icons8.com/color/48/fortnite.png" alt="Fortnite" />
+  <img src="https://img.icons8.com/color/48/pubg.png" alt="PUBG" />
+  <img src="https://img.icons8.com/color/48/minecraft-logo.png" alt="Minecraft" />
+  <img src="https://img.icons8.com/color/48/league-of-legends.png" alt="League of Legends" />
+</div>
 
   {/* Bottom Text */}
   <p className="footer-small-text">

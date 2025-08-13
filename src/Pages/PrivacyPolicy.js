@@ -11,7 +11,7 @@ const PrivacyPolicy = () => {
       </div>
 
       <div className="privacy-policy-content">
-        <p><strong>NoctaZone</strong> ("us", "we", or "our") operates the <a href="https://www.noctazone.com">https://www.noctazone.com</a> website (the "Service").</p>
+        <p><strong>NoctaZone</strong> ("us", "we", or "our") operates the <a href="https://www.noctazone.org">https://www.noctazone.org</a> website (the "Service").</p>
 
         <p>This page informs you of our policies regarding the collection, use, and disclosure of personal data when you use our Service and the choices you have associated with that data.</p>
 
@@ -45,7 +45,7 @@ const PrivacyPolicy = () => {
           <li>To send offers or newsletters</li>
         </ul>
 
-        <h2>Legal Basis for Processing Data (GDPR)</h2>
+        <h2>Legal Basis for Processing Data (ODPC)</h2>
         <ul>
           <li>Contract performance</li>
           <li>With your permission</li>
@@ -63,7 +63,7 @@ const PrivacyPolicy = () => {
         <h2>Cookies & Tracking</h2>
         <p>You can disable cookies via your browser. Some functionality may be lost.</p>
 
-        <h2>Your GDPR Rights</h2>
+        <h2>Your ODPC Rights</h2>
         <ul>
           <li>Access, update, delete your data</li>
           <li>Restrict or object to processing</li>
@@ -72,10 +72,10 @@ const PrivacyPolicy = () => {
         </ul>
 
         <h2>Third-Party Services</h2>
-        <p>We use Google Analytics, Facebook, Playwire, and others. They may use cookies or collect data per their policies.</p>
+        <p>We use Google Analytics, Vercel, Supabase, and others. They may use cookies or collect data per their policies.</p>
 
         <h2>Payments</h2>
-        <p>We do not store payment info. Transactions are handled by trusted third parties like PayPal or Braintree.</p>
+        <p>We do not store payment info. Transactions are handled by trusted third parties like M-Pesa.</p>
 
         <h2>Children's Privacy</h2>
         <p>We do not knowingly collect data from anyone under 18.</p>
@@ -84,7 +84,7 @@ const PrivacyPolicy = () => {
         <p>We may update this Privacy Policy. Review it periodically.</p>
 
         <h2>Contact Us</h2>
-        <p>Email: privacy@noctazone.com</p>
+        <p>Email: <a href="mailto:noctazone.customercare@gmail.com">noctazone.customercare@gmail.com</a></p>
       </div>
     </div>
   );

@@ -19,7 +19,7 @@ const SupportPage = () => {
         <h2>NoctaZone</h2>
         <p className="mt-3 lead">
           If you have any issues or questions, please email: <br />
-          <a href="mailto:customercare@gamersaloon.com">customercare@noctazone.com</a>
+          <a href="mailto:noctazone.customercare@gmail.com">noctazone.customercare@gmail.com</a>
         </p>
       </div>
     </div>

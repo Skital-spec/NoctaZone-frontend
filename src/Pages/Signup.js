@@ -126,7 +126,6 @@ setMessage('Account created! Please check your email to verify.');
           onChange={(e) => setConfirmEmail(e.target.value)}
           required
           autoComplete="email" 
-
         />
         <input
   type="password"
@@ -169,7 +168,7 @@ setMessage('Account created! Please check your email to verify.');
             required
           />
           <label htmlFor="over18">
-            I AM OVER 18 AND DO NOT ALREADY HAVE AN ACCOUNT.
+            I AM OVER 18 YEARS OLD AND DO NOT HAVE AN ACCOUNT.
             I AGREE TO THE TERMS OF USE, PRIVACY & COOKIES POLICY.
           </label>
         </div>

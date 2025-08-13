@@ -51,7 +51,7 @@ const ResponsibleGaming = () => {
       <p>If you or someone you know is struggling with gaming-related issues, the following resources may be helpful:</p>
       <ul>
         <li>
-          <strong>National Problem Gambling Helpline:</strong> 1-800-522-4700 — Available 24/7 for confidential support and referrals. <br />
+          <strong>Gamhelp kenya Helpline:</strong> 0726883960 — Available 24/7 for confidential support and referrals. <br />
           <a href="https://www.ncpgambling.org/help-treatment/" target="_blank" rel="noopener noreferrer">
             Visit NCPG Help Center
           </a>
@@ -69,13 +69,13 @@ const ResponsibleGaming = () => {
           </a>
         </li>
         <li>
-          <strong>American Psychological Association:</strong>{' '}
-          <a href="https://www.apa.org/topics/substance-use-abuse-addiction" target="_blank" rel="noopener noreferrer">
-            Visit APA Page
+          <strong>Gaming Awareness Society of Kenya :</strong>{' '}
+          <a href="https://gamaware.org/" target="_blank" rel="noopener noreferrer">
+            Visit GASOK Page
           </a>
         </li>
         <li>
-          <strong>SAMHSA National Helpline:</strong> 1-800-662-HELP (4357) — Provides treatment referral and information service.
+          <strong> Gamhelp kenya Helpline:</strong> 0726883960 — Provides treatment referral and information service.
         </li>
       </ul>
 

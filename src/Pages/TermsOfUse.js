@@ -37,7 +37,7 @@ function TermsOfUse() {
         <section className="terms-section" id="skill-based">
           <h2>4. Skill-Based Gaming</h2>
           <p>
-            NoctaZone hosts games that are determined by skill, not chance. Outcomes are based on players’ performance, not random elements.
+            NoctaZone hosts tournaments that are determined by skill, not chance. Outcomes are based on players’ performance, not random elements.
           </p>
         </section>
 
@@ -93,7 +93,7 @@ function TermsOfUse() {
         <section className="terms-section" id="contact">
           <h2>12. Contact Us</h2>
           <p>
-            For questions about these Terms, email us at <a href="mailto:support@noctazone.com">support@noctazone.com</a>.
+            For questions about these Terms, email us at <a href="mailto:noctazone.customercare@gmail.com">noctazone.customercare@gmail.com</a>.
           </p>
         </section>
       </div>

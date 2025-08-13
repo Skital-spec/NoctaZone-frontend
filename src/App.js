@@ -8,7 +8,6 @@ import Home from './Pages/Home';
 import CustomNavbar from './Components/CustomNavbar';
 import PrivacyPolicy from './Pages/PrivacyPolicy';
 import TermsOfUse from './Pages/TermsOfUse';
-import CookiePolicy from './Pages/CookiePolicy';
 import ResponsibleGaming from './Pages/ResponsibleGaming';
 import SupportPage from './Pages/SupportPage';
 import About from './Pages/About';
@@ -61,7 +60,6 @@ function App() {
       <Route path='/supportpage' element={<SupportPage/>}/>
       <Route path='/privacypolicy' element={<PrivacyPolicy/>}/>
       <Route path='/termsofuse' element={<TermsOfUse/>}/>
-      <Route path='/cookiepolicy' element={<CookiePolicy/>}/>
       <Route path='/customnavbar' element={<CustomNavbar/>}/>
       <Route path='/responsiblegaming' element={<ResponsibleGaming/>}/>
       <Route path='/signup' element={<Signup/>}/>
