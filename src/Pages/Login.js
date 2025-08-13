@@ -85,7 +85,7 @@ const handleLogin = async (e) => {
           Forgot Password?
         </button>
 
-        <a href="/how-it-works">
+        <a href="/howitworks">
           <button className="how-it-works-btn">How It Works</button>
         </a>
       </div>

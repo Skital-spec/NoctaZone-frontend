@@ -7,7 +7,7 @@ const PrivacyPolicy = () => {
       <div className="privacy-policy-header">
         <ShieldCheck size={40} className="privacy-icon" />
         <h1>Privacy Policy</h1>
-        <p className="sub-heading">Effective date: May 25, 2018</p>
+        <p className="sub-heading">Effective date: July 25, 2025</p>
       </div>
 
       <div className="privacy-policy-content">
