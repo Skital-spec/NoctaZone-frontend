@@ -50,7 +50,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
       >
         <Container fluid>
           {/* Logo & Name */}
-          <Navbar.Brand href="/" className="d-flex align-items-center text-neon">
+          <Navbar.Brand href="/" className="d-flex align-items-center text-neon" id="top-nav">
             <img
               src="https://res.cloudinary.com/dm7edtofj/image/upload/v1754505778/logo_suleug.svg"
               alt="Logo"

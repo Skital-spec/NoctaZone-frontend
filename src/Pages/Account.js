@@ -275,7 +275,7 @@ const handleLogout = async () => {
           ))}
         </div>
 
-        <Container className="py-4">
+        <Container className="py-4 " style={{marginTop:'-80px'}}>
           {message.text && (
             <Alert variant={message.type} onClose={() => setMessage({ type: "", text: "" })} dismissible>
               {message.text}

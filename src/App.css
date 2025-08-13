@@ -382,6 +382,9 @@ html, body {
     padding: 20px;
     margin: 80px 15px;
   }
+  #top-nav{
+    margin-left: 12%;
+  }
   .overlay-content{
     margin-top: 100px;
   }

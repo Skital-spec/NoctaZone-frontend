@@ -9,7 +9,7 @@ const PublicChatPage = ({ currentUser }) => {
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [deletingIds, setDeletingIds] = useState(new Set());
-  const [currentUserId, setCurrentUserId] = useState(null); // Add this state
+  const [currentUserId, setCurrentUserId] = useState(null); 
   const messagesEndRef = useRef(null);
 
   // Get current user ID on component mount
@@ -162,7 +162,7 @@ const PublicChatPage = ({ currentUser }) => {
         username: username, // Include username in the insert
         message: trimmed,
       },
-    ]);
+    ]) ;
 
     if (error) {
       console.error("Error sending message:", error.message);
@@ -204,6 +204,7 @@ const PublicChatPage = ({ currentUser }) => {
       setError(`Failed to delete message: ${error.message}`);
     } else {
       console.log("✅ Message deleted successfully");
+      window.location.reload();
     }
 
     setDeletingIds(prev => {
@@ -211,9 +212,7 @@ const PublicChatPage = ({ currentUser }) => {
       newSet.delete(messageId);
       return newSet;
     });
-  };
-
-  const handleKeyPress = (e) => {
+  }; const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage(e);
@@ -369,4 +368,4 @@ const PublicChatPage = ({ currentUser }) => {
   );
 };
 
-export default PublicChatPage;
+export default PublicChatPage; 

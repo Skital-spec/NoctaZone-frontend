@@ -107,11 +107,11 @@ All decisions rendered by the NoctaZone.com staff are binding.`
           ))}
         </div>
 
-        <Container className="py-4">
+        <Container className="py-4" style={{marginTop:'-80px'}}>
           {/* FAQs */}
           {/* FAQs */}
 {activeTab === "faqs" && (
-  <div className="privacy-policy-container text-center">
+  <div className="privacy-policy-container text-center"  >
     <div className="privacy-policy-header">
       <LifeBuoy size={40} className="privacy-icon" />
       <h1>Frequently Asked Questions</h1>
@@ -179,7 +179,7 @@ All decisions rendered by the NoctaZone.com staff are binding.`
                 <h2>NoctaZone</h2>
                 <p className="mt-3 lead">
                   If you have any issues or questions, please email: <br />
-                  <a href="mailto:customercare@noctazone.com">customercare@noctazone.com</a>
+                  <a href="mailto:customercare@noctazone.com">noctazone.customercare@gmail.com</a>
                 </p>
               </div>
             </div>
@@ -198,8 +198,8 @@ All decisions rendered by the NoctaZone.com staff are binding.`
                 <h4 style={{ color: "#00ffcc" }}>Our Process</h4>
                 <p>
                   At NoctaZone, disputes are handled with impartiality and respect for all players. 
-                  Once you file a dispute, our team reviews all submitted evidence including screenshots, 
-                  match replays, and chat logs.
+                  Once you file a dispute, our team reviews all submitted evidence including screenshots 
+                   and chat logs.
                 </p>
 
                 <h4 style={{ color: "#00ffcc" }}>Steps We Follow</h4>

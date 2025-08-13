@@ -28,7 +28,7 @@ const handleLogin = async (e) => {
     }
   } else {
     setMessage('Logged in successfully!');
-    navigate('/myzone');
+    navigate('/account');
   }
 };
 
