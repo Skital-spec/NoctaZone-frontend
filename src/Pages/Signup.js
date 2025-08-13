@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
 const Signup = () => {
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,76 +25,44 @@ const Signup = () => {
     return age >= 18;
   };
 
-const handleSignup = async (e) => {
-  e.preventDefault();
-  setMessage('');
-  setLoading(true);
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setLoading(true);
 
-  try {
-    // 1️⃣ Validate inputs
-    if (!isOver18()) {
-      setMessage('You must be over 18 to sign up.');
-      return;
+    try {
+      if (!isOver18()) {
+        setMessage('You must be over 18 to sign up.');
+        return;
+      }
+
+      if (email !== confirmEmail) {
+        setMessage('Emails do not match.');
+        return;
+      }
+
+      if (!over18) {
+        setMessage('You must confirm you are over 18 and agree to the terms.');
+        return;
+      }
+
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signUpError) throw signUpError;
+
+      setMessage('Account created! Please check your email to verify.');
+      navigate('/login'); // Redirect to login after email verification
+    } catch (error) {
+      console.error('Signup error:', error);
+      setMessage(error.message || 'Something went wrong.');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    if (email !== confirmEmail) {
-      setMessage('Emails do not match.');
-      return;
-    }
-
-    if (!over18) {
-      setMessage('You must confirm you are over 18 and agree to the terms.');
-      return;
-    }
-
-    // 2️⃣ Create auth user
-const { data: authData, error: signUpError } = await supabase.auth.signUp({
-  email,
-  password,
-});
-
-if (signUpError) throw signUpError;
-
-setMessage('Account created! Please check your email to verify.');
-// navigate('/account'); // Or redirect after verification
-
-    const userId = authData?.user?.id;
-    if (!userId) throw new Error('User ID not returned after signup');
-
-    // 3️⃣ Wait for session to be established
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    if (sessionError || !sessionData.session) {
-      throw new Error('User session not established');
-    }
-
-setMessage('Account created! Please check your email to verify.');
-// navigate('/account'); // Or redirect after verification
-
-    // 4️⃣ Insert profile (RLS expects auth.uid() === id)
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .upsert([
-        {
-          id: userId,
-          username,
-          avatar_url: '',
-          console: '',
-          favorite_genre: '',
-          updated_at: new Date(),
-        },
-      ]);
-
-    if (profileError) throw profileError;
-
-    setMessage('Account created successfully! Please check your email to verify.');
-    navigate('/login');
-  } catch (error) {
-    console.error('Signup error:', error);
-    setMessage(error.message || 'Something went wrong.');
-  } finally {
-    setLoading(false);
-  }
-};
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
   const currentYear = new Date().getFullYear();
@@ -105,36 +72,10 @@ setMessage('Account created! Please check your email to verify.');
     <div className="signup-container">
       <h1>Create Your NoctaZone Account</h1>
       <form onSubmit={handleSignup}>
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="email"
-          placeholder="Re-type Email"
-          value={confirmEmail}
-          onChange={(e) => setConfirmEmail(e.target.value)}
-          required
-          autoComplete="email" 
-        />
-        <input
-  type="password"
-  placeholder="Password (min 6 characters)"
-  value={password}
-  onChange={(e) => setPassword(e.target.value)}
-  required
-  autoComplete="new-password" // or "current-password" if it's a login form
-/>
+        <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input type="email" placeholder="Re-type Email" value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} required autoComplete="email" />
+        <input type="password" placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
+
         <div className="birthdate-section">
           <label>Birthdate:</label>
           <div className="birthdate-selects">
@@ -160,13 +101,7 @@ setMessage('Account created! Please check your email to verify.');
         </p>
 
         <div className="checkbox-section">
-          <input
-            type="checkbox"
-            id="over18"
-            checked={over18}
-            onChange={(e) => setOver18(e.target.checked)}
-            required
-          />
+          <input type="checkbox" id="over18" checked={over18} onChange={(e) => setOver18(e.target.checked)} required />
           <label htmlFor="over18">
             I AM OVER 18 YEARS OLD AND DO NOT HAVE AN ACCOUNT.
             I AGREE TO THE TERMS OF USE, PRIVACY & COOKIES POLICY.
