@@ -60,22 +60,31 @@ const Tournaments = () => {
     fetchTournaments();
   }, []);
 
-  // Filter tournaments based on tab
-  const filteredTournaments = tournaments.filter((t) => {
-    const isParticipant =
-      Array.isArray(t.participants) && userId && t.participants.includes(userId);
+// Filter tournaments based on tab
+let filteredTournaments = tournaments.filter((t) => {
+  const isParticipant =
+    Array.isArray(t.participants) && userId && t.participants.includes(userId);
 
-    if (activeTab === "ongoing") return t.status === "upcoming" || t.status === "ongoing";
-    if (activeTab === "my") return isParticipant;
-    if (activeTab === "history") return t.status === "completed" && isParticipant;
-    return true;
-  });
+  if (activeTab === "ongoing") return t.status === "ongoing";
+  if (activeTab === "upcoming") return t.status === "upcoming";
+  if (activeTab === "my") return isParticipant;
+  if (activeTab === "history") return t.status === "completed" && isParticipant;
+  return true;
+});
 
-  const tabs = [
-    { id: "ongoing", label: "Ongoing Tournaments" },
-    { id: "my", label: "My Tournaments" },
-    { id: "history", label: "History" },
-  ];
+// Sort upcoming tournaments by start time (soonest first)
+if (activeTab === "upcoming") {
+  filteredTournaments = filteredTournaments.sort(
+    (a, b) => new Date(a.start_time) - new Date(b.start_time)
+  );
+}
+
+const tabs = [
+  { id: "ongoing", label: "Ongoing Tournaments" },
+  { id: "upcoming", label: "Upcoming Tournaments" },
+  { id: "my", label: "My Tournaments" },
+  { id: "history", label: "History" },
+];
 
   // Helper to choose status color
   const statusColor = (status) => {

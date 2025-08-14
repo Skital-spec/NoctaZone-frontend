@@ -196,7 +196,7 @@ const CreateChallenge = () => {
                           required
                         />
                         <Form.Text className="text-muted">
-                          Current wallet balance: ${balance}
+                          Current wallet balance: Ksh{balance}
                         </Form.Text>
                       </Form.Group>
                     </Col>
@@ -274,7 +274,7 @@ const CreateChallenge = () => {
                             {selectedUser ? (
                               <div className="d-flex justify-content-between align-items-center">
                                 <div>
-                                  <strong>Selected User:</strong> {selectedUser.name}
+                                  <strong>Selected User:</strong> {selectedUser.username}
                                   <br />
                                   <small className="text-muted">@{selectedUser.username}</small>
                                 </div>

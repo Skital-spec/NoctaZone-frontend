@@ -72,7 +72,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
           {/* Collapsible menu */}
           <Navbar.Collapse id="navbar-nav" className="bg=#111 p-3 p-lg-0">
             <Nav className="ms-auto align-items-lg-center">
-              <Nav.Link href="#" className="text-light">
+              <Nav.Link href="/wallet" className="text-light">
                 💰 KSh 0.00
               </Nav.Link>
               <Nav.Link onClick={() => setShowOnlineUsers(true)} className="text-success">

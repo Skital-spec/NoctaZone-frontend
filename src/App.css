@@ -1262,3 +1262,240 @@ html, body {
 .withdraw-btn:hover {
   background: #cc4444;
 }
+
+.wallet-page {
+  background-color: #0d0d0d;
+  min-height: 100vh;
+  color: white;
+}
+
+.wallet-container {
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #1a1a1a;
+  border-radius: 8px;
+}
+
+.wallet-title {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+  color: #00ffcc;
+  text-align: center;
+}
+
+.wallet-balance {
+  text-align: center;
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+.wallet-balance span {
+  font-weight: bold;
+  color: #00ffcc;
+}
+
+.quick-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.quick-buttons button {
+  flex: 1;
+  background: #111;
+  border: none;
+  color: #ccc;
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.quick-buttons button:hover {
+  background: #00ffcc;
+  color: #000;
+}
+
+.wallet-container input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
+  border-radius: 5px;
+  border: none;
+  background-color: #222;
+  color: #f5f5f5;
+}
+.wallet-container input:focus {
+  outline: 2px solid #00ffcc;
+}
+
+.error-text {
+  color: red;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+.deposit-btn,
+.withdraw-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.deposit-btn {
+  background: #00ffcc;
+  color: #000;
+}
+.deposit-btn:hover {
+  background: #00e6b8;
+}
+.withdraw-btn {
+  background: red;
+  color: white;
+}
+.withdraw-btn:hover {
+  background: darkred;
+}
+
+.transaction-info {
+  background: #111;
+  padding: 12px;
+  margin-top: 15px;
+  border-radius: 5px;
+}
+.pending-text {
+  color: yellow;
+}
+.new-txn-btn {
+  background: #00ffcc;
+  border: none;
+  padding: 8px 12px;
+  margin-top: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.new-txn-btn:hover {
+  background: #00e6b8;
+}
+.wallet-page {
+  background-color: #0d0d0d;
+  min-height: 100vh;
+  color: white;
+}
+
+.wallet-container {
+  max-width: 500px;
+  margin: 40px auto;
+  padding: 20px;
+  background: #1a1a1a;
+  border-radius: 8px;
+}
+
+.wallet-title {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
+  color: #00ffcc;
+  text-align: center;
+}
+
+.wallet-balance {
+  text-align: center;
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+}
+.wallet-balance span {
+  font-weight: bold;
+  color: #00ffcc;
+}
+
+.quick-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.quick-buttons button {
+  flex: 1;
+  background: #111;
+  border: none;
+  color: #ccc;
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+.quick-buttons button:hover {
+  background: #00ffcc;
+  color: #000;
+}
+
+.wallet-container input {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 12px;
+  border-radius: 5px;
+  border: none;
+  background-color: #222;
+  color: #f5f5f5;
+}
+.wallet-container input:focus {
+  outline: 2px solid #00ffcc;
+}
+
+.error-text {
+  color: red;
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+.deposit-btn,
+.withdraw-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.deposit-btn {
+  background: #00ffcc;
+  color: #000;
+}
+.deposit-btn:hover {
+  background: #00e6b8;
+}
+.withdraw-btn {
+  background: red;
+  color: white;
+}
+.withdraw-btn:hover {
+  background: darkred;
+}
+
+.transaction-info {
+  background: #111;
+  padding: 12px;
+  margin-top: 15px;
+  border-radius: 5px;
+}
+.pending-text {
+  color: yellow;
+}
+.new-txn-btn {
+  background: #00ffcc;
+  border: none;
+  padding: 8px 12px;
+  margin-top: 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.new-txn-btn:hover {
+  background: #00e6b8;
+}

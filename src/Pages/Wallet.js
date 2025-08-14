@@ -1,8 +1,8 @@
-// src/pages/Wallet.js
 import React, { useState, useEffect } from "react";
 import MainLayout from "../Components/MainLayout";
 
 const WalletPage = () => {
+  const [activeTab, setActiveTab] = useState("wallet");
   const [balance, setBalance] = useState(0);
   const [phone, setPhone] = useState("");
   const [amount, setAmount] = useState("");
@@ -14,16 +14,15 @@ const WalletPage = () => {
   const minDeposit = 50;
   const minWithdrawal = 100;
 
-  // Fetch balance on mount
   useEffect(() => {
     fetchBalance();
   }, []);
 
   const fetchBalance = async () => {
     try {
-      const res = await fetch("http://localhost:5000/api/wallet/balance", {
+      const res = await fetch("http://localhost:5000/wallet/transaction", {
         method: "GET",
-        credentials: "include", // if you're using cookies/session
+        credentials: "include",
       });
       if (res.ok) {
         const data = await res.json();
@@ -31,21 +30,21 @@ const WalletPage = () => {
       } else {
         setError("Failed to fetch balance");
       }
-    } catch (err) {
+    } catch {
       setError("Network error");
     }
   };
 
   const updateBalance = async (newBalance) => {
     try {
-      await fetch("http://localhost:5000/api/wallet/update", {
+      await fetch("http://localhost:5000/wallet/transaction", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ balance: newBalance }),
       });
       setBalance(newBalance);
-    } catch (err) {
+    } catch {
       setError("Failed to update balance");
     }
   };
@@ -87,11 +86,11 @@ const WalletPage = () => {
         setTransactionRef(result);
         setStatus("pending");
         const newBalance = balance + parseFloat(amount);
-        updateBalance(newBalance); // Save to backend
+        updateBalance(newBalance);
       } else {
         setError("Payment failed");
       }
-    } catch (err) {
+    } catch {
       setError("Network error");
     } finally {
       setLoading(false);
@@ -108,7 +107,7 @@ const WalletPage = () => {
       return;
     }
     const newBalance = balance - parseFloat(amount);
-    updateBalance(newBalance); // Save to backend
+    updateBalance(newBalance);
     setAmount("");
     alert("Withdrawal request submitted!");
   };
@@ -125,92 +124,120 @@ const WalletPage = () => {
     setError("");
   };
 
+  const tabs = [
+    { id: "wallet", label: "Wallet" },
+    { id: "transactions", label: "Transactions" },
+    { id: "promos", label: "Promos" },
+    { id: "rewards", label: "Rewards" },
+  ];
+
   return (
     <MainLayout>
-      {/* Navbar */}
-      <nav className="flex gap-6 bg-gray-900 text-white p-4 font-semibold">
-        <button className="hover:text-yellow-400">Wallet</button>
-        <button className="hover:text-yellow-400">Transactions</button>
-        <button className="hover:text-yellow-400">Promos</button>
-        <button className="hover:text-yellow-400">Rewards</button>
-      </nav>
-
-      {/* Wallet Content */}
-      <div className="max-w-lg mx-auto mt-6 p-4 bg-gray-800 rounded-lg text-white">
-        <h2 className="text-2xl font-bold mb-4">My Wallet</h2>
-        <p className="text-lg mb-6">
-          Balance:{" "}
-          <span className="text-green-400 font-bold">{balance} KES</span>
-        </p>
-
-        {/* Quick Amount Buttons */}
-        <div className="flex gap-2 mb-4">
-          {[100, 300, 500, 1000].map((val) => (
-            <button
-              key={val}
-              onClick={() => quickAmount(val)}
-              className="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded"
+      <div className="wallet-page">
+        {/* Tabs */}
+        <div className="help-tabs">
+          {tabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`help-tab ${activeTab === tab.id ? "active" : ""}`}
+              onClick={() => setActiveTab(tab.id)}
             >
-              {val}+
-            </button>
+              {tab.label}
+              {activeTab === tab.id && <div className="tab-arrow" />}
+            </div>
           ))}
         </div>
 
-        {/* Phone Input */}
-        <input
-          type="text"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="0712345678"
-          className="w-full p-2 mb-3 rounded text-black"
-        />
-
-        {/* Amount Input */}
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="Enter amount"
-          className="w-full p-2 mb-3 rounded text-black"
-        />
-
-        {error && <p className="text-red-400 mb-3">{error}</p>}
-
-        {/* Action Buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={initiateDeposit}
-            disabled={loading}
-            className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded w-full"
-          >
-            {loading ? "Processing..." : "Deposit"}
-          </button>
-          <button
-            onClick={withdraw}
-            className="bg-red-500 hover:bg-red-600 px-4 py-2 rounded w-full"
-          >
-            Withdraw
-          </button>
-        </div>
-
-        {/* Transaction Feedback */}
-        {transactionRef && (
-          <div className="mt-4 p-3 bg-gray-700 rounded">
-            <p>Transaction Ref: {transactionRef}</p>
-            <p>Status: {status}</p>
-            {status === "pending" && (
-              <p className="text-yellow-400">
-                Check your phone for M-Pesa prompt
+        <div className="wallet-container">
+          {/* Wallet Tab */}
+          {activeTab === "wallet" && (
+            <>
+              <h2 className="wallet-title">My Wallet</h2>
+              <p className="wallet-balance">
+                Balance: <span>{balance} KES</span>
               </p>
-            )}
-            <button
-              onClick={reset}
-              className="mt-3 bg-blue-500 px-4 py-2 rounded"
-            >
-              New Transaction
-            </button>
-          </div>
-        )}
+
+              {/* Quick Amount Buttons */}
+              <div className="quick-buttons">
+                {[100, 300, 500, 1000].map((val) => (
+                  <button key={val} onClick={() => quickAmount(val)}>
+                    {val}+
+                  </button>
+                ))}
+              </div>
+
+              {/* Inputs */}
+              <input
+                type="text"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0712345678"
+              />
+              <input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount"
+              />
+
+              {error && <p className="error-text">{error}</p>}
+
+              {/* Actions */}
+              <div className="action-buttons">
+                <button
+                  onClick={initiateDeposit}
+                  disabled={loading}
+                  className="deposit-btn"
+                >
+                  {loading ? "Processing..." : "Deposit"}
+                </button>
+                <button onClick={withdraw} className="withdraw-btn">
+                  Withdraw
+                </button>
+              </div>
+
+              {/* Transaction Info */}
+              {transactionRef && (
+                <div className="transaction-info">
+                  <p>Transaction Ref: {transactionRef}</p>
+                  <p>Status: {status}</p>
+                  {status === "pending" && (
+                    <p className="pending-text">
+                      Check your phone for M-Pesa prompt
+                    </p>
+                  )}
+                  <button onClick={reset} className="new-txn-btn">
+                    New Transaction
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Transactions Tab */}
+          {activeTab === "transactions" && (
+            <div className="placeholder-content">
+              <h2>Transactions</h2>
+              <p>Here you will see all your past deposits and withdrawals.</p>
+            </div>
+          )}
+
+          {/* Promos Tab */}
+          {activeTab === "promos" && (
+            <div className="placeholder-content">
+              <h2>Promos</h2>
+              <p>Check out ongoing and upcoming promotions here.</p>
+            </div>
+          )}
+
+          {/* Rewards Tab */}
+          {activeTab === "rewards" && (
+            <div className="placeholder-content">
+              <h2>Rewards</h2>
+              <p>View your earned points and redeem rewards.</p>
+            </div>
+          )}
+        </div>
       </div>
     </MainLayout>
   );
