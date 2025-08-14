@@ -43,7 +43,7 @@ const SideNavbar = () => {
           <MessageSquare className="icon" />
           <span className="nav-text">Messages</span>
         </a>
-        <a href="/help" className="nav-link" onClick={handleLinkClick}>
+        <a href="/wallet" className="nav-link" onClick={handleLinkClick}>
           <DollarSign className="icon" />
           <span className="nav-text">Wallet</span>
         </a>

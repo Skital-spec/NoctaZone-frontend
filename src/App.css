@@ -1156,3 +1156,109 @@ html, body {
     flex: 1;
   }
 }
+
+.wallet-header h1 {
+  margin-top: 10px;
+  font-size: 28px;
+  color: #fff;
+}
+
+.wallet-header .sub-heading {
+  font-size: 14px;
+  color: #aaa;
+}
+
+.wallet-balance {
+  background: #111;
+  border-radius: 10px;
+  padding: 15px;
+  margin: 20px 0;
+  text-align: center;
+}
+
+.wallet-balance h2 {
+  margin: 0;
+  color: #fff;
+}
+
+.wallet-balance .amount {
+  font-size: 26px;
+  color: #00ff88;
+  font-weight: bold;
+  margin-top: 5px;
+}
+
+.wallet-section {
+  background: #1b1b1b;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.wallet-section h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+}
+
+.inline-icon {
+  color: #00ff88;
+}
+
+.quick-buttons {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.quick-btn {
+  background: #2b2b2b;
+  border: none;
+  padding: 8px 14px;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.quick-btn:hover {
+  background: #00ff88;
+  color: #000;
+}
+
+.wallet-input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  margin-bottom: 10px;
+}
+
+.wallet-btn {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+}
+
+.deposit-btn {
+  background: #00ff88;
+  color: #000;
+}
+
+.deposit-btn:hover {
+  background: #00cc6a;
+}
+
+.withdraw-btn {
+  background: #ff5555;
+  color: #fff;
+}
+
+.withdraw-btn:hover {
+  background: #cc4444;
+}

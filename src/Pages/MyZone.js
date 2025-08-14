@@ -1,11 +1,12 @@
-// src/pages/MyZone.jsx
 import React, { useState } from "react";
-import { Container } from "react-bootstrap";
-import { Gamepad, Search, Clock, Trophy } from "lucide-react";
+import { Container, Button } from "react-bootstrap";
+import { Gamepad, Search, Clock, Trophy, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "../Components/MainLayout";
 
 const MyZone = () => {
   const [activeTab, setActiveTab] = useState("matches");
+  const navigate = useNavigate();
 
   const tabs = [
     { id: "matches", label: "My Matches", icon: <Gamepad size={18} /> },
@@ -13,6 +14,10 @@ const MyZone = () => {
     { id: "history", label: "Match History", icon: <Clock size={18} /> },
     { id: "tournaments", label: "My Tournaments", icon: <Trophy size={18} /> },
   ];
+
+  const handleCreateChallenge = () => {
+    navigate("/createchallenge");
+  };
 
   return (
     <MainLayout>
@@ -35,7 +40,17 @@ const MyZone = () => {
         <Container className="py-4">
           {activeTab === "matches" && (
             <div className="tab-content">
-              <h2>My Matches</h2>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h2>My Matches</h2>
+                <Button 
+                  variant="primary" 
+                  onClick={handleCreateChallenge}
+                  className="d-flex align-items-center"
+                >
+                  <Plus size={18} className="me-2" />
+                  Create Match Challenge
+                </Button>
+              </div>
               <p>Here you can view and manage all your active and upcoming matches.</p>
             </div>
           )}

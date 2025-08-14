@@ -55,7 +55,6 @@ const About = () => {
           </p>
         </motion.div>
       </div>
-
       {/* Features */}
       <div className="row text-center mb-5">
         {[
@@ -91,7 +90,6 @@ const About = () => {
           </motion.div>
         ))}
       </div>
-
       {/* CTA */}
       <motion.div
         className="text-center bg-dark text-white p-5 rounded"
