@@ -20,7 +20,7 @@ const WalletPage = () => {
 
   const fetchBalance = async () => {
     try {
-      const res = await fetch("http://localhost:5000/wallet/transaction", {
+      const res = await fetch("http://localhost:5000/api/wallet/transaction", {
         method: "GET",
         credentials: "include",
       });
