@@ -31,6 +31,28 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>NoctaZone</title>
+ <style>
+  df-messenger {
+    --df-messenger-bot-message: #0d6efd;          /* Bot bubble color (blue) */
+    --df-messenger-user-message: #00ffcc;         /* User bubble color (dark gray) */
+    --df-messenger-font-color: #fff;           /* Text color */
+    --df-messenger-send-icon: #0d6efd;            /* Send icon color */
+    --df-messenger-chat-background: #101010;      /* Chat background */
+    --df-messenger-input-box-color: #fff;      /* Input background */
+    --df-messenger-button-titlebar-color: #00ffcc;/* Header background */
+    --df-messenger-titlebar-font-color: #ffffff;  /* Header text color */
+    --df-messenger-minimized-chat-bubble-color: #0d6efd; /* Floating button */
+    --df-messenger-minimized-chat-bubble-hover-color: #0a58ca; /* Floating button hover */
+    font-family: 'Poppins', sans-serif;           /* Match NoctaZone font */
+  }
+
+  /* Optional: slightly round message bubbles for a modern feel */
+  df-messenger .df-messenger-chat-bubble,
+  df-messenger .df-messenger-user-message,
+  df-messenger .df-messenger-bot-message {
+    border-radius: 18px !important;
+  }
+</style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
@@ -45,5 +67,14 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
+
+    <script src="https://www.gstatic.com/dialogflow-console/fast/messenger/bootstrap.js?v=1"></script>
+<df-messenger
+  intent="WELCOME"
+  chat-title="NoctaZone-Guider"
+  agent-id="bcbf8ea2-198b-442b-b0df-86b2a3ec3fa2"
+  language-code="en"
+></df-messenger>
+
   </body>
 </html>
