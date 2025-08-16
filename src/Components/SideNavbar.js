@@ -6,17 +6,42 @@ const SideNavbar = () => {
   const [expanded, setExpanded] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [newMessagesCount, setNewMessagesCount] = useState(0);
+  const [userId, setUserId] = useState(null);
 
+  // Get logged-in user
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
-      if (window.innerWidth > 768) setExpanded(false);
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        setUserId(data.user.id);
+      }
     };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    getUser();
   }, []);
 
+  // Fetch unread messages count on load
   useEffect(() => {
+    if (!userId) return;
+
+    const fetchUnreadCount = async () => {
+      const { count, error } = await supabase
+        .from("private_messages")
+        .select("*", { count: "exact", head: true })
+        .eq("receiver_id", userId)
+        .eq("is_read", false); // 👈 adjust column name if different
+
+      if (!error && count !== null) {
+        setNewMessagesCount(count);
+      }
+    };
+
+    fetchUnreadCount();
+  }, [userId]);
+
+  // Subscribe to new messages
+  useEffect(() => {
+    if (!userId) return;
+
     const channel = supabase
       .channel("messages-channel")
       .on(
@@ -24,11 +49,13 @@ const SideNavbar = () => {
         {
           event: "INSERT",
           schema: "public",
-          table: "private_messages", // 👈 change to your table name
+          table: "private_messages",
         },
         (payload) => {
-          console.log("New message: ", payload);
-          setNewMessagesCount((prev) => prev + 1);
+          const newMessage = payload.new;
+          if (newMessage.receiver_id === userId) {
+            setNewMessagesCount((prev) => prev + 1);
+          }
         }
       )
       .subscribe();
@@ -36,16 +63,26 @@ const SideNavbar = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
   const toggleSidebar = () => {
     setExpanded(!expanded);
   };
 
-  const handleLinkClick = () => {
+  const handleLinkClick = (path) => {
     if (isMobile) setExpanded(false);
-    // Reset count when opening messages
-    setNewMessagesCount(0);
+
+    // Reset badge only when navigating to messages
+    if (path === "/privatechat") {
+      setNewMessagesCount(0);
+
+      // Mark messages as read in DB (optional, depends on your flow)
+      supabase
+        .from("private_messages")
+        .update({ is_read: true })
+        .eq("receiver_id", userId)
+        .eq("is_read", false);
+    }
   };
 
   return (
@@ -57,18 +94,23 @@ const SideNavbar = () => {
       )}
 
       <div className={`sidebar ${expanded ? "expanded" : ""}`}>
-        <a href="/myzone" className="nav-link" onClick={handleLinkClick}>
+        <a href="/myzone" className="nav-link" onClick={() => handleLinkClick("/myzone")}>
           <House className="icon" />
           <span className="nav-text">My Zone</span>
         </a>
 
-        <a href="/tournaments" className="nav-link" onClick={handleLinkClick}>
+        <a href="/tournaments" className="nav-link" onClick={() => handleLinkClick("/tournaments")}>
           <Trophy className="icon" />
           <span className="nav-text">Tournaments</span>
         </a>
 
         {/* Messages with badge */}
-        <a href="/privatechat" className="nav-link relative" onClick={handleLinkClick} style={{ position: "relative" }}>
+        <a
+          href="/privatechat"
+          className="nav-link relative"
+          onClick={() => handleLinkClick("/privatechat")}
+          style={{ position: "relative" }}
+        >
           <MessageSquare className="icon" />
           {newMessagesCount > 0 && (
             <span
@@ -89,23 +131,23 @@ const SideNavbar = () => {
                 fontWeight: "bold",
               }}
             >
-              {newMessagesCount}
+              {newMessagesCount > 99 ? "99+" : newMessagesCount}
             </span>
           )}
           <span className="nav-text">Messages</span>
         </a>
 
-        <a href="/wallet" className="nav-link" onClick={handleLinkClick}>
+        <a href="/wallet" className="nav-link" onClick={() => handleLinkClick("/wallet")}>
           <DollarSign className="icon" />
           <span className="nav-text">Wallet</span>
         </a>
 
-        <a href="/account" className="nav-link" onClick={handleLinkClick}>
+        <a href="/account" className="nav-link" onClick={() => handleLinkClick("/account")}>
           <Settings className="icon" />
           <span className="nav-text">Account</span>
         </a>
 
-        <a href="/help" className="nav-link" onClick={handleLinkClick}>
+        <a href="/help" className="nav-link" onClick={() => handleLinkClick("/help")}>
           <HelpCircle className="icon" />
           <span className="nav-text">Help</span>
         </a>
