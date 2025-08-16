@@ -15,6 +15,7 @@ export default function WhatsAppStyleChat() {
   const [foundUser, setFoundUser] = useState(null); // selected chat user (profile object)
   const [messages, setMessages] = useState([]); // messages with foundUser
   const [message, setMessage] = useState("");
+  const [messageDropdown, setMessageDropdown] = useState(null); // NEW: tracks which message dropdown is open
 
   // refs for cleanup and scroll
   const listChannelRef = useRef(null);
@@ -48,6 +49,37 @@ export default function WhatsAppStyleChat() {
       setFoundUser(data);
     })();
   }, [userId]);
+
+  // NEW: Function to mark messages as read
+  const markAsRead = async (messageIds) => {
+    if (!messageIds.length) return;
+    
+    const { error } = await supabase
+      .from("private_messages")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .in('id', messageIds)
+      .eq('receiver_id', currentUser.id); // Only mark as read if current user is receiver
+      
+    if (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
+
+  // NEW: Function to delete messages
+  const deleteMessage = async (messageId) => {
+    const { error } = await supabase
+      .from("private_messages")
+      .delete()
+      .eq('id', messageId)
+      .eq('sender_id', currentUser.id); // Only allow deleting own messages
+      
+    if (error) {
+      console.error("Error deleting message:", error);
+    } else {
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      setMessageDropdown(null);
+    }
+  };
 
   // --- Helper: fetch chat list (latest message per partner) ---
   const fetchChats = async (userId) => {
@@ -223,7 +255,7 @@ export default function WhatsAppStyleChat() {
     (async () => {
       const { data: msgs } = await supabase
         .from("private_messages")
-        .select("*")
+        .select("*, is_read, read_at") // UPDATED: Include read receipt columns
         .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${userId})`)
         .order("created_at", { ascending: true });
 
@@ -250,6 +282,29 @@ export default function WhatsAppStyleChat() {
           }
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "private_messages" },
+        (payload) => {
+          // UPDATED: Handle read receipt updates
+          const msg = payload.new;
+          if (
+            (msg.sender_id === userId && msg.receiver_id === otherId) ||
+            (msg.sender_id === otherId && msg.receiver_id === userId)
+          ) {
+            setMessages((prev) => prev.map(m => m.id === msg.id ? msg : m));
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "private_messages" },
+        (payload) => {
+          // UPDATED: Handle message deletions
+          const deletedId = payload.old.id;
+          setMessages((prev) => prev.filter(m => m.id !== deletedId));
+        }
+      )
       .subscribe();
 
     windowChannelRef.current = channel;
@@ -259,10 +314,28 @@ export default function WhatsAppStyleChat() {
     };
   }, [foundUser, currentUser]);
 
+  // NEW: Mark messages as read when chat window is viewed
+  useEffect(() => {
+    if (!currentUser || !foundUser || !messages.length) return;
+    
+    const unreadMessages = messages
+      .filter(msg => 
+        msg.receiver_id === currentUser.id && 
+        msg.sender_id === foundUser.id && 
+        !msg.is_read
+      )
+      .map(msg => msg.id);
+      
+    if (unreadMessages.length > 0) {
+      markAsRead(unreadMessages);
+    }
+  }, [messages, currentUser, foundUser]);
+
   const selectUser = (user) => {
     setFoundUser(user);
     setSearchUsername("");
     setSuggestions([]);
+    setMessageDropdown(null); // Close any open dropdown
   };
 
   const sendMessage = async () => {
@@ -274,11 +347,6 @@ export default function WhatsAppStyleChat() {
       content: message.trim(),
     };
 
-    const optimisticMsg = { ...payload, id: `temp-${Date.now()}`, created_at: new Date().toISOString() };
-    setMessages((prev) => [...prev, optimisticMsg]);
-    setChatUsers((prev) =>
-      prev.map((c) => (c.id === foundUser.id ? { ...c, lastMessage: message.trim(), time: optimisticMsg.created_at } : c))
-    );
     setMessage("");
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 
@@ -286,6 +354,145 @@ export default function WhatsAppStyleChat() {
     if (error) {
       console.error("sendMessage error:", error);
     }
+  };
+
+  // NEW: Message Component with read receipts and delete functionality
+  const MessageComponent = ({ msg, mine }) => {
+    const [showDropdown, setShowDropdown] = useState(false);
+    const dropdownRef = useRef(null);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+          setMessageDropdown(null);
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const ReadTicks = ({ message, isMine }) => {
+      if (!isMine) return null; // Only show ticks for sent messages
+      
+      const isRead = message.is_read;
+      const tickColor = isRead ? '#00ffcc' : '#666'; // neon for read, gray for unread
+      
+      return (
+        <div style={{ display: 'inline-flex', marginLeft: 4, alignItems: 'center' }}>
+          {/* Double tick icon */}
+          <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+            <path d="M1 4l2 2 3-3" stroke={tickColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M4 4l2 2 4-4" stroke={tickColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      );
+    };
+
+    return (
+      <div 
+        style={{ 
+          display: "flex", 
+          justifyContent: mine ? "flex-end" : "flex-start", 
+          marginBottom: 10,
+          position: 'relative'
+        }}
+      >
+        <div
+          style={{
+            background: mine ? "#00ffcc" : "#1e1e1e",
+            color: mine ? "#000" : "#fff",
+            padding: "10px 14px",
+            borderRadius: 12,
+            maxWidth: "72%",
+            wordBreak: "break-word",
+            position: 'relative'
+          }}
+          onMouseEnter={() => mine && setShowDropdown(true)}
+          onMouseLeave={() => setShowDropdown(false)}
+        >
+          {/* Three dots menu - only for own messages */}
+          {mine && (
+            <div 
+              style={{
+                position: 'absolute',
+                top: 4,
+                right: 4,
+                cursor: 'pointer',
+                opacity: showDropdown ? 1 : 0,
+                transition: 'opacity 0.2s',
+                fontSize: 16,
+                color: '#666',
+                fontWeight: 'bold'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setMessageDropdown(messageDropdown === msg.id ? null : msg.id);
+              }}
+            >
+              ⋯
+            </div>
+          )}
+
+          {/* Dropdown menu */}
+          {messageDropdown === msg.id && (
+            <div 
+              ref={dropdownRef}
+              style={{
+                position: 'absolute',
+                top: 20,
+                right: 0,
+                background: '#1e1e1e',
+                border: '1px solid #00ffcc',
+                borderRadius: 6,
+                padding: '4px 0',
+                minWidth: 80,
+                zIndex: 1000,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+              }}
+            >
+              <div
+                style={{
+                  padding: '8px 12px',
+                  cursor: 'pointer',
+                  color: '#ff4444',
+                  fontSize: 14,
+                  borderRadius: 4,
+                  margin: '0 4px',
+                  transition: 'background 0.2s'
+                }}
+                onClick={() => deleteMessage(msg.id)}
+                onMouseEnter={(e) => e.target.style.background = '#2a2a2a'}
+                onMouseLeave={(e) => e.target.style.background = 'transparent'}
+              >
+                🗑️ Delete
+              </div>
+            </div>
+          )}
+          
+          <div style={{ marginRight: mine ? 20 : 0 }}>
+            {msg.content}
+          </div>
+          
+          <div 
+            style={{ 
+              fontSize: 10, 
+              color: mine ? "#111" : "#ccc", 
+              marginTop: 6, 
+              textAlign: "right",
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 4
+            }}
+          >
+            {msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : ""}
+            <ReadTicks message={msg} isMine={mine} />
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const neon = "#00ffcc";
@@ -398,23 +605,11 @@ export default function WhatsAppStyleChat() {
                 {messages.map((msg) => {
                   const mine = msg.sender_id === currentUser?.id;
                   return (
-                    <div key={msg.id} style={{ display: "flex", justifyContent: mine ? "flex-end" : "flex-start", marginBottom: 10 }}>
-                      <div
-                        style={{
-                          background: mine ? neon : panel,
-                          color: mine ? "#000" : "#fff",
-                          padding: "10px 14px",
-                          borderRadius: 12,
-                          maxWidth: "72%",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {msg.content}
-                        <div style={{ fontSize: 10, color: mine ? "#111" : "#ccc", marginTop: 6, textAlign: "right" }}>
-                          {msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : ""}
-                        </div>
-                      </div>
-                    </div>
+                    <MessageComponent 
+                      key={msg.id}
+                      msg={msg} 
+                      mine={mine} 
+                    />
                   );
                 })}
                 <div ref={messagesEndRef} />
