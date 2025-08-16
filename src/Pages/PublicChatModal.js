@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Container, Form, Button, ListGroup, Spinner, Alert, Dropdown } from "react-bootstrap";
+import { Container, Form, Button, ListGroup, Spinner, Alert, Dropdown, Modal } from "react-bootstrap";
 import { supabase } from "../supabaseClient";
 
-const PublicChatPage = ({ currentUser }) => {
+const PublicChatModal = ({ currentUser, showModal, onClose }) => {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -162,7 +162,7 @@ const PublicChatPage = ({ currentUser }) => {
         username: username, // Include username in the insert
         message: trimmed,
       },
-    ]) ;
+    ]);
 
     if (error) {
       console.error("Error sending message:", error.message);
@@ -204,7 +204,6 @@ const PublicChatPage = ({ currentUser }) => {
       setError(`Failed to delete message: ${error.message}`);
     } else {
       console.log("✅ Message deleted successfully");
-      window.location.reload();
     }
 
     setDeletingIds(prev => {
@@ -212,7 +211,9 @@ const PublicChatPage = ({ currentUser }) => {
       newSet.delete(messageId);
       return newSet;
     });
-  }; const handleKeyPress = (e) => {
+  };
+
+  const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage(e);
@@ -231,141 +232,146 @@ const PublicChatPage = ({ currentUser }) => {
   }, [messages, currentUser, currentUserId]);
 
   return (
-    <Container fluid className="py-4" style={{ maxWidth: 800 }}>
-      <h2 className="text-center mb-4">🌍 Public Chat</h2>
+    <Modal show={showModal} onHide={onClose} size="lg" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>🌍 Public Chat</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Container fluid className="py-2">
+          {error && (
+            <Alert variant="danger" dismissible onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
 
-      {error && (
-        <Alert variant="danger" dismissible onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Messages Container */}
-      <div
-        style={{
-          border: "1px solid #dee2e6",
-          borderRadius: 8,
-          padding: 16,
-          height: "60vh",
-          overflowY: "auto",
-          backgroundColor: "#f8f9fa",
-          marginBottom: 16,
-        }}
-      >
-        {loading ? (
-          <div className="text-center my-5">
-            <Spinner animation="border" variant="primary" />
-            <p className="mt-2 text-muted">Loading messages...</p>
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="text-center text-muted my-5">
-            <p>No messages yet. Be the first to say something! 👋</p>
-          </div>
-        ) : (
-          <ListGroup variant="flush">
-            {messages.map((msg) => (
-              <ListGroup.Item 
-                key={msg.id} 
-                className="border-0 bg-transparent px-0 py-2"
-                style={{
-                  borderBottom: "1px solid #f0f0f0",
-                }}
-              >
-                <div className="d-flex justify-content-between align-items-start">
-                  <div className="flex-grow-1">
-                    <strong className="text-primary">
-                      {msg.username || "Anonymous"}:
-                    </strong>
-                    <span className="ms-2">{msg.message}</span>
-                  </div>
-                  <div className="d-flex align-items-center gap-2">
-                    <small className="text-muted" style={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-                      {new Date(msg.created_at).toLocaleTimeString([], {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </small>
-                    
-                    {/* Show delete option for user's own messages */}
-                    {(() => {
-                      const canDelete = currentUserId === msg.user_id;
-                      
-                      console.log("🔍 Delete check:", {
-                        currentUserId,
-                        msgUserId: msg.user_id,
-                        canDelete,
-                        msgId: msg.id
-                      });
-                      
-                      return canDelete;
-                    })() && (
-                      <Dropdown align="end">
-                        <Dropdown.Toggle 
-                          variant="link" 
-                          size="sm"
-                          className="text-muted p-0 border-0 shadow-none"
-                          style={{ fontSize: "1rem", lineHeight: 1 }}
-                          disabled={deletingIds.has(msg.id)}
-                        >
-                          {deletingIds.has(msg.id) ? (
-                            <Spinner animation="border" size="sm" />
-                          ) : (
-                            "⋯"
-                          )}
-                        </Dropdown.Toggle>
-
-                        <Dropdown.Menu>
-                          <Dropdown.Item 
-                            onClick={() => deleteMessage(msg.id, msg.user_id)}
-                            className="text-danger"
-                            disabled={deletingIds.has(msg.id)}
-                          >
-                            🗑️ Delete Message
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-                    )}
-                  </div>
-                </div>
-              </ListGroup.Item>
-            ))}
-            <div ref={messagesEndRef} />
-          </ListGroup>
-        )}
-      </div>
-
-      {/* Message Input Form */}
-      <Form onSubmit={sendMessage}>
-        <div className="d-flex gap-2">
-          <Form.Control
-            type="text"
-            placeholder="Type your message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={sending}
-            autoFocus
-            maxLength={500}
-          />
-          <Button 
-            type="submit" 
-            variant="success" 
-            disabled={!message.trim() || sending}
-            style={{ minWidth: "80px" }}
+          {/* Messages Container */}
+          <div
+            style={{
+              border: "1px solid #dee2e6",
+              borderRadius: 8,
+              padding: 16,
+              height: "60vh",
+              overflowY: "auto",
+              backgroundColor: "#f8f9fa",
+              marginBottom: 16,
+            }}
           >
-            {sending ? (
-              <Spinner animation="border" size="sm" />
+            {loading ? (
+              <div className="text-center my-5">
+                <Spinner animation="border" variant="primary" />
+                <p className="mt-2 text-muted">Loading messages...</p>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="text-center text-muted my-5">
+                <p>No messages yet. Be the first to say something! 👋</p>
+              </div>
             ) : (
-              "Send"
+              <ListGroup variant="flush">
+                {messages.map((msg) => (
+                  <ListGroup.Item 
+                    key={msg.id} 
+                    className="border-0 bg-transparent px-0 py-2"
+                    style={{
+                      borderBottom: "1px solid #f0f0f0",
+                    }}
+                  >
+                    <div className="d-flex justify-content-between align-items-start">
+                      <div className="flex-grow-1">
+                        <strong className="text-primary">
+                          {msg.username || "Anonymous"}:
+                        </strong>
+                        <span className="ms-2">{msg.message}</span>
+                      </div>
+                      <div className="d-flex align-items-center gap-2">
+                        <small className="text-muted" style={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                          {new Date(msg.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </small>
+                        
+                        {/* Show delete option for user's own messages */}
+                        {(() => {
+                          const canDelete = currentUserId === msg.user_id;
+                          
+                          console.log("🔍 Delete check:", {
+                            currentUserId,
+                            msgUserId: msg.user_id,
+                            canDelete,
+                            msgId: msg.id
+                          });
+                          
+                          return canDelete;
+                        })() && (
+                          <Dropdown align="end">
+                            <Dropdown.Toggle 
+                              variant="link" 
+                              size="sm"
+                              className="text-muted p-0 border-0 shadow-none"
+                              style={{ fontSize: "1rem", lineHeight: 1 }}
+                              disabled={deletingIds.has(msg.id)}
+                            >
+                              {deletingIds.has(msg.id) ? (
+                                <Spinner animation="border" size="sm" />
+                              ) : (
+                                "⋯"
+                              )}
+                            </Dropdown.Toggle>
+
+                            <Dropdown.Menu>
+                              <Dropdown.Item 
+                                onClick={() => deleteMessage(msg.id, msg.user_id)}
+                                className="text-danger"
+                                disabled={deletingIds.has(msg.id)}
+                              >
+                                🗑️ Delete Message
+                              </Dropdown.Item>
+                            </Dropdown.Menu>
+                          </Dropdown>
+                        )}
+                      </div>
+                    </div>
+                  </ListGroup.Item>
+                ))}
+                <div ref={messagesEndRef} />
+              </ListGroup>
             )}
-          </Button>
-        </div>
-        <small className="text-muted mt-1 d-block">
-          Press Enter to send • {message.length}/500 characters
-        </small>
-      </Form>
-    </Container>
+          </div>
+
+          {/* Message Input Form */}
+          <Form onSubmit={sendMessage}>
+            <div className="d-flex gap-2">
+              <Form.Control
+                type="text"
+                placeholder="Type your message..."
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                disabled={sending}
+                autoFocus
+                maxLength={500}
+              />
+              <Button 
+                type="submit" 
+                variant="success" 
+                disabled={!message.trim() || sending}
+                style={{ minWidth: "80px" }}
+              >
+                {sending ? (
+                  <Spinner animation="border" size="sm" />
+                ) : (
+                  "Send"
+                )}
+              </Button>
+            </div>
+            <small className="text-muted mt-1 d-block">
+              Press Enter to send • {message.length}/500 characters
+            </small>
+          </Form>
+        </Container>
+      </Modal.Body>
+    </Modal>
   );
 };
 
-export default PublicChatPage; 
+export default PublicChatModal;

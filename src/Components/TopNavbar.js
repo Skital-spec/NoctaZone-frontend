@@ -5,12 +5,14 @@ import { useNavigate } from "react-router-dom";
 import OnlineUsersModal from "../Pages/OnlineUsersModal";
 import UserSearchLogic from "../Pages/UserSearchLogic";
 import { supabase } from "../supabaseClient"; // import supabase client
+import PublicChatModal from "../Pages/PublicChatModal";
 
 const TopNavbar = ({ onOpenPublicChat }) => {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [searchUsers, setSearchUsers] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   // Fetch username from Supabase
   useEffect(() => {
@@ -86,9 +88,9 @@ const TopNavbar = ({ onOpenPublicChat }) => {
               </Nav.Link>
               <Nav.Link
                 href="#"
-                className="text-info d-flex align-items-center"
-                onClick={() => navigate("/publicchatmodal")}
-              >
+                className="text-info d-flex align-items-center"                
+                onClick={() => setShowChatModal(true)} onClose={() => setShowChatModal(false)} >  
+                   
                 <MessageCircle size={18} className="me-1" />
                 Public Chat
               </Nav.Link>
@@ -105,6 +107,12 @@ const TopNavbar = ({ onOpenPublicChat }) => {
       <UserSearchLogic
         show={searchUsers}
         onClose={() => setSearchUsers(false)}
+      />
+      
+      <PublicChatModal
+        // currentUser={currentUser} 
+        showModal={showChatModal} 
+        onClose={() => setShowChatModal(false)} 
       />
     </>
   );
