@@ -3,18 +3,18 @@
   "name": "NoctaZone Gaming Platform",
   "icons": [
     {
-      "src": "https://res.cloudinary.com/dm7edtofj/image/upload/v1754505778/logo_suleug.svg",
+      "src": "https://res.cloudinary.com/dm7edtofj/image/upload/v1755290534/generate_a_white_ver_z6ed6y.png",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
     },
     {
-      "src": "https://res.cloudinary.com/dm7edtofj/image/upload/v1754505778/logo_suleug.svg",
-      "type": "image/svg",
+      "src": "https://res.cloudinary.com/dm7edtofj/image/upload/v1755290534/generate_a_white_ver_z6ed6y.png",
+      "type": "image/png",
       "sizes": "192x192"
     },
     {
-      "src": "https://res.cloudinary.com/dm7edtofj/image/upload/v1754505778/logo_suleug.svg",
-      "type": "image/svg",
+      "src": "https://res.cloudinary.com/dm7edtofj/image/upload/v1755290534/generate_a_white_ver_z6ed6y.png",
+      "type": "image/png",
       "sizes": "512x512"
     }
   ],
