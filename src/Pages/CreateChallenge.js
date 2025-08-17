@@ -88,7 +88,7 @@ const CreateChallenge = () => {
     if (balance < entryFee) {
       setAlert({ 
         type: "warning", 
-        message: `Insufficient balance. You need $${entryFee} but have $${balance}. Please top up your wallet.` 
+        message: `Insufficient balance. You need Ksh${entryFee} but have Ksh${balance}. Please top up your wallet.` 
       });
       return;
     }
@@ -138,7 +138,7 @@ const CreateChallenge = () => {
       
       // Navigate back after 2 seconds
       setTimeout(() => {
-        navigate("/my-zone");
+        navigate("/myzone");
       }, 2000);
       
     } catch (error) {
@@ -182,7 +182,7 @@ const CreateChallenge = () => {
                     <Col>
                       <Form.Group>
                         <Form.Label className="d-flex align-items-center fw-bold">
-                          <DollarSign size={18} className="me-2" />
+                          Ksh
                           Entry Fee
                         </Form.Label>
                         <Form.Control
@@ -304,7 +304,7 @@ const CreateChallenge = () => {
                   <div className="d-flex justify-content-end gap-3">
                     <Button 
                       variant="outline-secondary"
-                      onClick={() => navigate("/my-zone")}
+                      onClick={() => navigate("/myzone")}
                     >
                       Cancel
                     </Button>

@@ -51,7 +51,7 @@ const MyZone = () => {
                   Create Match Challenge
                 </Button>
               </div>
-              <p>Here you can view and manage all your active and upcoming matches.</p>
+              <p>Create challenges, track matches, and compete with other players.</p>
             </div>
           )}
 

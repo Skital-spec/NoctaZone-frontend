@@ -258,7 +258,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           >
             {loading ? (
               <div className="text-center my-5">
-                <Spinner animation="border" variant="primary" />
+                <Spinner animation="border" variant="primary"/>
                 <p className="mt-2 text-muted">Loading messages...</p>
               </div>
             ) : messages.length === 0 ? (
