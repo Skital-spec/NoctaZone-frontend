@@ -6,6 +6,7 @@ const Signup = () => {
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [birthDay, setBirthDay] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthYear, setBirthYear] = useState('');
@@ -24,44 +25,67 @@ const Signup = () => {
     if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age--;
     return age >= 18;
   };
+const handleSignup = async (e) => {
+  e.preventDefault();
+  setMessage('');
+  setLoading(true);
 
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    setMessage('');
-    setLoading(true);
-
-    try {
-      if (!isOver18()) {
-        setMessage('You must be over 18 to sign up.');
-        return;
-      }
-
-      if (email !== confirmEmail) {
-        setMessage('Emails do not match.');
-        return;
-      }
-
-      if (!over18) {
-        setMessage('You must confirm you are over 18 and agree to the terms.');
-        return;
-      }
-
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (signUpError) throw signUpError;
-
-      setMessage('Account created! Please check your email to verify.');
-      navigate('/login'); // Redirect to login after email verification
-    } catch (error) {
-      console.error('Signup error:', error);
-      setMessage(error.message || 'Something went wrong.');
-    } finally {
-      setLoading(false);
+  try {
+    if (!isOver18()) {
+      setMessage('You must be over 18 to sign up.');
+      return;
     }
-  };
+
+    if (email !== confirmEmail) {
+      setMessage('Emails do not match.');
+      return;
+    }
+
+    if (!over18) {
+      setMessage('You must confirm you are over 18 and agree to the terms.');
+      return;
+    }
+
+    if (!username) {
+      setMessage('Username is required.');
+      return;
+    }
+
+    // 🔎 Check if username exists (case-insensitive)
+    const { data: existingUser, error: usernameError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('username', username)
+      .maybeSingle();
+
+    if (usernameError) throw usernameError;
+
+    if (existingUser) {
+      setMessage('That username is already taken. Try another.');
+      return;
+    }
+
+    // ✅ Create user in Supabase Auth
+    const { data: authData, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username }, // ✅ Store username in user_metadata
+      },
+    });
+
+    if (signUpError) throw signUpError;
+
+    setMessage('Account created! Please check your email to verify.');
+    navigate('/verifyemail');
+
+  } catch (error) {
+    console.error('Signup error:', error);
+    setMessage(error.message || 'Something went wrong.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
   const months = ['01','02','03','04','05','06','07','08','09','10','11','12'];
@@ -72,6 +96,15 @@ const Signup = () => {
     <div className="signup-container">
       <h1>Create Your NoctaZone Account</h1>
       <form onSubmit={handleSignup}>
+        {/* Username field */}
+        <input 
+          type="text" 
+          placeholder="Username" 
+          value={username} 
+          onChange={(e) => setUsername(e.target.value.trim())} 
+          required 
+        />
+
         <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         <input type="email" placeholder="Re-type Email" value={confirmEmail} onChange={(e) => setConfirmEmail(e.target.value)} required autoComplete="email" />
         <input type="password" placeholder="Password (min 6 characters)" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />

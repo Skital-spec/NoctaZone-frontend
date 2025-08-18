@@ -37,16 +37,16 @@ import CreateChallenge from './Pages/CreateChallenge';
 import UserSelectionModal from './Components/UserSelectionModal';
 import PaymentConfirmationModal from './Components/PaymentConfirmationModal';
 import ChallengeDetails from './Pages/ChallengeDetails';
+import VerifyEmail from './Pages/VerifyEmail';
 
 function App() {
   return (
     <div className="App">
-      {/* Wrap your app with the WalletProvider so all pages can access the wallet */}
       <WalletProvider>
         <BrowserRouter>
           <Routes>
             <Route path='/' element={<Home/>}/>
-            {/* removed the invalid walletcontext route that tried to render a hook */}
+            <Route path='/verifyemail' element={<VerifyEmail/>}/>
             <Route path='/tournament/:id/participants' element={<TournamentParticipants/>}/>
             <Route path='/wallet' element={<Wallet/>}/>
             <Route path='/challengedetails' element={<ChallengeDetails/>}/>

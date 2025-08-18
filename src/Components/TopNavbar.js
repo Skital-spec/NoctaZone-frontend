@@ -84,7 +84,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
                 👥 Search Users
               </Nav.Link>
               <Nav.Link href="/account" className="text-light">
-                {username || "Loading..."}
+                {username || "Welcome..."}
               </Nav.Link>
               <Nav.Link
                 href="#"
