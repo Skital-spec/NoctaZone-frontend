@@ -1,44 +1,222 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Navbar, Container, Nav } from "react-bootstrap";
-import { Menu, MessageCircle } from "lucide-react";
+import { Menu, MessageCircle, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import OnlineUsersModal from "../Pages/OnlineUsersModal";
 import UserSearchLogic from "../Pages/UserSearchLogic";
-import { supabase } from "../supabaseClient"; // import supabase client
+import { supabase } from "../supabaseClient";
 import PublicChatModal from "../Pages/PublicChatModal";
+
+// Simple debounce function
+const debounce = (func, wait) => {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+};
 
 const TopNavbar = ({ onOpenPublicChat }) => {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
+  const [balance, setBalance] = useState(0);
   const [showOnlineUsers, setShowOnlineUsers] = useState(false);
   const [searchUsers, setSearchUsers] = useState(false);
   const [showChatModal, setShowChatModal] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
-  // Fetch username from Supabase
+  // Function to fetch balance from backend API (consistent with wallet page)
+  const fetchBalanceFromAPI = async (uid) => {
+    try {
+      setBalanceLoading(true);
+      // console.log("Fetching balance from API for user:", uid);
+      
+      const response = await fetch(
+        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("Balance API response:", data);
+      
+      setBalance(data.balance || 0);
+      return data.balance || 0;
+    } catch (err) {
+      console.error("Failed to fetch balance from API:", err);
+      // Fallback to direct Supabase query
+      return await fetchBalanceFromSupabase(uid);
+    } finally {
+      setBalanceLoading(false);
+    }
+  };
+
+  // FIXED: Fallback function - NO MORE UPSERT WITH 0!
+  const fetchBalanceFromSupabase = async (uid) => {
+    try {
+      console.log("Fetching balance from Supabase for user:", uid);
+      
+      // FIRST: Try to get existing wallet
+      const { data: wallet, error } = await supabase
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", uid)
+        .maybeSingle(); // Use maybeSingle() instead of single()
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Supabase balance fetch error:", error);
+        return 0;
+      }
+
+      if (wallet) {
+        // Wallet exists, use its balance
+        console.log("Existing wallet found with balance:", wallet.balance);
+        setBalance(wallet.balance);
+        return wallet.balance;
+      } else {
+        // ONLY create wallet if it truly doesn't exist
+        console.log("No wallet found, creating new wallet with balance 0");
+        const { data: newWallet, error: createError } = await supabase
+          .from("wallets")
+          .insert({ user_id: uid, balance: 0 })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error("Failed to create wallet:", createError);
+          setBalance(0);
+          return 0;
+        }
+
+        setBalance(0);
+        return 0;
+      }
+    } catch (err) {
+      console.error("Error fetching balance from Supabase:", err);
+      return 0;
+    }
+  };
+
+  // Add debounced version to prevent rapid calls
+  const debouncedFetchBalance = useCallback(
+    debounce((uid) => fetchBalanceFromAPI(uid), 1000),
+    []
+  );
+
+  // Manual refresh balance function with cooldown
+  const refreshBalance = async () => {
+    if (userId && !balanceLoading) {
+      await fetchBalanceFromAPI(userId);
+    }
+  };
+
   useEffect(() => {
-    const fetchUsername = async () => {
+    let subscription;
+    let intervalId;
+
+    const fetchUserAndWallet = async () => {
       try {
+        // ✅ get logged in user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError) throw userError;
+        if (!user) return;
 
-        if (user) {
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("username")
-            .eq("id", user.id)
-            .single();
+        console.log("User authenticated:", user.id);
+        setUserId(user.id);
 
-          if (error) throw error;
-          if (data) {
-            setUsername(data.username);
+        // ✅ fetch username
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+
+        if (profile && !profileError) {
+          setUsername(profile.username);
+        } else {
+          console.warn("Profile fetch error:", profileError);
+          // Fallback to user email if username not found
+          if (user.email) {
+            setUsername(user.email.split('@')[0]);
           }
         }
+
+        // ✅ CRITICAL FIX: Only fetch balance, DO NOT create/upsert wallet here
+        console.log("Fetching existing wallet balance...");
+        await fetchBalanceFromAPI(user.id);
+
+        // ✅ real-time subscription for wallet updates
+        subscription = supabase
+          .channel(`wallet-changes-${user.id}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "wallets",
+              filter: `user_id=eq.${user.id}`,
+            },
+            async (payload) => {
+              // console.log("Realtime wallet update:", payload);
+              if (payload.new && payload.new.balance !== undefined) {
+                setBalance(payload.new.balance);
+              } else if (payload.eventType === "DELETE") {
+                setBalance(0);
+              } else {
+                // Fallback: fetch fresh data from API
+                await fetchBalanceFromAPI(user.id);
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log("Realtime subscription status:", status);
+          });
+
+        // ✅ Optional: Poll for balance updates every 30 seconds as backup
+        intervalId = setInterval(async () => {
+          await fetchBalanceFromAPI(user.id);
+        }, 30000); // 30 seconds
+
       } catch (err) {
-        console.error("Error fetching username:", err.message);
+        console.error("Error fetching user/wallet:", err.message);
       }
     };
 
-    fetchUsername();
+    fetchUserAndWallet();
+
+    // Cleanup function
+    return () => {
+      if (subscription) {
+        // console.log("Cleaning up subscription");
+        supabase.removeChannel(subscription);
+      }
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, []);
+
+  // Listen for custom balance update events (from wallet page)
+  useEffect(() => {
+    const handleBalanceUpdate = (event) => {
+      // console.log("Custom balance update event:", event.detail);
+      if (event.detail.balance !== undefined) {
+        setBalance(event.detail.balance);
+      }
+    };
+
+    window.addEventListener('balanceUpdated', handleBalanceUpdate);
+    
+    return () => {
+      window.removeEventListener('balanceUpdated', handleBalanceUpdate);
+    };
   }, []);
 
   return (
@@ -51,8 +229,11 @@ const TopNavbar = ({ onOpenPublicChat }) => {
         style={{ backgroundColor: "#0a0a0a" }}
       >
         <Container fluid>
-          {/* Logo & Name */}
-          <Navbar.Brand href="/" className="d-flex align-items-center text-neon" id="top-nav">
+          <Navbar.Brand
+            href="/"
+            className="d-flex align-items-center text-neon"
+            id="top-nav"
+          >
             <img
               src="https://res.cloudinary.com/dm7edtofj/image/upload/v1754505778/logo_suleug.svg"
               alt="Logo"
@@ -64,23 +245,57 @@ const TopNavbar = ({ onOpenPublicChat }) => {
             <h1 className="">NoctaZone</h1>
           </Navbar.Brand>
 
-          {/* Hamburger toggle */}
           <Navbar.Toggle
             aria-controls="navbar-nav"
             className="border-0"
             children={<Menu size={22} color="#00ffcc" />}
           />
 
-          {/* Collapsible menu */}
           <Navbar.Collapse id="navbar-nav" className="bg=#111 p-3 p-lg-0">
             <Nav className="ms-auto align-items-lg-center">
-              <Nav.Link href="/wallet" className="text-light">
-                💰 KSh 0.00
+              <Nav.Link 
+                href="/wallet" 
+                className="text-light d-flex align-items-center"
+                style={{ cursor: 'pointer' }}
+              >
+                💰 Tokens {balance.toFixed(2)}
+                {balanceLoading && (
+                  <RefreshCw 
+                    size={14} 
+                    className="ms-1 animate-spin" 
+                    style={{ animation: 'spin 1s linear infinite' }}
+                  />
+                )}
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    refreshBalance();
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#00ffcc',
+                    marginLeft: '5px',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    borderRadius: '3px'
+                  }}
+                  title="Refresh balance"
+                >
+                  ⟳
+                </button>
               </Nav.Link>
-              <Nav.Link onClick={() => setShowOnlineUsers(true)} className="text-success">
+              <Nav.Link
+                onClick={() => setShowOnlineUsers(true)}
+                className="text-success"
+              >
                 👥 Online Users
               </Nav.Link>
-              <Nav.Link onClick={() => setSearchUsers(true)} className="text-success">
+              <Nav.Link
+                onClick={() => setSearchUsers(true)}
+                className="text-success"
+              >
                 👥 Search Users
               </Nav.Link>
               <Nav.Link href="/account" className="text-light">
@@ -88,9 +303,9 @@ const TopNavbar = ({ onOpenPublicChat }) => {
               </Nav.Link>
               <Nav.Link
                 href="#"
-                className="text-info d-flex align-items-center"                
-                onClick={() => setShowChatModal(true)} onClose={() => setShowChatModal(false)} >  
-                   
+                className="text-info d-flex align-items-center"
+                onClick={() => setShowChatModal(true)}
+              >
                 <MessageCircle size={18} className="me-1" />
                 Public Chat
               </Nav.Link>
@@ -108,12 +323,21 @@ const TopNavbar = ({ onOpenPublicChat }) => {
         show={searchUsers}
         onClose={() => setSearchUsers(false)}
       />
-      
       <PublicChatModal
-        // currentUser={currentUser} 
-        showModal={showChatModal} 
-        onClose={() => setShowChatModal(false)} 
+        showModal={showChatModal}
+        onClose={() => setShowChatModal(false)}
       />
+
+      {/* Custom CSS for spin animation */}
+      <style >{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
     </>
   );
 };

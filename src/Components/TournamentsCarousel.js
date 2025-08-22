@@ -214,7 +214,7 @@ const TournamentsCarousel = () => {
                     fontSize: "1rem",
                   }}
                 >
-                  {t.tournament_name || "Tournament"}
+                  {t.name || "Tournament"}
                 </h5>
                 {t.game_name && (
                   <p
@@ -231,9 +231,9 @@ const TournamentsCarousel = () => {
                   Seats: {t.seats ?? "—"}
                 </p>
                 <p style={{ margin: "0 0 0.5rem 0", fontSize: "0.85rem" }}>
-                  Entry Fee:{" "}
+                  Entry Cost:{" "}
                   <span style={{ color: "#cbd5ce" }}>
-                    KSh {t.entry_fee ?? 0}
+                    {t.entry_fee ?? 0} Tokens
                   </span>
                 </p>
                 <p
@@ -243,7 +243,7 @@ const TournamentsCarousel = () => {
                     color: "#9ff3d8",
                   }}
                 >
-                  Prize: KSh {t.prize ?? 0}
+                  Prize: {t.prize ?? 0} Tokens
                 </p>
 
                 <button

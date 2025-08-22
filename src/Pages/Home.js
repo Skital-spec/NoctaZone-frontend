@@ -84,37 +84,38 @@ function Home() {
     </div>
   </div>
 </div>
- <div className="page-three">
-      <h2 className="section-title">How It Works</h2>
-      <div className="steps-container">
-        <div
-          className="step-card slide-in-left"
-          ref={(el) => (stepsRef.current[0] = el)}
-        >
-          <span className="material-icons step-icon">credit_card</span>
-          <h3>Step 1: Fund Your Account</h3>
-          <p>We accept card and mobile money.</p>
-        </div>
-
-        <div
-          className="step-card slide-in-bottom"
-          ref={(el) => (stepsRef.current[1] = el)}
-        >
-          <span className="material-icons step-icon">sports_esports</span>
-          <h3>Step 2: Play a Game</h3>
-          <p>Link up, play, and report your results.</p>
-        </div>
-
-        <div
-          className="step-card slide-in-right"
-          ref={(el) => (stepsRef.current[2] = el)}
-        >
-          <span className="material-icons step-icon">monetization_on</span>
-          <h3>Step 3: Get Paid</h3>
-          <p>The winner receives the cash prize.</p>
-        </div>
-      </div>
+<div className="page-three">
+  <h2 className="section-title">How It Works</h2>
+  <div className="steps-container">
+    <div
+      className="step-card slide-in-left"
+      ref={(el) => (stepsRef.current[0] = el)}
+    >
+      <span className="material-icons step-icon">credit_card</span>
+      <h3>Step 1: Buy Tokens</h3>
+      <p>Purchase tokens instantly using card or mobile money.</p>
     </div>
+
+    <div
+      className="step-card slide-in-bottom"
+      ref={(el) => (stepsRef.current[1] = el)}
+    >
+      <span className="material-icons step-icon">sports_esports</span>
+      <h3>Step 2: Join Matches</h3>
+      <p>Use your tokens to enter matches and compete with others.</p>
+    </div>
+
+    <div
+      className="step-card slide-in-right"
+      ref={(el) => (stepsRef.current[2] = el)}
+    >
+      <span className="material-icons step-icon">monetization_on</span>
+      <h3>Step 3: Win Rewards</h3>
+      <p>Winners automatically earn token prizes in their wallet.</p>
+    </div>
+  </div>
+</div>
+
 
     <TournamentsCarousel />
 
@@ -136,6 +137,9 @@ function Home() {
 
     <a href="https://www.youtube.com/@Noctazonegamers" target="_blank"
         rel="noopener noreferrer"><i className="fab fa-youtube"></i></a>
+
+    <a href="https://whatsapp.com/channel/0029Vb6WoTdBadmaXjoT5F0l" target="_blank"
+        rel="noopener noreferrer"><i className="fab fa-whatsapp"></i></a>    
   </div>
 
   {/* Branding Info */}

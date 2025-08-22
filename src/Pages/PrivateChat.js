@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
+import { X, Trophy, Calendar, User, DollarSign, GamepadIcon } from "lucide-react";
 import MainLayout from "../Components/MainLayout";
 
 export default function WhatsAppStyleChat() {
@@ -11,11 +12,20 @@ export default function WhatsAppStyleChat() {
   // UI state
   const [searchUsername, setSearchUsername] = useState("");
   const [suggestions, setSuggestions] = useState([]);
-  const [chatUsers, setChatUsers] = useState([]); // {id, username, avatar_url, lastMessage, time}
-  const [foundUser, setFoundUser] = useState(null); // selected chat user (profile object)
-  const [messages, setMessages] = useState([]); // messages with foundUser
+  const [chatUsers, setChatUsers] = useState([]);
+  const [foundUser, setFoundUser] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
-  const [messageDropdown, setMessageDropdown] = useState(null); // NEW: tracks which message dropdown is open
+  const [messageDropdown, setMessageDropdown] = useState(null);
+  
+  // NEW: Challenge modal states
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showLowBalanceModal, setShowLowBalanceModal] = useState(false);
+  const [balance, setBalance] = useState(0);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [alert, setAlert] = useState(null);
 
   // refs for cleanup and scroll
   const listChannelRef = useRef(null);
@@ -23,13 +33,43 @@ export default function WhatsAppStyleChat() {
   const messagesEndRef = useRef(null);
   const suggestionsDebounceRef = useRef(null);
 
+  // Game types mapping (should match CreateChallenge component)
+  const gameTypes = [
+    { value: "pes", label: "PES (Pro Evolution Soccer)" },
+    { value: "fifa", label: "FIFA" },
+    { value: "cod", label: "Call of Duty" },
+    { value: "fortnite", label: "Fortnite" },
+    { value: "apex", label: "Apex Legends" },
+    { value: "valorant", label: "Valorant" }
+  ];
+
   // --- Get current user once on mount ---
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      if (data?.user) setCurrentUser(data.user);
+      if (data?.user) {
+        setCurrentUser(data.user);
+        // Fetch balance when user is loaded
+        fetchBalance(data.user.id);
+      }
     })();
   }, []);
+
+  // NEW: Fetch user balance
+  const fetchBalance = async (uid) => {
+    try {
+      console.log("Fetching balance for user:", uid);
+      const res = await fetch(
+        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`
+      );
+      const data = await res.json();
+      console.log("Balance response:", data);
+      const newBalance = data.balance || 0;
+      setBalance(newBalance);
+    } catch (err) {
+      console.error("Fetch balance failed", err);
+    }
+  };
 
   // --- Fetch profile from URL param userId ---
   useEffect(() => {
@@ -50,7 +90,7 @@ export default function WhatsAppStyleChat() {
     })();
   }, [userId]);
 
-  // NEW: Function to mark messages as read
+  // Function to mark messages as read
   const markAsRead = async (messageIds) => {
     if (!messageIds.length) return;
     
@@ -58,26 +98,138 @@ export default function WhatsAppStyleChat() {
       .from("private_messages")
       .update({ is_read: true, read_at: new Date().toISOString() })
       .in('id', messageIds)
-      .eq('receiver_id', currentUser.id); // Only mark as read if current user is receiver
+      .eq('receiver_id', currentUser.id);
       
     if (error) {
       console.error("Error marking messages as read:", error);
     }
   };
 
-  // NEW: Function to delete messages
+  // Function to delete messages
   const deleteMessage = async (messageId) => {
     const { error } = await supabase
       .from("private_messages")
       .delete()
       .eq('id', messageId)
-      .eq('sender_id', currentUser.id); // Only allow deleting own messages
+      .eq('sender_id', currentUser.id);
       
     if (error) {
       console.error("Error deleting message:", error);
     } else {
       setMessages(prev => prev.filter(msg => msg.id !== messageId));
       setMessageDropdown(null);
+    }
+  };
+
+  // NEW: Function to view challenge details
+  const viewChallengeDetails = (challengeData) => {
+    console.log("📋 Viewing challenge details:", challengeData);
+    setSelectedChallenge(challengeData);
+    setShowChallengeModal(true);
+  };
+
+  // NEW: Function to accept challenge
+  const acceptChallenge = async () => {
+    if (!selectedChallenge || !currentUser) return;
+
+    const entryFee = parseFloat(selectedChallenge.entry_fee);
+    setIsAccepting(true);
+    setAlert(null);
+
+    try {
+      // Check balance first
+      await fetchBalance(currentUser.id);
+      
+      if (balance < entryFee) {
+        setShowConfirmModal(false);
+        setShowLowBalanceModal(true);
+        setIsAccepting(false);
+        return;
+      }
+
+      console.log("🎮 Accepting challenge:", {
+        challengeId: selectedChallenge.challenge_id,
+        userId: currentUser.id,
+        entryFee
+      });
+
+      // Call backend API to accept challenge
+      const response = await fetch("http://localhost:5000/api/wallet/challenge-accept", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          challenge_id: selectedChallenge.challenge_id,
+          entry_fee: entryFee
+        }),
+      });
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error("❌ Failed to parse response:", parseError);
+        throw new Error("Invalid response from server");
+      }
+
+      console.log("🎮 Challenge acceptance response:", result);
+
+      if (!response.ok) {
+        console.error("❌ Challenge acceptance failed:", result);
+        
+        if (result.error === "Insufficient balance") {
+          setShowConfirmModal(false);
+          setShowLowBalanceModal(true);
+          return;
+        }
+        
+        throw new Error(result.error || result.details || `Server error: ${response.status}`);
+      }
+
+      if (!result.success && result.success !== undefined) {
+        console.error("❌ Challenge acceptance was not successful:", result);
+        throw new Error(result.error || "Challenge acceptance failed");
+      }
+
+      // Update local balance
+      const newBalance = result.new_balance;
+      if (newBalance !== undefined && newBalance !== null) {
+        console.log("💰 Updating balance from", balance, "to", newBalance);
+        setBalance(newBalance);
+        
+        // Update TopNavbar balance
+        window.dispatchEvent(new CustomEvent('balanceUpdated', {
+          detail: { balance: newBalance }
+        }));
+      } else {
+        await fetchBalance(currentUser.id);
+      }
+
+      // Close modals and show success
+      setShowConfirmModal(false);
+      setShowChallengeModal(false);
+      
+      setAlert({ 
+        type: "success", 
+        message: `✅ Challenge accepted successfully! ${entryFee} tokens deducted. New balance: ${newBalance || balance - entryFee} tokens. Good luck! 🎮` 
+      });
+
+      // Auto-hide alert after 5 seconds
+      setTimeout(() => setAlert(null), 5000);
+
+    } catch (err) {
+      console.error("🔥 Challenge acceptance error:", err);
+      setAlert({ 
+        type: "danger", 
+        message: `❌ Failed to accept challenge: ${err.message}` 
+      });
+      setTimeout(() => setAlert(null), 5000);
+    } finally {
+      setIsAccepting(false);
     }
   };
 
@@ -255,7 +407,7 @@ export default function WhatsAppStyleChat() {
     (async () => {
       const { data: msgs } = await supabase
         .from("private_messages")
-        .select("*, is_read, read_at") // UPDATED: Include read receipt columns
+        .select("*, is_read, read_at")
         .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${userId})`)
         .order("created_at", { ascending: true });
 
@@ -286,7 +438,6 @@ export default function WhatsAppStyleChat() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "private_messages" },
         (payload) => {
-          // UPDATED: Handle read receipt updates
           const msg = payload.new;
           if (
             (msg.sender_id === userId && msg.receiver_id === otherId) ||
@@ -300,7 +451,6 @@ export default function WhatsAppStyleChat() {
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "private_messages" },
         (payload) => {
-          // UPDATED: Handle message deletions
           const deletedId = payload.old.id;
           setMessages((prev) => prev.filter(m => m.id !== deletedId));
         }
@@ -314,7 +464,7 @@ export default function WhatsAppStyleChat() {
     };
   }, [foundUser, currentUser]);
 
-  // NEW: Mark messages as read when chat window is viewed
+  // Mark messages as read when chat window is viewed
   useEffect(() => {
     if (!currentUser || !foundUser || !messages.length) return;
     
@@ -335,7 +485,7 @@ export default function WhatsAppStyleChat() {
     setFoundUser(user);
     setSearchUsername("");
     setSuggestions([]);
-    setMessageDropdown(null); // Close any open dropdown
+    setMessageDropdown(null);
   };
 
   const sendMessage = async () => {
@@ -356,10 +506,130 @@ export default function WhatsAppStyleChat() {
     }
   };
 
-  // NEW: Message Component with read receipts and delete functionality
+  // NEW: Challenge Message Component
+  const ChallengeMessageComponent = ({ msg, challengeData }) => {
+    const gameLabel = gameTypes.find(g => g.value === challengeData.game_type)?.label || challengeData.game_type;
+    const isExpired = challengeData.expires_at && new Date(challengeData.expires_at) < new Date();
+    
+    return (
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "flex-start", 
+        marginBottom: 10 
+      }}>
+        <div
+          style={{
+            background: "linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)",
+            color: "#fff",
+            padding: "16px",
+            borderRadius: 12,
+            maxWidth: "85%",
+            border: "2px solid #00ffcc",
+            boxShadow: "0 4px 15px rgba(0, 255, 204, 0.2)",
+          }}
+        >
+          {/* Challenge Header */}
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            marginBottom: 12,
+            color: '#00ffcc',
+            fontWeight: 'bold'
+          }}>
+            <GamepadIcon size={20} style={{ marginRight: 8 }} />
+            🎮 GAME CHALLENGE
+          </div>
+
+          {/* Challenge Details */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: 6 }}>
+              <strong>Game:</strong> {gameLabel}
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <strong>Entry Fee:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.entry_fee} tokens</span>
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <strong>Prize:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.prize_amount} tokens</span>
+            </div>
+            
+            {isExpired && (
+              <div style={{ color: '#ff4444', fontSize: 12, marginTop: 8 }}>
+                ⚠️ This challenge has expired
+              </div>
+            )}
+          </div>
+
+          {/* Action Button */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => viewChallengeDetails(challengeData)}
+              style={{
+                background: '#00ffcc',
+                color: '#000',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: 6,
+                fontSize: 14,
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#00e6b8'}
+              onMouseLeave={(e) => e.target.style.background = '#00ffcc'}
+            >
+              View Details
+            </button>
+            {!isExpired && (
+              <button
+                onClick={() => {
+                  setSelectedChallenge(challengeData);
+                  setShowConfirmModal(true);
+                }}
+                style={{
+                  background: 'transparent',
+                  color: '#00ffcc',
+                  border: '2px solid #00ffcc',
+                  padding: '8px 16px',
+                  borderRadius: 6,
+                  fontSize: 14,
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#00ffcc';
+                  e.target.style.color = '#000';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'transparent';
+                  e.target.style.color = '#00ffcc';
+                }}
+              >
+                Quick Accept
+              </button>
+            )}
+          </div>
+
+          <div style={{ 
+            fontSize: 10, 
+            color: "#ccc", 
+            marginTop: 12, 
+            textAlign: "right" 
+          }}>
+            {msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : ""}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Enhanced Message Component
   const MessageComponent = ({ msg, mine }) => {
     const [showDropdown, setShowDropdown] = useState(false);
     const dropdownRef = useRef(null);
+
+    // Check if this is a challenge message
+    const isChallengeMessage = msg.message_type === 'challenge' && msg.challenge_data;
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -374,14 +644,13 @@ export default function WhatsAppStyleChat() {
     }, []);
 
     const ReadTicks = ({ message, isMine }) => {
-      if (!isMine) return null; // Only show ticks for sent messages
+      if (!isMine) return null;
       
       const isRead = message.is_read;
-      const tickColor = isRead ? '#00ffcc' : '#666'; // neon for read, gray for unread
+      const tickColor = isRead ? '#00ffcc' : '#666';
       
       return (
         <div style={{ display: 'inline-flex', marginLeft: 4, alignItems: 'center' }}>
-          {/* Double tick icon */}
           <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
             <path d="M1 4l2 2 3-3" stroke={tickColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             <path d="M4 4l2 2 4-4" stroke={tickColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -390,6 +659,12 @@ export default function WhatsAppStyleChat() {
       );
     };
 
+    // If it's a challenge message, render the special component
+    if (isChallengeMessage && !mine) {
+      return <ChallengeMessageComponent msg={msg} challengeData={msg.challenge_data} />;
+    }
+
+    // Regular message component
     return (
       <div 
         style={{ 
@@ -495,6 +770,36 @@ export default function WhatsAppStyleChat() {
     );
   };
 
+  // Modal styles
+  const modalStyles = {
+    overlay: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "rgba(0, 0, 0, 0.85)",
+      zIndex: 9999,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    content: {
+      position: "relative",
+      backgroundColor: "#0d0d0d",
+      border: "2px solid #00ffcc",
+      borderRadius: "12px",
+      padding: "24px",
+      maxWidth: "500px",
+      width: "90%",
+      maxHeight: "80vh",
+      overflow: "auto",
+      margin: "0",
+      inset: "auto",
+      boxShadow: "0 0 15px #00ffcc55",
+    },
+  };
+
   const neon = "#00ffcc";
   const dark = "#121212";
   const panel = "#1e1e1e";
@@ -502,6 +807,24 @@ export default function WhatsAppStyleChat() {
   return (
     <MainLayout>
       <div className="chat-layout" style={{ height: "90vh", background: dark, color: "#fff" }}>
+        {/* Success/Error Alert */}
+        {alert && (
+          <div style={{
+            position: 'fixed',
+            top: 20,
+            right: 20,
+            zIndex: 10000,
+            background: alert.type === 'success' ? '#28a745' : '#dc3545',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            maxWidth: '400px'
+          }}>
+            {alert.message}
+          </div>
+        )}
+
         {/* Left Sidebar */}
         <div className="chat-sidebar" style={{ width: "32%", borderRight: `1px solid ${neon}`, padding: 12, boxSizing: "border-box" }}>
           <div style={{ marginBottom: 10 }}>
@@ -599,6 +922,9 @@ export default function WhatsAppStyleChat() {
             <>
               <div style={{ padding: 12, borderBottom: `1px solid ${neon}`, background: panel, color: neon, fontWeight: "bold" }}>
                 {foundUser.username}
+                <span style={{ marginLeft: 20, fontSize: 12, color: '#999' }}>
+                  Balance: {balance} tokens
+                </span>
               </div>
 
               <div style={{ flex: 1, overflowY: "auto", padding: 16, background: dark }}>
@@ -653,6 +979,349 @@ export default function WhatsAppStyleChat() {
             <div style={{ padding: 24, color: "#888" }}>Select a chat to start messaging</div>
           )}
         </div>
+
+        {/* Challenge Details Modal */}
+        {showChallengeModal && selectedChallenge && (
+          <div style={modalStyles.overlay}>
+            <div style={modalStyles.content}>
+              <div className="text-white">
+                <button 
+                  style={{
+                    background: '#00ffcc', 
+                    border:'none', 
+                    borderRadius:'50%',
+                    width: '30px',
+                    height: '30px',
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setShowChallengeModal(false)}
+                >
+                  <X size={18} color="#000" />
+                </button>
+                
+                <h2 className="text-xl font-bold mb-4 pr-8" style={{color: '#00ffcc'}} >
+                  🎮 Challenge Details
+                </h2>
+                
+                <div className="mb-6 text-gray-300">
+                  <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+                      <GamepadIcon size={20} style={{ marginRight: 8, color: '#00ffcc' }} />
+                      <strong style={{ color: '#00ffcc' }}>Game Information</strong>
+                    </div>
+                    <p style={{ marginBottom: 8 }}>
+                      <strong>Game:</strong> {gameTypes.find(g => g.value === selectedChallenge.game_type)?.label || selectedChallenge.game_type}
+                    </p>
+                  </div>
+
+                  <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+                      <DollarSign size={20} style={{ marginRight: 8, color: '#00ffcc' }} />
+                      <strong style={{ color: '#00ffcc' }}>Financial Details</strong>
+                    </div>
+                    <p style={{ marginBottom: 8 }}>
+                      <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}}>{selectedChallenge.entry_fee} tokens</span>
+                    </p>
+                    <p style={{ marginBottom: 8 }}>
+                      <strong>Prize Pool:</strong> <span style={{color: '#00ffcc'}}>{selectedChallenge.prize_amount} tokens</span>
+                    </p>
+                    <p style={{ fontSize: 12, color: '#999' }}>
+                      Your current balance: {balance} tokens
+                    </p>
+                  </div>
+
+                  <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+                      <Calendar size={20} style={{ marginRight: 8, color: '#00ffcc' }} />
+                      <strong style={{ color: '#00ffcc' }}>Schedule</strong>
+                    </div>
+                    <p style={{ marginBottom: 8 }}>
+                      <strong>Play Time:</strong> {selectedChallenge.play_time ? new Date(selectedChallenge.play_time).toLocaleString() : 'Not specified'}
+                    </p>
+                    <p style={{ marginBottom: 8 }}>
+                      <strong>Expires:</strong> {selectedChallenge.expires_at ? new Date(selectedChallenge.expires_at).toLocaleString() : 'No expiration'}
+                    </p>
+                  </div>
+
+                  {selectedChallenge.rules && (
+                    <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
+                      <strong style={{ color: '#00ffcc', display: 'block', marginBottom: 8 }}>Match Rules:</strong>
+                      <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                        {selectedChallenge.rules}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {selectedChallenge.expires_at && new Date(selectedChallenge.expires_at) > new Date() ? (
+                    <>
+                      <button 
+                        style={{
+                          background: '#00ffcc', 
+                          border:'none', 
+                          padding:'12px 24px', 
+                          borderRadius:'8px',
+                          color: '#000',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          flex: 1,
+                          minWidth: '120px'
+                        }}
+                        onClick={() => {
+                          setShowChallengeModal(false);
+                          setShowConfirmModal(true);
+                        }}
+                      >
+                        Accept Challenge
+                      </button>
+                      <button 
+                        style={{
+                          background: 'transparent', 
+                          border:'2px solid #666', 
+                          padding:'12px 24px', 
+                          borderRadius:'8px',
+                          color: '#666',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          flex: 1,
+                          minWidth: '120px'
+                        }}
+                        onClick={() => setShowChallengeModal(false)}
+                      >
+                        Close
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ 
+                        color: '#ff4444', 
+                        textAlign: 'center', 
+                        width: '100%', 
+                        marginBottom: 12,
+                        padding: 8,
+                        background: '#2a1a1a',
+                        borderRadius: 6,
+                        border: '1px solid #ff4444'
+                      }}>
+                        ⚠️ This challenge has expired and can no longer be accepted
+                      </div>
+                      <button 
+                        style={{
+                          background: '#666', 
+                          border:'none', 
+                          padding:'12px 24px', 
+                          borderRadius:'8px',
+                          color: '#fff',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          width: '100%'
+                        }}
+                        onClick={() => setShowChallengeModal(false)}
+                      >
+                        Close
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirm Accept Challenge Modal */}
+        {showConfirmModal && selectedChallenge && (
+          <div style={modalStyles.overlay}>
+            <div style={modalStyles.content}>
+              <div className="text-white">
+                <button 
+                  style={{
+                    background: '#00ffcc', 
+                    border:'none', 
+                    borderRadius:'50%',
+                    width: '30px',
+                    height: '30px',
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setShowConfirmModal(false)}
+                  disabled={isAccepting}
+                >
+                  <X size={18} color="#000" />
+                </button>
+                
+                <h2 className="text-xl font-bold mb-4 pr-8" style={{color: '#00ffcc'}} >
+                  Confirm Challenge Acceptance
+                </h2>
+                
+                <div className="mb-6 text-gray-300">
+                  <p className="mb-3">
+                    <strong>Game:</strong> {gameTypes.find(g => g.value === selectedChallenge.game_type)?.label}
+                  </p>
+                  <p className="mb-3">
+                    <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.entry_fee} tokens</span>
+                  </p>
+                  <p className="mb-3">
+                    <strong>Prize:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.prize} tokens</span>
+                  </p>
+                  <p className="mb-3">
+                    <strong>Challenger:</strong> @{selectedChallenge.sender_username}
+                  </p>
+                  <div style={{ 
+                    background: '#1a1a1a', 
+                    padding: 12, 
+                    borderRadius: 8, 
+                    border: '1px solid #333',
+                    marginTop: 16
+                  }}>
+                    <p style={{ fontSize: 14, marginBottom: 8 }}>
+                      <strong>Your Balance:</strong> {balance} tokens
+                    </p>
+                    <p style={{ fontSize: 14, color: balance >= selectedChallenge.entry_fee ? '#00ffcc' : '#ff4444' }}>
+                      <strong>After Acceptance:</strong> {balance - selectedChallenge.entry_fee} tokens
+                    </p>
+                  </div>
+                  <p className="text-sm text-gray-400 mt-4">
+                    Are you sure you want to accept this challenge?
+                  </p>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button 
+                    style={{
+                      background: '#00ffcc', 
+                      border:'none', 
+                      padding:'12px 24px', 
+                      borderRadius:'8px',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      cursor: isAccepting ? 'not-allowed' : 'pointer',
+                      flex: 1,
+                      opacity: isAccepting ? 0.7 : 1
+                    }}
+                    onClick={acceptChallenge}
+                    disabled={isAccepting}
+                  >
+                    {isAccepting ? "Processing..." : "Yes, Accept Challenge"}
+                  </button>
+                  <button 
+                    style={{
+                      background: 'transparent', 
+                      border:'2px solid #666', 
+                      padding:'12px 24px', 
+                      borderRadius:'8px',
+                      color: '#666',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      flex: 1
+                    }}
+                    onClick={() => setShowConfirmModal(false)}
+                    disabled={isAccepting}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Low Balance Modal */}
+        {showLowBalanceModal && selectedChallenge && (
+          <div style={modalStyles.overlay}>
+            <div style={modalStyles.content}>
+              <div className="text-white">
+                <button 
+                  style={{
+                    background: '#00ffcc', 
+                    border:'none', 
+                    borderRadius:'50%',
+                    width: '30px',
+                    height: '30px',
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setShowLowBalanceModal(false)}
+                >
+                  <X size={18} color="#000" />
+                </button>
+                
+                <h2 className="text-xl font-bold text-red-400 mb-4 pr-8">
+                  Insufficient Balance
+                </h2>
+                
+                <div className="mb-6">
+                  <p className="text-gray-300 mb-2">
+                    You don't have enough tokens to accept this challenge.
+                  </p>
+                  <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700">
+                    <p className="text-sm text-gray-400">Required:</p>
+                    <p className="text-lg font-semibold" style={{color: '#00ffcc'}}>
+                      {selectedChallenge.entry_fee} tokens
+                    </p>
+                    <p className="text-sm text-gray-400 mt-2">Your Balance:</p>
+                    <p className="text-lg font-semibold text-red-400">
+                      {balance} tokens
+                    </p>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button 
+                    style={{
+                      background: '#00ffcc', 
+                      border:'none', 
+                      padding:'12px 20px', 
+                      borderRadius:'8px',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      flex: 1
+                    }}
+                    onClick={() => {
+                      setShowLowBalanceModal(false);
+                      // Navigate to wallet (you might need to import useNavigate from react-router-dom)
+                      window.location.href = '/wallet';
+                    }}
+                  >
+                    Deposit Tokens
+                  </button>
+                  <button 
+                    style={{
+                      background: 'transparent', 
+                      border:'2px solid #666', 
+                      padding:'12px 20px', 
+                      borderRadius:'8px',
+                      color: '#666',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      flex: 1
+                    }}
+                    onClick={() => setShowLowBalanceModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

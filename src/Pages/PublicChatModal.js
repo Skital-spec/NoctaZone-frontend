@@ -1,15 +1,21 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Container, Form, Button, ListGroup, Spinner, Alert, Dropdown, Modal } from "react-bootstrap";
+import { Container, Form, Button, ListGroup, Spinner, Alert, Dropdown, Modal, Badge, Card } from "react-bootstrap";
 import { supabase } from "../supabaseClient";
+import { Trophy, Users, Clock, Eye, PlusCircle } from "lucide-react";
 
 const PublicChatModal = ({ currentUser, showModal, onClose }) => {
   const [messages, setMessages] = useState([]);
+  const [challenges, setChallenges] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [challengesLoading, setChallengesLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sending, setSending] = useState(false);
   const [deletingIds, setDeletingIds] = useState(new Set());
-  const [currentUserId, setCurrentUserId] = useState(null); 
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [selectedChallenge, setSelectedChallenge] = useState(null);
+  const [showChallengeModal, setShowChallengeModal] = useState(false);
+  const [joiningChallenge, setJoiningChallenge] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Get current user ID on component mount
@@ -88,8 +94,6 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "public_chat" },
         async (payload) => {
-          console.log("🔥 New message received in real-time:", payload.new);
-          
           // The message already includes username from the insert, so we can use it directly
           const newMessage = {
             ...payload.new,
@@ -108,7 +112,6 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "public_chat" },
         (payload) => {
-          console.log("🗑️ Message deleted in real-time:", payload.old);
           setMessages((prev) => prev.filter(msg => msg.id !== payload.old.id));
         }
       )
@@ -120,6 +123,116 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  // Fetch public challenges
+  useEffect(() => {
+    const fetchChallenges = async () => {
+      setChallengesLoading(true);
+      try {
+        // Get all public challenges (challenge_type = 'open')
+        const { data: challengesData, error: challengesError } = await supabase
+          .from("challenges")
+          .select(`
+            *,
+            creator:profiles!challenges_user_id_fkey(username, avatar_url)
+          `)
+          .eq("challenge_type", "open")
+          .eq("status", "pending") // Only show pending challenges
+          .order("created_at", { ascending: false });
+
+        if (challengesError) {
+          console.error("Error fetching challenges:", challengesError.message);
+          setError("Failed to load challenges. Please try again.");
+          return;
+        }
+
+        // Check if current user has already joined any challenges
+        if (currentUserId && challengesData.length > 0) {
+          const challengeIds = challengesData.map(c => c.id);
+          
+          const { data: participationsData } = await supabase
+            .from("challenge_participants")
+            .select("challenge_id")
+            .in("challenge_id", challengeIds)
+            .eq("user_id", currentUserId);
+          
+          // Mark challenges the user has already joined
+          const userParticipations = participationsData || [];
+          const challengesWithParticipation = challengesData.map(challenge => ({
+            ...challenge,
+            hasJoined: userParticipations.some(p => p.challenge_id === challenge.id)
+          }));
+          
+          setChallenges(challengesWithParticipation);
+        } else {
+          setChallenges(challengesData);
+        }
+      } catch (err) {
+        console.error("Error in fetchChallenges:", err);
+        setError("Failed to load challenges.");
+      } finally {
+        setChallengesLoading(false);
+      }
+    };
+
+    if (showModal) {
+      fetchChallenges();
+      
+      // Set up real-time subscription for challenges
+      const challengesChannel = supabase
+        .channel("public-challenges-realtime")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "challenges" },
+          (payload) => {
+            if (payload.new.challenge_type === "open" && payload.new.status === "pending") {
+              // Fetch creator username for the new challenge
+              supabase
+                .from("profiles")
+                .select("username, avatar_url")
+                .eq("id", payload.new.user_id)
+                .single()
+                .then(({ data: profile }) => {
+                  const newChallenge = {
+                    ...payload.new,
+                    creator: profile
+                  };
+                  setChallenges(prev => [newChallenge, ...prev]);
+                });
+            }
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "challenges" },
+          (payload) => {
+            // Remove challenges that are no longer open or pending
+            if (payload.new.challenge_type !== "open" || payload.new.status !== "pending") {
+              setChallenges(prev => prev.filter(c => c.id !== payload.new.id));
+            }
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "challenge_participants" },
+          (payload) => {
+            // Update challenge participant count
+            setChallenges(prev => 
+              prev.map(challenge => 
+                challenge.id === payload.new.challenge_id 
+                  ? { ...challenge, current_participants: (challenge.current_participants || 0) + 1 } 
+                  : challenge
+              )
+            );
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(challengesChannel);
+      };
+    }
+  }, [showModal, currentUserId]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -213,6 +326,88 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
     });
   };
 
+  const viewChallengeDetails = (challenge) => {
+    setSelectedChallenge(challenge);
+    setShowChallengeModal(true);
+  };
+
+  const joinChallenge = async () => {
+    if (!currentUserId) {
+      setError("Please log in to join challenges.");
+      setShowChallengeModal(false);
+      return;
+    }
+
+    setJoiningChallenge(true);
+    
+    try {
+      // Check if user has sufficient balance
+      const entryFee = selectedChallenge.entry_fee;
+      
+      // Fetch user's wallet balance
+      const response = await fetch(
+        `http://localhost:5000/api/wallet/transaction?user_id=${currentUserId}`
+      );
+      const data = await response.json();
+      const balance = data.balance || 0;
+      
+      if (balance < entryFee) {
+        setError(`Insufficient balance. You need ${entryFee} tokens to join this challenge.`);
+        setShowChallengeModal(false);
+        return;
+      }
+      
+      // Deduct entry fee and join challenge via backend API
+      const joinResponse = await fetch("http://localhost:5000/api/wallet/challenge-join", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user_id: currentUserId,
+          challenge_id: selectedChallenge.id,
+          entry_fee: entryFee
+        }),
+      });
+      
+      const result = await joinResponse.json();
+      
+      if (!joinResponse.ok) {
+        throw new Error(result.error || "Failed to join challenge");
+      }
+      
+      // Update local state
+      setChallenges(prev => 
+        prev.map(c => 
+          c.id === selectedChallenge.id 
+            ? { 
+                ...c, 
+                hasJoined: true,
+                current_participants: (c.current_participants || 1) + 1
+              } 
+            : c
+        )
+      );
+      
+      setShowChallengeModal(false);
+      setError(null);
+      // Show success message
+      setMessages(prev => [...prev, {
+        id: `join-${Date.now()}`,
+        user_id: currentUserId,
+        username: "System",
+        message: `You've joined the ${selectedChallenge.game_type} challenge!`,
+        created_at: new Date().toISOString()
+      }]);
+      
+    } catch (err) {
+      console.error("Error joining challenge:", err);
+      setError(err.message || "Failed to join challenge. Please try again.");
+    } finally {
+      setJoiningChallenge(false);
+    }
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -220,21 +415,14 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
     }
   };
 
-  const getCurrentUserId = () => {
-    return currentUserId;
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
   };
 
-  // Add this useEffect to debug user state
-  useEffect(() => {
-    console.log("🔍 Debug - Current User ID state:", currentUserId);
-    console.log("🔍 Debug - CurrentUser prop:", currentUser);
-    console.log("🔍 Debug - Sample message user_ids:", messages.slice(0, 2).map(m => m.user_id));
-  }, [messages, currentUser, currentUserId]);
-
   return (
-    <Modal show={showModal} onHide={onClose} size="lg" centered>
+    <Modal show={showModal} onHide={onClose} size="lg" centered scrollable>
       <Modal.Header closeButton>
-        <Modal.Title>🌍 Public Chat</Modal.Title>
+        <Modal.Title>🌍 Public Chat & Challenges</Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <Container fluid className="py-2">
@@ -244,13 +432,61 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
             </Alert>
           )}
 
+          {/* Challenges Section */}
+          <div className="mb-4">
+            <h5>🎯 Open Challenges</h5>
+            {challengesLoading ? (
+              <div className="text-center my-3">
+                <Spinner animation="border" size="sm" variant="primary" />
+                <p className="mt-2 text-muted">Loading challenges...</p>
+              </div>
+            ) : challenges.length === 0 ? (
+              <div className="text-center text-muted my-3 p-3 border rounded">
+                <p>No open challenges available. Create one to get started! 🎮</p>
+              </div>
+            ) : (
+              <div className="challenges-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                {challenges.map((challenge) => (
+                  <Card key={challenge.id} className="mb-2">
+                    <Card.Body className="p-2">
+                      <div className="d-flex justify-content-between align-items-center">
+                        <div>
+                          <h6 className="mb-0">{challenge.game_type} Challenge</h6>
+                          <small className="text-muted">
+                            By: {challenge.creator?.username || "Unknown"} • 
+                            Entry: {challenge.entry_fee} tokens • 
+                            Prize: {(challenge.entry_fee * challenge.participants * 0.85).toFixed(2)} tokens
+                          </small>
+                        </div>
+                        <div className="d-flex align-items-center">
+                          <Badge bg={challenge.hasJoined ? "success" : "primary"} className="me-2">
+                            {challenge.hasJoined ? "Joined" : "Join"}
+                          </Badge>
+                          <Button 
+                            size="sm" 
+                            variant="outline-primary"
+                            onClick={() => viewChallengeDetails(challenge)}
+                            disabled={challenge.hasJoined}
+                          >
+                            <Eye size={14} className="me-1" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Messages Container */}
           <div
             style={{
               border: "1px solid #dee2e6",
               borderRadius: 8,
               padding: 16,
-              height: "60vh",
+              height: "40vh",
               overflowY: "auto",
               backgroundColor: "#f8f9fa",
               marginBottom: 16,
@@ -291,18 +527,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
                         </small>
                         
                         {/* Show delete option for user's own messages */}
-                        {(() => {
-                          const canDelete = currentUserId === msg.user_id;
-                          
-                          console.log("🔍 Delete check:", {
-                            currentUserId,
-                            msgUserId: msg.user_id,
-                            canDelete,
-                            msgId: msg.id
-                          });
-                          
-                          return canDelete;
-                        })() && (
+                        {currentUserId === msg.user_id && (
                           <Dropdown align="end">
                             <Dropdown.Toggle 
                               variant="link" 
@@ -370,6 +595,80 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           </Form>
         </Container>
       </Modal.Body>
+
+      {/* Challenge Details Modal */}
+      <Modal show={showChallengeModal} onHide={() => setShowChallengeModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <Trophy size={20} className="me-2" />
+            Challenge Details
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {selectedChallenge && (
+            <div>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5>{selectedChallenge.game_type} Challenge</h5>
+                <Badge bg={selectedChallenge.hasJoined ? "success" : "primary"}>
+                  {selectedChallenge.hasJoined ? "Already Joined" : "Open to Join"}
+                </Badge>
+              </div>
+              
+              <div className="mb-3">
+                <strong>Created by:</strong> {selectedChallenge.creator?.username || "Unknown"}
+              </div>
+              
+              <div className="mb-3">
+                <strong>Entry Fee:</strong> {selectedChallenge.entry_fee} tokens
+              </div>
+              
+              <div className="mb-3">
+                <strong>Prize Pool:</strong> {(selectedChallenge.entry_fee * selectedChallenge.participants * 0.85).toFixed(2)} tokens
+              </div>
+              
+              <div className="mb-3">
+                <strong>Participants:</strong> {selectedChallenge.current_participants || 1} / {selectedChallenge.participants}
+              </div>
+              
+              <div className="mb-3">
+                <Clock size={16} className="me-1" />
+                <strong>Play Time:</strong> {formatDate(selectedChallenge.play_time)}
+              </div>
+              
+              <div className="mb-3">
+                <strong>Rules:</strong>
+                <div className="border p-2 mt-1 rounded bg-light">
+                  {selectedChallenge.rules}
+                </div>
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowChallengeModal(false)}>
+            Close
+          </Button>
+          {selectedChallenge && !selectedChallenge.hasJoined && (
+            <Button 
+              variant="primary" 
+              onClick={joinChallenge}
+              disabled={joiningChallenge}
+            >
+              {joiningChallenge ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Joining...
+                </>
+              ) : (
+                <>
+                  <PlusCircle size={16} className="me-1" />
+                  Join Challenge ({selectedChallenge.entry_fee} tokens)
+                </>
+              )}
+            </Button>
+          )}
+        </Modal.Footer>
+      </Modal>
     </Modal>
   );
 };

@@ -53,13 +53,13 @@ const ChallengeDetails = () => {
           id: 1, 
           name: "John Doe", 
           username: "johndoe",
-          avatar: "https://via.placeholder.com/50" 
+          avatar: "https://picsum.photos/40" 
         },
         targetUser: { 
           id: 2, 
           name: "Jane Smith", 
           username: "janesmith",
-          avatar: "https://via.placeholder.com/50" 
+          avatar: "https://picsum.photos/40" 
         },
         createdAt: "2024-12-18T10:00:00Z",
         status: "pending", // pending, accepted, declined, completed
