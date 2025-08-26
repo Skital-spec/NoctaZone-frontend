@@ -72,7 +72,7 @@ const WalletPage = () => {
     try {
       console.log("Fetching balance for user:", uid);
       const res = await fetch(
-        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`
       );
       const data = await res.json();
       console.log("Balance response:", data);
@@ -96,7 +96,7 @@ const WalletPage = () => {
     try {
       console.log("Fetching transactions for user:", uid);
       const res = await fetch(
-        `http://localhost:5000/api/wallet/transactions/${uid}?limit=50`
+        `https://safcom-payment.onrender.com/api/wallet/transactions/${uid}?limit=50`
       );
       const data = await res.json();
       
@@ -118,7 +118,7 @@ const WalletPage = () => {
   // ✅ NEW: Fetch wallet statistics
   const fetchStats = async (uid) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/wallet/stats/${uid}`);
+      const res = await fetch(`https://safcom-payment.onrender.com/api/wallet/stats/${uid}`);
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -165,7 +165,7 @@ const WalletPage = () => {
 
         try {
           // Save deposit to backend → Supabase
-          const response = await fetch("http://localhost:5000/api/wallet/deposit", {
+          const response = await fetch("https://safcom-payment.onrender.com/api/wallet/deposit", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -226,7 +226,7 @@ const WalletPage = () => {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5000/api/wallet/withdraw", {
+      const res = await fetch("https://safcom-payment.onrender.com/api/wallet/withdraw", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

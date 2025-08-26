@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { Container, Card, Form, Button, Row, Col, Modal, Alert,Spinner,ListGroup } from "react-bootstrap";
-import { ArrowLeft, Users, Calendar, DollarSign, Trophy, X, CreditCard } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Trophy, X, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createClient } from "@supabase/supabase-js";
 import MainLayout from "../Components/MainLayout";
@@ -79,7 +79,7 @@ const CreateChallenge = () => {
     try {
       console.log("Fetching balance for user:", uid);
       const res = await fetch(
-        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`
       );
       const data = await res.json();
       console.log("Balance response:", data);
@@ -277,6 +277,51 @@ const CreateChallenge = () => {
     }
   };
 
+  // ✅ New function to post public challenge to public chat
+  const postPublicChallenge = async (challengeId) => {
+    try {
+      console.log(`📢 Posting public challenge to public chat`);
+      
+      const prize = calculatePrize();
+      const entryFee = parseFloat(formData.entryFee);
+      const gameLabel = gameTypes.find(g => g.value === formData.gameType)?.label;
+      
+      // Insert public challenge message into Supabase public_chat table
+      const { data, error } = await supabase
+        .from('public_chat')
+        .insert({
+          user_id: userId,
+          username: currentUser?.username,
+          message_type: 'challenge',
+          message: `🎮 **NEW PUBLIC CHALLENGE** 🎮\n\n**${gameLabel}** Match\n💰 Entry Fee: **${entryFee} tokens**\n🏆 Prize Pool: **${prize} tokens**\n⏰ Play Time: **${new Date(formData.playTime).toLocaleString()}**\n📋 Rules: ${formData.rules}\n\nJoin this challenge and compete for the prize!`,
+          challenge_data: {
+            challenge_id: challengeId,
+            game_type: formData.gameType,
+            entry_fee: entryFee,
+            prize: prize,
+            rules: formData.rules,
+            play_time: formData.playTime,
+            sender_username: currentUser?.username,
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours from now
+          },
+          created_at: new Date().toISOString()
+        })
+        .select();
+
+      if (error) {
+        console.error("❌ Failed to post public challenge:", error);
+        throw new Error(error.message);
+      }
+
+      console.log("✅ Public challenge posted successfully:", data);
+      
+      return true;
+    } catch (error) {
+      console.error("🔥 Error posting public challenge:", error);
+      throw error;
+    }
+  };
+
   const handleConfirmCreate = async () => {
     const entryFee = parseFloat(formData.entryFee);
     setIsSubmitting(true);
@@ -300,7 +345,7 @@ const CreateChallenge = () => {
       });
 
       // ✅ Use backend API to create challenge and deduct tokens
-      const response = await fetch("http://localhost:5000/api/wallet/challenge-create", {
+      const response = await fetch("https://safcom-payment.onrender.com/api/wallet/challenge-create", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -397,6 +442,27 @@ const CreateChallenge = () => {
           setAlert({ 
             type: "warning", 
             message: `⚠️ Challenge created successfully but couldn't send chat message: ${chatError.message}. The challenge is still active!` 
+          });
+        }
+      }
+      
+      // ✅ If it's a public challenge, post to public chat
+      if (formData.challengeType === "open" && result.challenge_id) {
+        try {
+          await postPublicChallenge(result.challenge_id);
+          
+          // Update success message to include public chat notification
+          setAlert({ 
+            type: "success", 
+            message: `✅ Public challenge created and posted to public chat! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens. 📢 Public announcement sent!` 
+          });
+          
+        } catch (chatError) {
+          console.error("🔥 Error posting to public chat:", chatError);
+          // Don't fail the entire operation, just show warning
+          setAlert({ 
+            type: "warning", 
+            message: `⚠️ Challenge created successfully but couldn't post to public chat: ${chatError.message}. The challenge is still active!` 
           });
         }
       }
@@ -523,7 +589,7 @@ const CreateChallenge = () => {
                     <Col>
                       <Form.Group>
                         <Form.Label className="d-flex align-items-center fw-bold">
-                          <DollarSign size={18} className="me-2" />
+                          Kshs
                           Entry Cost (Tokens)
                         </Form.Label>
                         <Form.Control

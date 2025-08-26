@@ -37,7 +37,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
       // console.log("Fetching balance from API for user:", uid);
       
       const response = await fetch(
-        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`
+        `https://safcom-payment.onrender.com:5000/api/wallet/transaction?user_id=${uid}`
       );
       
       if (!response.ok) {
@@ -45,7 +45,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
       }
       
       const data = await response.json();
-      console.log("Balance API response:", data);
+      // console.log("Balance API response:", data);
       
       setBalance(data.balance || 0);
       return data.balance || 0;
@@ -61,7 +61,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
   // FIXED: Fallback function - NO MORE UPSERT WITH 0!
   const fetchBalanceFromSupabase = async (uid) => {
     try {
-      console.log("Fetching balance from Supabase for user:", uid);
+      // console.log("Fetching balance from Supabase for user:", uid);
       
       // FIRST: Try to get existing wallet
       const { data: wallet, error } = await supabase
@@ -176,7 +176,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
             }
           )
           .subscribe((status) => {
-            console.log("Realtime subscription status:", status);
+            // console.log("Realtime subscription status:", status);
           });
 
         // ✅ Optional: Poll for balance updates every 30 seconds as backup

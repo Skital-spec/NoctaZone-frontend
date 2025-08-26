@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import { X, Trophy, Calendar, User, DollarSign, GamepadIcon } from "lucide-react";
+import { X, Trophy, Calendar, User, GamepadIcon } from "lucide-react";
 import MainLayout from "../Components/MainLayout";
 
 export default function WhatsAppStyleChat() {
@@ -60,7 +60,7 @@ export default function WhatsAppStyleChat() {
     try {
       console.log("Fetching balance for user:", uid);
       const res = await fetch(
-        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`
       );
       const data = await res.json();
       console.log("Balance response:", data);
@@ -154,7 +154,7 @@ export default function WhatsAppStyleChat() {
       });
 
       // Call backend API to accept challenge
-      const response = await fetch("http://localhost:5000/api/wallet/challenge-accept", {
+      const response = await fetch("https://safcom-payment.onrender.com/api/wallet/challenge-accept", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -1022,7 +1022,7 @@ export default function WhatsAppStyleChat() {
 
                   <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                      <DollarSign size={20} style={{ marginRight: 8, color: '#00ffcc' }} />
+                      Kshs 
                       <strong style={{ color: '#00ffcc' }}>Financial Details</strong>
                     </div>
                     <p style={{ marginBottom: 8 }}>

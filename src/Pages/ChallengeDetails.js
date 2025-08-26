@@ -11,7 +11,6 @@ import {
 } from "react-bootstrap";
 import { 
   ArrowLeft, 
-  DollarSign, 
   Users, 
   Calendar, 
   Clock,
@@ -223,7 +222,7 @@ const ChallengeDetails = () => {
                 <Row className="mb-4">
                   <Col md={6} className="mb-3">
                     <div className="d-flex align-items-center mb-2">
-                      <DollarSign size={18} className="me-2 text-success" />
+                      Kshs
                       <span className="fw-bold">Entry Fee</span>
                     </div>
                     <div className="ms-4">

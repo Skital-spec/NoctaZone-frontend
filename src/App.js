@@ -38,6 +38,8 @@ import UserSelectionModal from './Components/UserSelectionModal';
 import PaymentConfirmationModal from './Components/PaymentConfirmationModal';
 import ChallengeDetails from './Pages/ChallengeDetails';
 import VerifyEmail from './Pages/VerifyEmail';
+import ReportResults from './Pages/ReportResults';
+import Adminresults from './Pages/Adminresults';
 
 function App() {
   return (
@@ -46,8 +48,10 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path='/' element={<Home/>}/>
+            <Route path='/adminresults' element={<Adminresults/>}/>
             <Route path='/verifyemail' element={<VerifyEmail/>}/>
             <Route path='/tournament/:id/participants' element={<TournamentParticipants/>}/>
+            <Route path='/tournament/:id/report-match/:matchId' element={<ReportResults/>}/>
             <Route path='/wallet' element={<Wallet/>}/>
             <Route path='/challengedetails' element={<ChallengeDetails/>}/>
             <Route path='/paymentconfirmationmodal' element={<PaymentConfirmationModal/>}/>

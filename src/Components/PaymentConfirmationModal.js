@@ -7,7 +7,7 @@ import {
   Col, 
   Spinner 
 } from "react-bootstrap";
-import { DollarSign, Wallet, CreditCard } from "lucide-react";
+import {  Wallet, CreditCard } from "lucide-react";
 
 const PaymentConfirmationModal = ({ 
   show, 
@@ -36,7 +36,7 @@ const PaymentConfirmationModal = ({
             <Row className="mb-2">
               <Col>Entry Fee:</Col>
               <Col className="text-end fw-bold">
-                <DollarSign size={16} className="me-1" />
+                Kshs
                 {entryFee.toFixed(2)}
               </Col>
             </Row>
@@ -110,7 +110,7 @@ const PaymentConfirmationModal = ({
               </>
             ) : (
               <>
-                <DollarSign size={16} className="me-1" />
+                Kshs
                 Confirm Payment
               </>
             )}

@@ -41,7 +41,7 @@ const TournamentDetails = () => {
     try {
       console.log("Fetching balance for user:", uid);
       const res = await fetch(
-        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`
       );
       const data = await res.json();
       console.log("Balance response:", data);
@@ -120,7 +120,7 @@ const handleConfirmJoin = async () => {
     console.log("🎮 Joining tournament:", { userId, tournamentId: id, fee });
 
     // ✅ Use backend API to join tournament (now handles database updates)
-    const response = await fetch("http://localhost:5000/api/wallet/tournament-join", {
+    const response = await fetch("https://safcom-payment.onrender.com/api/wallet/tournament-join", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json",

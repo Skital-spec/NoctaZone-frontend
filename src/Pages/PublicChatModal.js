@@ -331,6 +331,94 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
     setShowChallengeModal(true);
   };
 
+  const viewChallengeFromMessage = async (challengeData) => {
+    try {
+      console.log("🔍 Challenge data from message:", challengeData);
+      console.log("🔍 Challenge ID type:", typeof challengeData.challenge_id);
+      console.log("�� Challenge ID value:", challengeData.challenge_id);
+      
+      // First, let's check what challenges exist in the database
+      const { data: allChallenges, error: listError } = await supabase
+        .from("challenges")
+        .select("id, game_type, status")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      
+      console.log("🔍 Recent challenges in DB:", allChallenges);
+      
+      // Now try to fetch the specific challenge
+      const { data: challenge, error } = await supabase
+        .from("challenges")
+        .select("*")
+        .eq("id", challengeData.challenge_id)
+        .maybeSingle();
+
+      console.log("🔍 Query result:", { challenge, error });
+
+      if (error) {
+        console.error("❌ Error fetching challenge:", error);
+        setError("Failed to load challenge details");
+        return;
+      }
+
+      if (!challenge) {
+        console.log("❌ Challenge not found in DB, using message data instead");
+        
+        // Use the challenge data from the message instead
+        const challengeFromMessage = {
+          id: challengeData.challenge_id,
+          game_type: challengeData.game_type,
+          entry_fee: challengeData.entry_fee,
+          prize_amount: challengeData.prize,
+          rules: challengeData.rules,
+          play_time: challengeData.play_time,
+          status: 'pending',
+          creator: { username: challengeData.sender_username || "Unknown" },
+          note: "Showing challenge details from message (may be outdated)"
+        };
+
+        setSelectedChallenge(challengeFromMessage);
+        setShowChallengeModal(true);
+        return;
+      }
+
+      console.log("✅ Challenge found:", challenge);
+
+      // Fetch creator profile separately to avoid foreign key issues
+      const { data: creatorProfile } = await supabase
+        .from("profiles")
+        .select("username, avatar_url")
+        .eq("id", challenge.creator_id)
+        .maybeSingle();
+
+      // Combine challenge data with creator info
+      const challengeWithCreator = {
+        ...challenge,
+        creator: creatorProfile || { username: "Unknown", avatar_url: null }
+      };
+
+      // Check if current user has already joined this challenge
+      if (currentUserId) {
+        const { data: participation } = await supabase
+          .from("challenge_participants")
+          .select("id")
+          .eq("challenge_id", challengeData.challenge_id)
+          .eq("user_id", currentUserId)
+          .maybeSingle();
+
+        challengeWithCreator.hasJoined = !!participation;
+        challengeWithCreator.isOwnChallenge = challenge.creator_id === currentUserId;
+      }
+
+      console.log("✅ Challenge details loaded:", challengeWithCreator);
+      setSelectedChallenge(challengeWithCreator);
+      setShowChallengeModal(true);
+    } catch (err) {
+      console.error("❌ Error viewing challenge from message:", err);
+      setError("Failed to load challenge details");
+    }
+  };
+
   const joinChallenge = async () => {
     if (!currentUserId) {
       setError("Please log in to join challenges.");
@@ -346,7 +434,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       
       // Fetch user's wallet balance
       const response = await fetch(
-        `http://localhost:5000/api/wallet/transaction?user_id=${currentUserId}`
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${currentUserId}`
       );
       const data = await response.json();
       const balance = data.balance || 0;
@@ -358,15 +446,15 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       }
       
       // Deduct entry fee and join challenge via backend API
-      const joinResponse = await fetch("http://localhost:5000/api/wallet/challenge-join", {
+      // Deduct entry fee and join challenge via backend API
+      const joinResponse = await fetch("https://safcom-payment.onrender.com/api/wallet/join-public-challenge", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           user_id: currentUserId,
-          challenge_id: selectedChallenge.id,
-          entry_fee: entryFee
+          challenge_id: selectedChallenge.id
         }),
       });
       
@@ -517,6 +605,21 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
                           {msg.username || "Anonymous"}:
                         </strong>
                         <span className="ms-2">{msg.message}</span>
+                        
+                        {/* Show View Challenge button for challenge messages */}
+                        {msg.message_type === 'challenge' && msg.challenge_data && (
+                          <div className="mt-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline-primary"
+                              onClick={() => viewChallengeFromMessage(msg.challenge_data)}
+                              className="me-2"
+                            >
+                              <Eye size={14} className="me-1" />
+                              View Challenge
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       <div className="d-flex align-items-center gap-2">
                         <small className="text-muted" style={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>
