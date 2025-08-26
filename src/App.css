@@ -994,11 +994,9 @@ html, body {
 }
 
 .help-tab {
-  flex: 0 0 auto;
   padding: 10px 16px;
   cursor: pointer;
   color: #aaa;
-  white-space: nowrap;
   font-weight: 500;
   transition: color 0.2s ease, background 0.2s ease;
 }

@@ -26,7 +26,7 @@ const WalletPage = () => {
   const [stats, setStats] = useState(null);
 
   // const minDeposit = 50; // min 50 KSh → 50 tokens
-  const minWithdrawal = 100; // min 100 tokens
+  // const minWithdrawal = 100; // min 100 tokens
 
   // ✅ Get logged-in user and their email from Supabase
   useEffect(() => {
@@ -208,11 +208,20 @@ const WalletPage = () => {
   };
 
   // ✅ Withdrawal via Daraja B2C
+  const formatPhone = (raw) => {
+    if (typeof raw !== "string") return "254708374149";
+    const digits = raw.replace(/\D/g, "");
+    if (digits.startsWith("254")) return digits;
+    if (digits.startsWith("0")) return "254" + digits.substring(1);
+    if (digits.startsWith("7") || digits.startsWith("1")) return "254" + digits;
+    return "254708374149";
+  };
+
   const withdraw = async () => {
-    if (parseFloat(amount) < minWithdrawal) {
-      setError(`Minimum withdrawal is ${minWithdrawal} tokens`);
-      return;
-    }
+    // if (parseFloat(amount) < minWithdrawal) {
+    //   setError(`Minimum withdrawal is ${minWithdrawal} tokens`);
+    //   return;
+    // }
     if (parseFloat(amount) > balance) {
       setError("Insufficient balance");
       return;
@@ -232,15 +241,13 @@ const WalletPage = () => {
         credentials: "include",
         body: JSON.stringify({
           user_id: userId,
-          phone: phone,
-          amount: parseFloat(amount), // in tokens → same as KSh
+          phone: formatPhone(phone),
+          amount: parseFloat(amount)
         }),
       });
 
       if (res.ok) {
-        // Refresh balance from backend
         await fetchBalance(userId);
-        // ✅ Refresh transaction history after withdrawal
         await fetchTransactions(userId);
         await fetchStats(userId);
         setAmount("");

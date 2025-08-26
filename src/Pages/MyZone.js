@@ -304,6 +304,7 @@ const handleJoinChallenge = async (challenge) => {
             .tab-content {
               padding: 2rem 0;
             }
+    
           `}
         </style>
         {/* Navbar Tabs - use wallet theme classes */}
@@ -311,7 +312,7 @@ const handleJoinChallenge = async (challenge) => {
           {tabs.map((tab) => (
             <div
               key={tab.id}
-              className={`help-tab ${activeTab === tab.id ? "active" : ""}`}
+              className={`help-tab ${activeTab === tab.id ? "active" : ""}`} 
               onClick={() => setActiveTab(tab.id)}
             >
               {tab.icon}
