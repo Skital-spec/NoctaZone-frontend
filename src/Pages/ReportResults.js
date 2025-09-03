@@ -168,7 +168,8 @@ const ReportResults = () => {
 
   return (
     <MainLayout>
-      <div className="privacy-policy-container">
+      <div style={{marginTop:'-7%'}}>
+      <div className="privacy-policy-container" >
         <div className="privacy-policy-header text-center">
           <h1 style={{ color: "#ffffff" }}>Report Results</h1>
           <p className="sub-heading" style={{ color: "#cbd5e1" }}>Tournament ID: {id} • Match ID: {matchId}</p>
@@ -210,16 +211,20 @@ const ReportResults = () => {
               <h3 className="text-xl font-bold mb-3" style={{ color: "#00ffcc" }}>Submit Your Result</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm mb-1" >Player 1 Goals</label>
-                  <input type="number" value={player1Goals} onChange={(e) => setPlayer1Goals(e.target.value)} className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none" />
+                  <label className="block text-sm mb-1" 
+                  >Player 1 Goals</label>
+                  <input type="number" value={player1Goals} onChange={(e) => setPlayer1Goals(e.target.value)} className="w-full  text-black rounded p-2" 
+                  style={{outline: "none", marginLeft:'3%' , border: "none" , marginTop:'1rem'}}/>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1" >Player 2 Goals</label>
-                  <input type="number" value={player2Goals} onChange={(e) => setPlayer2Goals(e.target.value)} className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none" />
+                  <label className="block text-sm mb-1" style={{ marginTop:'1rem'}}  >Player 2 Goals</label>
+                  <input type="number" value={player2Goals} onChange={(e) => setPlayer2Goals(e.target.value)} className="w-full text-black rounded p-2 "
+                   style={{outline: "none", marginLeft:'3%' , border: "none" , marginTop:'1rem'}} />
                 </div>
                 <div>
                   <label className="block text-sm mb-1" style={{ color: "#cbd5e1" }}>Winner</label>
-                  <select value={declaredWinner} onChange={(e) => setDeclaredWinner(e.target.value)} className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none">
+                  <select value={declaredWinner} onChange={(e) => setDeclaredWinner(e.target.value)} className="w-full text-black rounded p-2"
+                    style={{outline: "none", marginLeft:'3%' , border: "none" , marginTop:'2rem'}}>
                     <option value="">Select winner</option>
                     {players.p1 && (<option value={players.p1.id}>{players.p1.username }</option>)}
                     {players.p2 && (<option value={players.p2.id}>{players.p2.username }</option>)}
@@ -298,10 +303,14 @@ const ReportResults = () => {
                     <tbody>
                       {submissions.map(s => (
                         <tr key={s.id} className="border-t border-[#2a2a3e]">
-                          <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>{s.user_id}</td>
-                          <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>{s.player1_goals ?? s.player1_points}</td>
-                          <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>{s.player2_goals ?? s.player2_points}</td>
-                          <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>{s.declared_winner === 'draw' ? 'DRAW' : s.declared_winner}</td>
+                          <td className="p-2 text-sm" style={{ color: "#e5e7eb" }}>
+  {players.p1?.id === s.user_id ? players.p1?.username : players.p2?.id === s.user_id
+    ? players.p2?.username : s.user_id}</td>
+                          <td className="p-2 text-sm" style={{ color: "#e5e7eb" }}>{s.player1_goals ?? s.player1_points}</td>
+                          <td className="p-2 text-sm" style={{ color: "#e5e7eb" }}>{s.player2_goals ?? s.player2_points}</td>
+                          <td className="p-2 text-sm" style={{ color: "#e5e7eb" }}>
+  {s.declared_winner === 'draw' ? 'DRAW' : players.p1?.id === s.declared_winner ? players.p1?.username
+    : players.p2?.id === s.declared_winner ? players.p2?.username : s.declared_winner}</td>
                           <td className="p-3 text-sm">
                             {(Array.isArray(s.evidence) ? s.evidence : []).length === 0 ? (
                               <span style={{ color: "#94a3b8" }}>-</span>
@@ -323,7 +332,7 @@ const ReportResults = () => {
             </div>
           </>
         )}
-      </div>
+      </div></div>
     </MainLayout>
   );
 };

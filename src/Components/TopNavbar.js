@@ -29,6 +29,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
   const [showChatModal, setShowChatModal] = useState(false);
   const [userId, setUserId] = useState(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Function to fetch balance from backend API (consistent with wallet page)
   const fetchBalanceFromAPI = async (uid) => {
@@ -134,18 +135,20 @@ const TopNavbar = ({ onOpenPublicChat }) => {
         // ✅ fetch username
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("username")
+          .select("username, role")
           .eq("id", user.id)
           .single();
 
         if (profile && !profileError) {
           setUsername(profile.username);
+          setIsAdmin(profile.role === "admin");
         } else {
           console.warn("Profile fetch error:", profileError);
           // Fallback to user email if username not found
           if (user.email) {
             setUsername(user.email.split('@')[0]);
           }
+          setIsAdmin(false);
         }
 
         // ✅ CRITICAL FIX: Only fetch balance, DO NOT create/upsert wallet here
@@ -309,6 +312,14 @@ const TopNavbar = ({ onOpenPublicChat }) => {
                 <MessageCircle size={18} className="me-1" />
                 Public Chat
               </Nav.Link>
+              {isAdmin && (
+                <Nav.Link
+                  onClick={() => navigate("/adminresults")}
+                  className="text-warning"
+                >
+                  Admin Results
+                </Nav.Link>
+              )}
             </Nav>
           </Navbar.Collapse>
         </Container>

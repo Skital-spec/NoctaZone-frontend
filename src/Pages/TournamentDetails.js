@@ -255,7 +255,7 @@ const handleConfirmJoin = async () => {
 
   return (
     <MainLayout>
-      <div className="privacy-policy-container" style={{marginTop:'2%'}}>
+      <div className="privacy-policy-container" style={{marginTop:'1%'}}>
         <div className="privacy-policy-header text-center mb-6">
           <Trophy size={40} className="privacy-icon" />
           <h1>{tournament.name}</h1>

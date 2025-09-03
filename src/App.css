@@ -7,6 +7,57 @@ html, body {
   background: black; /* or a gradient similar to your hero section */
   color: white;
 }
+/* Theme tokens (preserve existing look & feel) */
+:root {
+  --bg: #000000;
+  --bg-1: #0d0d0d;
+  --bg-2: #111111;
+  --bg-3: #1a1a1a;
+  --text: #ffffff;
+  --muted: #cccccc;
+  --muted-2: #aaaaaa;
+  --border: #222222;
+  --neon: #00ffcc;
+  --neon-2: #00bfa6;
+  --accent: #00ff88;
+  --danger: #ff5555;
+}
+
+/* Fluid type scale */
+h1 { font-size: clamp(1.8rem, 2vw + 1.2rem, 2.6rem); }
+h2 { font-size: clamp(1.4rem, 1.6vw + 0.9rem, 2rem); }
+h3 { font-size: clamp(1.2rem, 1.1vw + 0.8rem, 1.6rem); }
+h4, h5, h6 { font-size: clamp(1rem, 0.8vw + 0.7rem, 1.2rem); }
+p, li { font-size: clamp(0.95rem, 0.4vw + 0.8rem, 1.05rem); }
+
+/* Media defaults */
+img, video, canvas, svg { max-width: 100%; height: auto; }
+iframe { max-width: 100%; }
+
+/* Utility containers */
+.container-responsive {
+  width: min(100%, 1200px);
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Responsive grid helpers */
+.grid { display: grid; gap: 1rem; }
+.grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 992px) {
+  .grid.cols-4 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 768px) {
+  .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 576px) {
+  .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+}
 .page-one {
   position: relative;
   min-height: 100vh; /* changed from height: 100vh */
@@ -27,6 +78,10 @@ html, body {
   max-width: 90%;
   padding: 1rem;
   z-index: 1;
+}
+/* Ensure hero content has breathing room on small screens */
+@media (max-width: 576px) {
+  .overlay-content { padding: 1rem 0.75rem; }
 }
 
 /* In your CSS file (e.g., App.css or Navbar.css) */
@@ -167,6 +222,9 @@ html, body {
   letter-spacing: 1px;
   animation: fadeIn 1.2s ease-in-out;
 }
+@media (max-width: 576px) {
+  .section-title { margin-bottom: 1.5rem; }
+}
 
 .steps-container {
   display: flex;
@@ -190,6 +248,9 @@ html, body {
   box-shadow: 0 0 30px rgba(0, 255, 255, 0.1);
   flex: 1;
   opacity: 0;
+}
+@media (max-width: 576px) {
+  .step-card { padding: 1.25rem 1rem; }
 }
 
 .step-icon {
@@ -335,6 +396,9 @@ html, body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   border-radius: 10px;
   box-shadow: 0 0 15px rgba(0, 255, 170, 0.2);
+}
+@media (max-width: 992px) {
+  .privacy-policy-container { margin: 90px 24px; padding: 32px; }
 }
 
 .privacy-policy-container h1,
@@ -505,6 +569,10 @@ html, body {
     margin-left: 0;
   }
 }
+/* Tables: horizontal scroll on narrow screens */
+.table-responsive { width: 100%; overflow-x: auto; }
+.table-responsive table { width: 100%; border-collapse: collapse; }
+.table-responsive th, .table-responsive td { white-space: nowrap; }
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -1110,6 +1178,7 @@ html, body {
   margin-top: -10%;
 }
 }
+.wallet-container { max-width: min(100%, 500px); }
 .myzone-tabs {
   display: flex;
   overflow-x: auto;
@@ -1153,6 +1222,28 @@ html, body {
     width: 100%;
     flex: 1;
   }
+}
+
+/* Wallet page fine-tuning */
+@media (max-width: 768px) {
+  .wallet-container { margin: 24px 16px; padding: 16px; }
+  .wallet-title { text-align: center; }
+  .action-buttons { flex-direction: column; }
+  .quick-buttons { flex-wrap: wrap; }
+}
+@media (max-width: 576px) {
+  .wallet-header h1 { font-size: 22px; }
+  .wallet-balance .amount { font-size: 22px; }
+}
+
+/* Chat layout safety on very small screens */
+@media (max-width: 420px) {
+  .chat-layout { gap: 10px; }
+}
+
+/* Top navbar spacing tweaks for tiny devices */
+@media (max-width: 360px) {
+  #top-nav h1 { font-size: 1.1rem; }
 }
 
 .wallet-header h1 {
@@ -1513,4 +1604,10 @@ html, body {
 .ReactModal__Content--before-close.modal-slide {
   transform: translateY(-50px);
   opacity: 0;
+}
+
+@media screen and (max-width: 768px) {
+  .mainlayout {
+    margin-left: 0 !important;
+  }
 }
