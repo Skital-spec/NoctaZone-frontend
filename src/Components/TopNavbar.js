@@ -38,7 +38,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
       // console.log("Fetching balance from API for user:", uid);
       
       const response = await fetch(
-        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`,
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`,
         {
           method: 'GET',
           headers: {
