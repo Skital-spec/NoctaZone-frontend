@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "../Components/MainLayout";
-// import PaystackPop from "@paystack/inline-js";
+import PaystackPop from "@paystack/inline-js";
 import { createClient } from "@supabase/supabase-js";
+import { config } from "../config";
 
-const supabaseUrl = "https://yfboormaqzgjxbskjnuk.supabase.co";
-const supabaseAnonKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmYm9vcm1hcXpnanhic2tqbnVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0Nzc0MDYsImV4cCI6MjA3MDA1MzQwNn0.CnQkxFOD8LgImr5NCFV3m7z1FpLqdBoPqDEns5J6d6k";
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
 const WalletPage = () => {
   const [activeTab, setActiveTab] = useState("wallet");
@@ -72,7 +70,7 @@ const WalletPage = () => {
   const fetchBalance = async (uid) => {
     try {
       const res = await fetch(
-        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`,
+        `${config.API_BASE_URL}/api/wallet/transaction?user_id=${uid}`,
         {
           method: 'GET',
           headers: {
@@ -134,7 +132,7 @@ const WalletPage = () => {
     setTransactionLoading(true);
     try {
       const res = await fetch(
-        `https://safcom-payment.onrender.com/api/wallet/transactions/${uid}?limit=50`,
+        `${config.API_BASE_URL}/api/wallet/transactions/${uid}?limit=50`,
         {
           method: 'GET',
           headers: {
@@ -187,7 +185,7 @@ const WalletPage = () => {
   const fetchStats = async (uid) => {
     try {
       const res = await fetch(
-        `https://safcom-payment.onrender.com/api/wallet/stats/${uid}`,
+        `${config.API_BASE_URL}/api/wallet/stats/${uid}`,
         {
           method: 'GET',
           headers: {
@@ -210,97 +208,114 @@ const WalletPage = () => {
     }
   };
 
-  const minDeposit = 50;
-  const minWithdrawal = 100;
+  const minDeposit = config.MIN_DEPOSIT;
+  const minWithdrawal = config.MIN_WITHDRAWAL;
 
-  const formatPhone = (raw) => {
-    if (typeof raw !== "string") return "254708374149";
-    const digits = raw.replace(/\D/g, "");
-    if (digits.startsWith("254")) return digits;
-    if (digits.startsWith("0")) return "254" + digits.substring(1);
-    if (digits.startsWith("7") || digits.startsWith("1")) return "254" + digits;
-    return "254708374149";
+  // Email validation helper
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
-  // Enhanced Daraja STK Push deposit with better error handling
+  // Enhanced Paystack deposit with better error handling
   const initiateDeposit = async () => {
     if (!amount) return setError("Please enter amount");
     if (parseFloat(amount) < minDeposit) return setError(`Minimum deposit is ${minDeposit} KES`);
-    if (!phone) return setError("Please enter your M-Pesa phone number");
+    if (!userEmail) return setError("Email not found. Please refresh the page");
     if (!userId) return setError("User not authenticated");
+    if (!validateEmail(userEmail)) return setError("Invalid email address");
 
     setLoading(true);
     setError("");
     setStatus("pending");
 
     try {
-      const resp = await fetch("https://safcom-payment.onrender.com/api/mpesa/stkpush", {
+      // First, initialize payment with backend
+      const resp = await fetch(`${config.API_BASE_URL}/api/paystack/initialize`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
-          phone: formatPhone(phone),
+          email: userEmail,
           amount: parseFloat(amount)
         }),
-        // Add timeout
-        signal: AbortSignal.timeout(30000) // 30 second timeout for deposits
+        signal: AbortSignal.timeout(30000) // 30 second timeout
       });
       
       if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-        throw new Error(errorData.error || `Failed to initiate deposit (${resp.status})`);
+        throw new Error(errorData.error || `Failed to initialize payment (${resp.status})`);
       }
       
       const data = await resp.json();
-      const ref = data.checkoutRequestId;
       
-      if (!ref) {
-        throw new Error("No checkout request ID received");
+      if (!data.authorization_url || !data.reference) {
+        throw new Error("Invalid payment initialization response");
       }
       
-      setTransactionRef(ref);
+      setTransactionRef(data.reference);
       setStatus("processing");
 
-      // Quick poll once after a short delay
-      setTimeout(async () => {
-        try {
-          const statusUrl = `https://safcom-payment.onrender.com/api/mpesa/stkpush/status?checkoutRequestId=${encodeURIComponent(ref)}&user_id=${encodeURIComponent(userId)}`;
-          const st = await fetch(statusUrl, {
-            signal: AbortSignal.timeout(15000) // 15 second timeout for status check
-          });
+      // Initialize Paystack popup
+      const paystack = new PaystackPop();
+      
+      paystack.newTransaction({
+        key: config.PAYSTACK_PUBLIC_KEY,
+        email: userEmail,
+        amount: parseFloat(amount) * 100, // Convert to kobo
+        currency: 'KES',
+        reference: data.reference,
+        callback: async (response) => {
+          console.log('Paystack payment successful:', response);
+          setStatus("verifying");
           
-          if (!st.ok) {
-            throw new Error(`Status check failed: ${st.status}`);
+          // Verify payment with backend
+          try {
+            const verifyResp = await fetch(
+              `${config.API_BASE_URL}/api/paystack/verify?reference=${encodeURIComponent(response.reference)}&user_id=${encodeURIComponent(userId)}`,
+              {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+                signal: AbortSignal.timeout(15000)
+              }
+            );
+            
+            if (!verifyResp.ok) {
+              throw new Error(`Verification failed: ${verifyResp.status}`);
+            }
+            
+            const verifyData = await verifyResp.json();
+            
+            if (verifyData.status === 'success') {
+              setStatus("success");
+              await fetchBalance(userId);
+              await fetchTransactions(userId);
+              await fetchStats(userId);
+              setAmount("");
+              alert("Deposit successful!");
+            } else {
+              setStatus("failed");
+              setError(verifyData.gateway_response || "Payment verification failed");
+            }
+          } catch (verifyErr) {
+            console.error("Payment verification error:", verifyErr);
+            setStatus("unknown");
+            setError("Could not verify payment. Please contact support if money was deducted.");
+          } finally {
+            setLoading(false);
           }
-          
-          const stData = await st.json();
-          
-          if (stData.ResultCode?.toString() === "0") {
-            setStatus("success");
-            await fetchBalance(userId);
-            await fetchTransactions(userId);
-            await fetchStats(userId);
-            setAmount("");
-            setPhone("");
-            alert("Deposit successful!");
-          } else if (stData.ResultCode?.toString() === "1032") {
-            setStatus("cancelled");
-            setError("Payment was cancelled by user");
-          } else {
-            setStatus("failed");
-            setError(stData.ResultDesc || "Deposit failed - please try again");
-          }
-        } catch (statusErr) {
-          console.error("Status check error:", statusErr);
-          setStatus("unknown");
-          setError("Could not verify payment status. Please check your M-Pesa messages and contact support if money was deducted.");
-        } finally {
+        },
+        onClose: () => {
+          console.log('Paystack popup closed');
+          setStatus("cancelled");
+          setError("Payment was cancelled");
           setLoading(false);
         }
-      }, 5000); // Increased to 5 seconds
+      });
+      
     } catch (e) {
       console.error("Deposit initiation error:", e);
-      setError(e.message || "Failed to initiate deposit. Please check your internet connection and try again.");
+      setError(e.message || "Failed to initialize payment. Please check your internet connection and try again.");
       setLoading(false);
       setStatus("failed");
     }
@@ -310,8 +325,8 @@ const WalletPage = () => {
   const submitWithdrawRequest = async () => {
     if (!amount) return setError("Please enter amount");
     if (parseFloat(amount) < minWithdrawal) return setError(`Minimum withdrawal is ${minWithdrawal} KES`);
-    if (!phone || !phone2) return setError("Enter and confirm your M-Pesa phone number");
-    if (formatPhone(phone) !== formatPhone(phone2)) return setError("Phone numbers do not match");
+    if (!phone || !phone2) return setError("Enter and confirm your phone number");
+    if (phone !== phone2) return setError("Phone numbers do not match");
     if (!userId) return setError("User not authenticated");
     if (parseFloat(amount) > balance) return setError("Insufficient balance for this withdrawal");
 
@@ -319,12 +334,12 @@ const WalletPage = () => {
     setError("");
 
     try {
-      const res = await fetch("https://safcom-payment.onrender.com/api/wallet/withdraw-request", {
+      const res = await fetch(`${config.API_BASE_URL}/api/wallet/withdraw-request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: userId,
-          phone: formatPhone(phone),
+          phone: phone,
           amount: parseFloat(amount)
         }),
         // Add timeout
@@ -464,12 +479,9 @@ const WalletPage = () => {
 
               {/* Phone inputs based on mode */}
               {mode === "deposit" && (
-                <input
-                  type="text"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="M-Pesa Phone for STK Push (e.g. 07XXXXXXXX)"
-                />
+                <div style={{ marginBottom: '10px', padding: '10px', background: '#e3f2fd', borderRadius: '5px', fontSize: '14px' }}>
+                  💳 <strong>Paystack Payment:</strong> You will be redirected to a secure payment page to complete your deposit using card, bank transfer, or mobile money.
+                </div>
               )}
 
               {mode === "withdraw" && (
@@ -478,13 +490,13 @@ const WalletPage = () => {
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="M-Pesa Phone"
+                    placeholder="Phone Number (e.g. 0712345678)"
                   />
                   <input
                     type="text"
                     value={phone2}
                     onChange={(e) => setPhone2(e.target.value)}
-                    placeholder="Confirm M-Pesa Phone"
+                    placeholder="Confirm Phone Number"
                   />
                 </>
               )}
@@ -513,23 +525,30 @@ const WalletPage = () => {
                   marginBottom: '15px',
                   fontWeight: 'bold'
                 }}>
-                  Status: {status === 'processing' ? 'Processing payment...' : status.charAt(0).toUpperCase() + status.slice(1)}
+                  Status: {status === 'processing' ? 'Processing payment...' : status === 'verifying' ? 'Verifying payment...' : status.charAt(0).toUpperCase() + status.slice(1)}
                   {status === 'processing' && (
                     <div style={{ marginTop: '5px', fontSize: '14px', fontWeight: 'normal' }}>
-                      Please check your phone for M-Pesa prompt and enter your PIN.
+                      Please complete the payment on the Paystack payment page.
+                    </div>
+                  )}
+                  {status === 'verifying' && (
+                    <div style={{ marginTop: '5px', fontSize: '14px', fontWeight: 'normal' }}>
+                      Please wait while we verify your payment...
                     </div>
                   )}
                 </div>
               )}
 
               <div className="action-buttons">
-                <button
-                  onClick={mode === "deposit" ? initiateDeposit : submitWithdrawRequest}
-                  disabled={loading || !mode}
-                  className={mode === "deposit" ? "deposit-btn" : "withdraw-btn"}
-                >
-                  {loading ? "Processing..." : mode === "deposit" ? "Deposit" : "Withdraw"}
-                </button>
+                {mode && (
+                  <button
+                    onClick={mode === "deposit" ? initiateDeposit : submitWithdrawRequest}
+                    disabled={loading}
+                    className={mode === "deposit" ? "deposit-btn" : "withdraw-btn"}
+                  >
+                    {loading ? "Processing..." : mode === "deposit" ? "Deposit" : "Withdraw"}
+                  </button>
+                )}
               </div>
 
               {transactionRef && (

@@ -38,7 +38,7 @@ const TopNavbar = ({ onOpenPublicChat }) => {
       // console.log("Fetching balance from API for user:", uid);
       
       const response = await fetch(
-        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`,
+        `http://localhost:5000/api/wallet/transaction?user_id=${uid}`,
         {
           method: 'GET',
           headers: {
@@ -333,6 +333,14 @@ const TopNavbar = ({ onOpenPublicChat }) => {
                   className="text-warning"
                 >
                   Admin Results
+                </Nav.Link>
+              )}
+              {isAdmin && (
+                <Nav.Link
+                  onClick={() => navigate("/withdrawalrequests")}
+                  className="text-warning"
+                >
+                  Withdrawal Requests
                 </Nav.Link>
               )}
             </Nav>
