@@ -35,16 +35,29 @@ const WalletPage = () => {
       if (user) {
         setUserId(user.id);
 
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("id", user.id)
-          .single();
+        // Enhanced profile fetching with error handling
+        try {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("email")
+            .eq("id", user.id)
+            .maybeSingle(); // Use maybeSingle() to handle no results gracefully
 
-        if (data) {
-          setUserEmail(data.email);
-        } else if (error && user.email) {
-          setUserEmail(user.email);
+          if (data && !error) {
+            setUserEmail(data.email);
+          } else {
+            console.warn("Profile email fetch error:", error);
+            // Fallback to user.email if profile fetch fails
+            if (user.email) {
+              setUserEmail(user.email);
+            }
+          }
+        } catch (profileErr) {
+          console.error("Profile fetch failed completely:", profileErr);
+          // Fallback to user.email if profile fetch fails completely
+          if (user.email) {
+            setUserEmail(user.email);
+          }
         }
 
         fetchBalance(user.id);
@@ -59,14 +72,61 @@ const WalletPage = () => {
   const fetchBalance = async (uid) => {
     try {
       const res = await fetch(
-        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          // Add timeout for better UX
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        }
       );
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
       const newBalance = data.balance || 0;
       setBalance(newBalance);
       window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: { balance: newBalance } }));
-    } catch {
-      setError("Failed to fetch balance");
+    } catch (err) {
+      console.error("Failed to fetch balance from external API:", err);
+      // Fallback to Supabase
+      await fetchBalanceFromSupabase(uid);
+    }
+  };
+
+  // Supabase fallback for balance fetching
+  const fetchBalanceFromSupabase = async (uid) => {
+    try {
+      console.log("Fetching balance from Supabase as fallback for user:", uid);
+      
+      const { data: wallet, error } = await supabase
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Supabase balance fetch error:", error);
+        setError("Unable to fetch balance. Please try again later.");
+        setBalance(0);
+        return;
+      }
+
+      const walletBalance = wallet ? (wallet.balance || 0) : 0;
+      setBalance(walletBalance);
+      window.dispatchEvent(new CustomEvent('balanceUpdated', { detail: { balance: walletBalance } }));
+      
+      if (!wallet) {
+        setError("Wallet not found. Please contact support if you have made deposits.");
+      }
+    } catch (err) {
+      console.error("Error fetching balance from Supabase:", err);
+      setError("Unable to connect to wallet service. Please try again later.");
+      setBalance(0);
     }
   };
 
@@ -74,20 +134,80 @@ const WalletPage = () => {
     setTransactionLoading(true);
     try {
       const res = await fetch(
-        `https://safcom-payment.onrender.com/api/wallet/transactions/${uid}?limit=50`
+        `https://safcom-payment.onrender.com/api/wallet/transactions/${uid}?limit=50`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        }
       );
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
       const data = await res.json();
-      setTransactions(res.ok ? (data.transactions || []) : []);
+      setTransactions(data.transactions || []);
+    } catch (err) {
+      console.error("Failed to fetch transactions from external API:", err);
+      // Fallback to Supabase transactions if available
+      await fetchTransactionsFromSupabase(uid);
     } finally {
       setTransactionLoading(false);
     }
   };
 
+  // Supabase fallback for transactions
+  const fetchTransactionsFromSupabase = async (uid) => {
+    try {
+      console.log("Fetching transactions from Supabase as fallback for user:", uid);
+      
+      const { data: transactions, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error("Supabase transactions fetch error:", error);
+        setTransactions([]);
+        return;
+      }
+
+      setTransactions(transactions || []);
+    } catch (err) {
+      console.error("Error fetching transactions from Supabase:", err);
+      setTransactions([]);
+    }
+  };
+
   const fetchStats = async (uid) => {
     try {
-      const res = await fetch(`https://safcom-payment.onrender.com/api/wallet/stats/${uid}`);
-      if (res.ok) setStats(await res.json());
-    } catch {}
+      const res = await fetch(
+        `https://safcom-payment.onrender.com/api/wallet/stats/${uid}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        }
+      );
+      
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      } else {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+    } catch (err) {
+      console.error("Failed to fetch stats from external API:", err);
+      // For stats, we can just show null/default values if API fails
+      setStats(null);
+    }
   };
 
   const minDeposit = 50;
@@ -102,7 +222,7 @@ const WalletPage = () => {
     return "254708374149";
   };
 
-  // Daraja STK Push deposit
+  // Enhanced Daraja STK Push deposit with better error handling
   const initiateDeposit = async () => {
     if (!amount) return setError("Please enter amount");
     if (parseFloat(amount) < minDeposit) return setError(`Minimum deposit is ${minDeposit} KES`);
@@ -121,53 +241,79 @@ const WalletPage = () => {
           user_id: userId,
           phone: formatPhone(phone),
           amount: parseFloat(amount)
-        })
+        }),
+        // Add timeout
+        signal: AbortSignal.timeout(30000) // 30 second timeout for deposits
       });
+      
+      if (!resp.ok) {
+        const errorData = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error(errorData.error || `Failed to initiate deposit (${resp.status})`);
+      }
+      
       const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || "Failed to initiate deposit");
-
       const ref = data.checkoutRequestId;
+      
+      if (!ref) {
+        throw new Error("No checkout request ID received");
+      }
+      
       setTransactionRef(ref);
+      setStatus("processing");
 
       // Quick poll once after a short delay
       setTimeout(async () => {
         try {
-          const st = await fetch(`https://safcom-payment.onrender.com/api/mpesa/stkpush/status?checkoutRequestId=${encodeURIComponent(ref)}&user_id=${encodeURIComponent(userId)}`);
+          const statusUrl = `https://safcom-payment.onrender.com/api/mpesa/stkpush/status?checkoutRequestId=${encodeURIComponent(ref)}&user_id=${encodeURIComponent(userId)}`;
+          const st = await fetch(statusUrl, {
+            signal: AbortSignal.timeout(15000) // 15 second timeout for status check
+          });
+          
+          if (!st.ok) {
+            throw new Error(`Status check failed: ${st.status}`);
+          }
+          
           const stData = await st.json();
-          if (st.ok && stData.ResultCode?.toString() === "0") {
+          
+          if (stData.ResultCode?.toString() === "0") {
             setStatus("success");
             await fetchBalance(userId);
             await fetchTransactions(userId);
             await fetchStats(userId);
             setAmount("");
+            setPhone("");
             alert("Deposit successful!");
-          } else if (st.ok && stData.ResultCode?.toString() === "1032") {
+          } else if (stData.ResultCode?.toString() === "1032") {
             setStatus("cancelled");
-            setError("Payment cancelled");
+            setError("Payment was cancelled by user");
           } else {
             setStatus("failed");
-            setError(stData.ResultDesc || "Deposit failed");
+            setError(stData.ResultDesc || "Deposit failed - please try again");
           }
-        } catch {
-          setError("Failed to check deposit status");
+        } catch (statusErr) {
+          console.error("Status check error:", statusErr);
+          setStatus("unknown");
+          setError("Could not verify payment status. Please check your M-Pesa messages and contact support if money was deducted.");
         } finally {
           setLoading(false);
         }
-      }, 4000);
+      }, 5000); // Increased to 5 seconds
     } catch (e) {
-      setError(e.message);
+      console.error("Deposit initiation error:", e);
+      setError(e.message || "Failed to initiate deposit. Please check your internet connection and try again.");
       setLoading(false);
       setStatus("failed");
     }
   };
 
-  // Withdrawal request (admin review)
+  // Enhanced withdrawal request with better error handling
   const submitWithdrawRequest = async () => {
     if (!amount) return setError("Please enter amount");
     if (parseFloat(amount) < minWithdrawal) return setError(`Minimum withdrawal is ${minWithdrawal} KES`);
     if (!phone || !phone2) return setError("Enter and confirm your M-Pesa phone number");
     if (formatPhone(phone) !== formatPhone(phone2)) return setError("Phone numbers do not match");
     if (!userId) return setError("User not authenticated");
+    if (parseFloat(amount) > balance) return setError("Insufficient balance for this withdrawal");
 
     setLoading(true);
     setError("");
@@ -180,18 +326,28 @@ const WalletPage = () => {
           user_id: userId,
           phone: formatPhone(phone),
           amount: parseFloat(amount)
-        })
+        }),
+        // Add timeout
+        signal: AbortSignal.timeout(15000) // 15 second timeout
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        throw new Error(errorData.error || `Failed to submit withdrawal request (${res.status})`);
+      }
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to submit withdrawal request");
-
+      console.log("Withdrawal request response:", data);
+      
       await fetchTransactions(userId);
+      await fetchBalance(userId); // Refresh balance to show pending withdrawal
       setAmount("");
       setPhone("");
       setPhone2("");
-      alert("Your withdrawal is being processed, you'll receive your funds in the next 60 minutes.");
+      alert("Your withdrawal request has been submitted successfully! You'll receive your funds within 60 minutes.");
     } catch (e) {
-      setError(e.message);
+      console.error("Withdrawal request error:", e);
+      setError(e.message || "Failed to submit withdrawal request. Please check your internet connection and try again.");
     } finally {
       setLoading(false);
     }
@@ -333,11 +489,37 @@ const WalletPage = () => {
                 </>
               )}
 
-              {error && <p className="error-text" style={{color: 'red'}}>{error}</p>}
+              {/* Enhanced Error and Status Display */}
+              {error && (
+                <div className="error-text" style={{
+                  color: 'red', 
+                  background: '#ffebee', 
+                  padding: '10px', 
+                  borderRadius: '5px', 
+                  border: '1px solid #ffcdd2',
+                  marginBottom: '15px'
+                }}>
+                  <strong>Error:</strong> {error}
+                </div>
+              )}
+              
               {status && (
-                <p className="status-text" style={{ color: status === 'success' ? 'green' : status === 'failed' ? 'red' : 'orange' }}>
-                  Status: {status}
-                </p>
+                <div className="status-text" style={{ 
+                  color: status === 'success' ? '#4caf50' : status === 'failed' ? '#f44336' : status === 'cancelled' ? '#ff9800' : '#2196f3',
+                  background: status === 'success' ? '#e8f5e8' : status === 'failed' ? '#ffebee' : status === 'cancelled' ? '#fff3e0' : '#e3f2fd',
+                  padding: '10px',
+                  borderRadius: '5px',
+                  border: `1px solid ${status === 'success' ? '#c8e6c9' : status === 'failed' ? '#ffcdd2' : status === 'cancelled' ? '#ffcc02' : '#bbdefb'}`,
+                  marginBottom: '15px',
+                  fontWeight: 'bold'
+                }}>
+                  Status: {status === 'processing' ? 'Processing payment...' : status.charAt(0).toUpperCase() + status.slice(1)}
+                  {status === 'processing' && (
+                    <div style={{ marginTop: '5px', fontSize: '14px', fontWeight: 'normal' }}>
+                      Please check your phone for M-Pesa prompt and enter your PIN.
+                    </div>
+                  )}
+                </div>
               )}
 
               <div className="action-buttons">

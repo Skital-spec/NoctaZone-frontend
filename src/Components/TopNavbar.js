@@ -31,14 +31,22 @@ const TopNavbar = ({ onOpenPublicChat }) => {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Function to fetch balance from backend API (consistent with wallet page)
+  // Function to fetch balance from backend API with improved error handling
   const fetchBalanceFromAPI = async (uid) => {
     try {
       setBalanceLoading(true);
       // console.log("Fetching balance from API for user:", uid);
       
       const response = await fetch(
-        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${uid}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          // Add timeout
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        }
       );
       
       if (!response.ok) {
@@ -48,21 +56,22 @@ const TopNavbar = ({ onOpenPublicChat }) => {
       const data = await response.json();
       // console.log("Balance API response:", data);
       
-      setBalance(data.balance || 0);
-      return data.balance || 0;
+      const apiBalance = data.balance || 0;
+      setBalance(apiBalance);
+      return apiBalance;
     } catch (err) {
       console.error("Failed to fetch balance from API:", err);
-      // Fallback to direct Supabase query
+      // Always fallback to Supabase when external API fails
       return await fetchBalanceFromSupabase(uid);
     } finally {
       setBalanceLoading(false);
     }
   };
 
-  // FIXED: Fallback function - NO MORE UPSERT WITH 0!
+  // Enhanced Supabase fallback function with better error handling
   const fetchBalanceFromSupabase = async (uid) => {
     try {
-      // console.log("Fetching balance from Supabase for user:", uid);
+      console.log("Fetching balance from Supabase for user:", uid);
       
       // FIRST: Try to get existing wallet
       const { data: wallet, error } = await supabase
@@ -73,34 +82,27 @@ const TopNavbar = ({ onOpenPublicChat }) => {
 
       if (error && error.code !== "PGRST116") {
         console.error("Supabase balance fetch error:", error);
+        // Return 0 on any error but don't fail completely
+        setBalance(0);
         return 0;
       }
 
       if (wallet) {
         // Wallet exists, use its balance
         console.log("Existing wallet found with balance:", wallet.balance);
-        setBalance(wallet.balance);
-        return wallet.balance;
+        const walletBalance = wallet.balance || 0;
+        setBalance(walletBalance);
+        return walletBalance;
       } else {
-        // ONLY create wallet if it truly doesn't exist
-        console.log("No wallet found, creating new wallet with balance 0");
-        const { data: newWallet, error: createError } = await supabase
-          .from("wallets")
-          .insert({ user_id: uid, balance: 0 })
-          .select()
-          .single();
-
-        if (createError) {
-          console.error("Failed to create wallet:", createError);
-          setBalance(0);
-          return 0;
-        }
-
+        // Wallet doesn't exist, show 0 balance but don't auto-create
+        console.log("No wallet found, showing 0 balance");
         setBalance(0);
         return 0;
       }
     } catch (err) {
       console.error("Error fetching balance from Supabase:", err);
+      // Even if Supabase fails, show 0 instead of breaking
+      setBalance(0);
       return 0;
     }
   };
@@ -132,21 +134,34 @@ const TopNavbar = ({ onOpenPublicChat }) => {
         console.log("User authenticated:", user.id);
         setUserId(user.id);
 
-        // ✅ fetch username
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("username, role")
-          .eq("id", user.id)
-          .single();
+        // ✅ fetch username with better error handling
+        try {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("username, role")
+            .eq("id", user.id)
+            .maybeSingle(); // Use maybeSingle() to handle no results gracefully
 
-        if (profile && !profileError) {
-          setUsername(profile.username);
-          setIsAdmin(profile.role === "admin");
-        } else {
-          console.warn("Profile fetch error:", profileError);
-          // Fallback to user email if username not found
+          if (profile && !profileError) {
+            setUsername(profile.username || user.email?.split('@')[0] || 'User');
+            setIsAdmin(profile.role === "admin");
+          } else {
+            console.warn("Profile fetch error:", profileError);
+            // Fallback to user email if username not found
+            if (user.email) {
+              setUsername(user.email.split('@')[0]);
+            } else {
+              setUsername('User');
+            }
+            setIsAdmin(false);
+          }
+        } catch (profileErr) {
+          console.error("Profile fetch failed:", profileErr);
+          // Fallback to user email if username fetch fails completely
           if (user.email) {
             setUsername(user.email.split('@')[0]);
+          } else {
+            setUsername('User');
           }
           setIsAdmin(false);
         }

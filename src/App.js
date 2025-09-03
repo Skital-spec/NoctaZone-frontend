@@ -40,6 +40,7 @@ import ChallengeDetails from './Pages/ChallengeDetails';
 import VerifyEmail from './Pages/VerifyEmail';
 import ReportResults from './Pages/ReportResults';
 import Adminresults from './Pages/Adminresults';
+import Withdrawalrequests from './Pages/Withdrawalrequests';
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path='/' element={<Home/>}/>
+            <Route path='/withdrawalrequests' element={<Withdrawalrequests/>}/>
             <Route path='/adminresults' element={<Adminresults/>}/>
             <Route path='/verifyemail' element={<VerifyEmail/>}/>
             <Route path='/tournament/:id/participants' element={<TournamentParticipants/>}/>
