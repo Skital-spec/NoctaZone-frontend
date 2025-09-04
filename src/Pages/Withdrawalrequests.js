@@ -35,7 +35,6 @@ function Withdrawalrequests() {
       }
       
       setRequests(data.requests || [])
-      setDebugInfo(`✅ Connected to server - Found ${data.requests?.length || 0} withdrawal requests`)
     } catch (e) {
       console.error('Fetch error:', e)
       setError(e.message)
