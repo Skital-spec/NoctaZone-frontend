@@ -43,11 +43,14 @@ function Withdrawalrequests() {
           {requests.map((r) => (
             <div key={r.id} style={{ border: '1px solid #eee', padding: 12, marginBottom: 10, borderRadius: 6, background: '#fff' }}>
               <div><strong>Time:</strong> {r.time}</div>
-              <div><strong>User:</strong> {r.username || r.user_id}</div>
+              <div><strong>User:</strong> {r.username && r.username !== 'Unknown User' ? r.username : `User ID: ${r.user_id}`}</div>
               <div><strong>User ID:</strong> {r.user_id}</div>
               <div><strong>Phone:</strong> {r.phone}</div>
-              <div><strong>Amount:</strong> {r.amount}</div>
-              <div><strong>Status:</strong> {r.status}</div>
+              <div><strong>Amount:</strong> KES {r.amount}</div>
+              <div><strong>Status:</strong> <span style={{ 
+                color: r.status === 'pending' ? 'orange' : r.status === 'completed' ? 'green' : 'red',
+                fontWeight: 'bold'
+              }}>{r.status.toUpperCase()}</span></div>
             </div>
           ))}
         </div>
