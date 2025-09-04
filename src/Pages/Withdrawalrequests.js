@@ -5,15 +5,13 @@ function Withdrawalrequests() {
   const [loading, setLoading] = useState(false)
   const [requests, setRequests] = useState([])
   const [error, setError] = useState('')
-  const [debugInfo, setDebugInfo] = useState('')
 
   const fetchRequests = async () => {
     setLoading(true)
     setError('')
-    setDebugInfo('')
     try {
       const apiUrl = `${config.API_BASE_URL}/api/admin/withdrawal-requests`
-      setDebugInfo(`Fetching from: ${apiUrl}`)
+      
       
       const res = await fetch(apiUrl, {
         method: 'GET',
