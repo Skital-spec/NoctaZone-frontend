@@ -9,9 +9,9 @@ function Withdrawalrequests() {
   const fetchRequests = async () => {
     setLoading(true)
     setError('')
+    
     try {
       const apiUrl = `${config.API_BASE_URL}/api/admin/withdrawal-requests`
-      
       
       const res = await fetch(apiUrl, {
         method: 'GET',
@@ -33,6 +33,7 @@ function Withdrawalrequests() {
       }
       
       setRequests(data.requests || [])
+      
     } catch (e) {
       console.error('Fetch error:', e)
       setError(e.message)
@@ -56,7 +57,6 @@ function Withdrawalrequests() {
         <button onClick={fetchRequests} disabled={loading}>Refresh</button>
         {loading && <span>Loading...</span>}
         {error && <div style={{ color: 'red', marginTop: 10 }}>Error: {error}</div>}
-        {debugInfo && <div style={{ color: 'blue', fontSize: '12px', marginTop: 5 }}>Debug: {debugInfo}</div>}
       </div>
 
       {!loading && !error && requests.length === 0 ? (
