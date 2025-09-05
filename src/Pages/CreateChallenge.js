@@ -39,19 +39,20 @@ const CreateChallenge = () => {
 
   // Game types - you can edit this list to fit your games
   const gameTypes = [
-    { value: "pes", label: "PES (Pro Evolution Soccer)" },
-    { value: "fifa", label: "FIFA" },
+    { value: "konami", label: "Konami (Efootball)" },
+    { value: "dreamleague", label: "Dream League Soccer 2025" },
+    { value: "easportsfc", label: "EA SPORTS FC Mobile Football" },
+    { value: "footballleague", label: "Football League 2025" },
     { value: "cod", label: "Call of Duty" },
-    { value: "fortnite", label: "Fortnite" },
-    { value: "apex", label: "Apex Legends" },
-    { value: "valorant", label: "Valorant" },
     { value: "pubg", label: "PUBG" },
+    { value: "realpool3d", label: "Real Pool 3D" },
+    { value: "fortnite", label: "Fortnite" },
     { value: "chess", label: "Chess" },
-    { value: "dreamleague", label: "Dream League" },
-    { value: "leagueoflegends", label: "League of Legends" },
-    { value: "minecraft", label: "Minecraft" },
+    {value: "needforspeed", label: "Need for Speed"},
     { value: "asphaltlegends", label: "Asphalt Legends" },
-    { value: "realpool3d", label: "Real Pool 3D" }
+    { value: "minecraft", label: "Minecraft" },
+    { value: "valorant", label: "Valorant" },
+    { value: "leagueoflegends", label: "League of Legends" },   
   ];
 
   // ✅ Get logged-in user from Supabase and fetch balance
