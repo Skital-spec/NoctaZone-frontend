@@ -369,7 +369,7 @@ const ChallengeDetails = () => {
                                 ) : m.status === "disputed" ? (
                                   <span className="text-danger fw-bold">Disputed - Awaiting Resolution</span>
                                 ) : (
-                                  <span className="text-muted">Score: {(m.player1_points ?? 0)} - {(m.player2_points ?? 0)}</span>
+                                  <span className="text-muted">Winner: TBD</span>
                                 )}
                               </div>
                             </div>
