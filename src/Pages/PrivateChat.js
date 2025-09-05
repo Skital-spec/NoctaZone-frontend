@@ -929,9 +929,6 @@ export default function WhatsAppStyleChat() {
             <>
               <div style={{ padding: 12, borderBottom: `1px solid ${neon}`, background: panel, color: neon, fontWeight: "bold" }}>
                 {foundUser.username}
-                <span style={{ marginLeft: 20, fontSize: 12, color: '#999' }}>
-                  Balance: {balance} tokens
-                </span>
               </div>
 
               <div style={{ flex: 1, overflowY: "auto", padding: 16, background: dark }}>
