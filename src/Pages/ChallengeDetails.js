@@ -32,10 +32,8 @@ const ChallengeDetails = () => {
 
   useEffect(() => {
     loadChallenge();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Poll for opponent for public challenges until p2 appears
   useEffect(() => {
     if (!challenge || challenge.challenge_type !== 'open') return;
     if (players.p2) return;
@@ -49,62 +47,34 @@ const ChallengeDetails = () => {
     setLoading(true);
     setError(null);
     try {
-      // 1) Load challenge row
-      const { data: ch, error: chErr } = await supabase
-        .from("challenges")
-        .select(
-          "id, creator_id, entry_fee, status, participants, total_participants, game_type, prize_amount, challenge_type, play_time, created_at"
-        )
-        .eq("id", id)
-        .single();
+      // 1) Challenge + players from backend
+      const chRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}`, { credentials: "include" });
+      if (!chRes.ok) throw new Error("Failed to load challenge");
+      const chJson = await chRes.json();
+      setChallenge(chJson.challenge);
+      setPlayers(chJson.players || { p1: null, p2: null });
 
-      if (chErr || !ch) {
-        setError("Challenge not found");
-        setLoading(false);
-        return;
-      }
-
-      setChallenge(ch);
-
-      // 2) Load participants (two users max)
-      const { data: partRows } = await supabase
-        .from("challenge_participants")
-        .select("user_id, joined_at")
-        .eq("challenge_id", id);
-
-      const allUserIds = Array.from(
-        new Set(
-          [ch.creator_id, ...(partRows || []).map((p) => p.user_id)].filter(Boolean)
-        )
-      );
-
-      // Decide p1/p2 robustly (ID-first, profile optional)
-      const p1Id = ch.creator_id;
-      const joinedIds = (partRows || [])
-        .map((p) => p.user_id)
-        .filter((uid) => !!uid && uid !== p1Id);
-      const p2Id = joinedIds.length > 0 ? joinedIds[0] : null;
-
-      // Fetch only needed profiles
-      let profileMap = {};
-      const needIds = [p1Id, p2Id].filter(Boolean);
-      if (needIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, username, avatar_url, full_name")
-          .in("id", needIds);
-        (profiles || []).forEach((p) => {
-          profileMap[p.id] = p;
+      // 2) Ensure matches (only if two players present)
+      if (chJson.players?.p1?.id && chJson.players?.p2?.id) {
+        const ensureRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/ensure-matches`, {
+          method: "POST",
+          credentials: "include"
         });
+        if (ensureRes.ok) {
+          const ensureJson = await ensureRes.json();
+          setMatches(ensureJson.matches || []);
+        } else {
+          // fallback: fetch matches even if ensure failed
+          const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
+          const mJson = await mRes.json();
+          setMatches(mJson.matches || []);
+        }
+      } else {
+        // 3) Fetch existing matches (might be 0 until opponent joins)
+        const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
+        const mJson = await mRes.json();
+        setMatches(mJson.matches || []);
       }
-
-      const p1 = profileMap[p1Id] || (p1Id ? { id: p1Id } : null);
-      const p2 = profileMap[p2Id] || (p2Id ? { id: p2Id } : null);
-
-      setPlayers({ p1, p2 });
-
-      // 3) Load existing matches
-      await fetchMatches({ ensure: true, p1, p2, ch });
     } catch (err) {
       setError(err.message || "Failed to load challenge");
     } finally {
