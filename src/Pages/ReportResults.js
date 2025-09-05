@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "../Components/MainLayout";
+import { supabase } from "../supabaseClient";
 
 const ReportResults = () => {
   const { id, matchId } = useParams();
@@ -11,6 +12,7 @@ const ReportResults = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null); // Add current user state
 
   // Goals instead of points
   const [player1Goals, setPlayer1Goals] = useState(0);
@@ -26,6 +28,23 @@ const ReportResults = () => {
   const [disputeRules, setDisputeRules] = useState("");
   const [disputeWitnesses, setDisputeWitnesses] = useState("");
   const [disputeFiles, setDisputeFiles] = useState([]);
+
+  // Get current user on component mount
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        if (user) {
+          setCurrentUserId(user.id);
+        }
+      } catch (err) {
+        console.error("Failed to get current user:", err);
+        setError("Failed to authenticate user");
+      }
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     const fetchMatch = async () => {
@@ -59,10 +78,10 @@ const ReportResults = () => {
   }, [match]);
 
   const canSubmit = useMemo(() => {
-    if (!players.p1 || !players.p2) return false;
+    if (!players.p1 || !players.p2 || !currentUserId) return false;
     if (declaredWinner === "draw") return true;
     return declaredWinner === players.p1?.id || declaredWinner === players.p2?.id;
-  }, [players, declaredWinner]);
+  }, [players, declaredWinner, currentUserId]);
 
   const handleEvidenceFilesChange = (e) => {
     const files = Array.from(e.target.files || []);
@@ -79,8 +98,13 @@ const ReportResults = () => {
       setError(null);
       setSuccess(null);
 
+      if (!currentUserId) {
+        setError("User not authenticated");
+        return;
+      }
+
       const form = new FormData();
-      form.append("user_id", players.p1?.id || players.p2?.id || "");
+      form.append("user_id", currentUserId); // Use actual current user ID
       form.append("player1Goals", String(parseInt(player1Goals) || 0));
       form.append("player2Goals", String(parseInt(player2Goals) || 0));
       form.append("player1Points", String(parseInt(player1Goals) || 0));
@@ -124,8 +148,13 @@ const ReportResults = () => {
       setError(null);
       setSuccess(null);
 
+      if (!currentUserId) {
+        setError("User not authenticated");
+        return;
+      }
+
       const form = new FormData();
-      form.append("user_id", players.p1?.id || players.p2?.id || "");
+      form.append("user_id", currentUserId); // Use actual current user ID
       form.append("description", disputeDescription || "");
       form.append("rules_violated", disputeRules || "");
       form.append("witnesses", disputeWitnesses || "");
@@ -211,13 +240,12 @@ const ReportResults = () => {
               <h3 className="text-xl font-bold mb-3" style={{ color: "#00ffcc" }}>Submit Your Result</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm mb-1" 
-                  >Player 1 Goals</label>
+                  <label className="block text-sm mb-1" >{match?.player1?.username || "Anonymous"}'s Scores</label>
                   <input type="number" value={player1Goals} onChange={(e) => setPlayer1Goals(e.target.value)} className="w-full  text-black rounded p-2" 
                   style={{outline: "none", marginLeft:'3%' , border: "none" , marginTop:'1rem'}}/>
                 </div>
                 <div>
-                  <label className="block text-sm mb-1" style={{ marginTop:'1rem'}}  >Player 2 Goals</label>
+                  <label className="block text-sm mb-1" style={{ marginTop:'1rem'}}  >{match?.player2?.username || "Anonymous"}'s Scores</label>
                   <input type="number" value={player2Goals} onChange={(e) => setPlayer2Goals(e.target.value)} className="w-full text-black rounded p-2 "
                    style={{outline: "none", marginLeft:'3%' , border: "none" , marginTop:'1rem'}} />
                 </div>
