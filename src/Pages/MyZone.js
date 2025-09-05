@@ -825,14 +825,17 @@ const handleJoinChallenge = async (challenge) => {
                   </div>
                 </div>
               </div>
-
+              <div>
+                      </div>
               <div className="row mb-4">
                 <div className="col-md-6">
                   <div className="d-flex align-items-center mb-2">
-                    <div>
-                      <strong>Entry Fee:</strong>
-                      <div className="text-success fw-bold">{selectedHistoryMatch.entry_fee_paid} Tokens</div>
-                    </div>
+                  <div>
+                        <strong>Entry Fee:</strong>
+                        <div className="text-success fw-bold">
+                          {(selectedHistoryMatch.entry_fee_paid ?? selectedHistoryMatch.entry_fee)} Tokens
+                        </div>
+                      </div>
                   </div>
                 </div>
                 <div className="col-md-6">
