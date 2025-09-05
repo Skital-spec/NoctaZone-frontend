@@ -359,12 +359,20 @@ const ChallengeDetails = () => {
                               <div className="mt-1">
                                 {m.status === "completed" && m.winner_user_id ? (
                                   <div className="d-flex align-items-center">
-                                    <Trophy size={16} className="me-1 text-warning" />
-                                    <span className="text-success fw-bold">
-                                      Winner: {m.winner_user_id === players.p1?.id 
-                                        ? (players.p1?.username || `User ${players.p1?.id}`)
-                                        : (players.p2?.username || `User ${players.p2?.id}`)}
-                                    </span>
+                                    {m.winner_user_id === 'draw' ? (
+                                      <span className="text-warning fw-bold">
+                                        Result: Draw
+                                      </span>
+                                    ) : (
+                                      <>
+                                        <Trophy size={16} className="me-1 text-warning" />
+                                        <span className="text-success fw-bold">
+                                          Winner: {m.winner_user_id === players.p1?.id 
+                                            ? (players.p1?.username || `User ${players.p1?.id}`)
+                                            : (players.p2?.username || `User ${players.p2?.id}`)}
+                                        </span>
+                                      </>
+                                    )}
                                   </div>
                                 ) : m.status === "disputed" ? (
                                   <span className="text-danger fw-bold">Disputed - Awaiting Resolution</span>
