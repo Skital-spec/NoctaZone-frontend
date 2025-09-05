@@ -35,6 +35,16 @@ const ChallengeDetails = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  // Poll for opponent for public challenges until p2 appears
+  useEffect(() => {
+    if (!challenge || challenge.challenge_type !== 'open') return;
+    if (players.p2) return;
+    const t = setInterval(() => {
+      loadChallenge();
+    }, 4000);
+    return () => clearInterval(t);
+  }, [challenge, players.p2]);
+
   const loadChallenge = async () => {
     setLoading(true);
     setError(null);
@@ -68,27 +78,26 @@ const ChallengeDetails = () => {
         )
       );
 
-      let profileMap = {};
-      // Build participant IDs first
+      // Decide p1/p2 robustly (ID-first, profile optional)
       const p1Id = ch.creator_id;
       const joinedIds = (partRows || [])
-        .map(p => p.user_id)
-        .filter(uid => !!uid && uid !== p1Id);
+        .map((p) => p.user_id)
+        .filter((uid) => !!uid && uid !== p1Id);
       const p2Id = joinedIds.length > 0 ? joinedIds[0] : null;
 
-      // Fetch only the needed profiles
-      if (p1Id || p2Id) {
-        const needIds = [p1Id, p2Id].filter(Boolean);
+      // Fetch only needed profiles
+      let profileMap = {};
+      const needIds = [p1Id, p2Id].filter(Boolean);
+      if (needIds.length > 0) {
         const { data: profiles } = await supabase
           .from("profiles")
           .select("id, username, avatar_url, full_name")
           .in("id", needIds);
-        (profiles || []).forEach(p => {
+        (profiles || []).forEach((p) => {
           profileMap[p.id] = p;
         });
       }
 
-      // Decide p1/p2 with robust fallbacks
       const p1 = profileMap[p1Id] || (p1Id ? { id: p1Id } : null);
       const p2 = profileMap[p2Id] || (p2Id ? { id: p2Id } : null);
 
