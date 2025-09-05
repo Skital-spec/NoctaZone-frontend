@@ -162,7 +162,7 @@ const ChallengeDetails = () => {
 
   const seriesScore = useMemo(() => {
     if (!players.p1 || !players.p2 || matches.length === 0) {
-      return { p1Wins: 0, p2Wins: 0 };
+      return { p1Wins: 0, p2Wins: 0, seriesWinner: null };
     }
     let p1Wins = 0;
     let p2Wins = 0;
@@ -172,7 +172,16 @@ const ChallengeDetails = () => {
         if (m.winner_user_id === players.p2.id) p2Wins++;
       }
     });
-    return { p1Wins, p2Wins };
+    
+    // Determine series winner
+    let seriesWinner = null;
+    if (p1Wins > p2Wins) {
+      seriesWinner = players.p1;
+    } else if (p2Wins > p1Wins) {
+      seriesWinner = players.p2;
+    }
+    
+    return { p1Wins, p2Wins, seriesWinner };
   }, [players, matches]);
 
   const formatDateTime = (dateString) => {
@@ -293,14 +302,29 @@ const ChallengeDetails = () => {
 
                 <div className="mb-2 fw-bold">Best of 3 Series</div>
                 <div className="mb-3">
-                  <Badge bg="dark" className="me-2">
-                    {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}:{" "}
-                    {seriesScore.p1Wins}
-                  </Badge>
-                  <Badge bg="dark">
-                    {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}:{" "}
-                    {seriesScore.p2Wins}
-                  </Badge>
+                  {seriesScore.seriesWinner ? (
+                    <div className="d-flex align-items-center">
+                      <Trophy size={20} className="me-2 text-warning" />
+                      <Badge bg="success" className="me-2">
+                        Winner: {seriesScore.seriesWinner.username || `User ${seriesScore.seriesWinner.id}`}
+                      </Badge>
+                      <Badge bg="dark" className="me-2">
+                        {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}: {seriesScore.p1Wins}
+                      </Badge>
+                      <Badge bg="dark">
+                        {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}: {seriesScore.p2Wins}
+                      </Badge>
+                    </div>
+                  ) : (
+                    <div>
+                      <Badge bg="dark" className="me-2">
+                        {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}: {seriesScore.p1Wins}
+                      </Badge>
+                      <Badge bg="dark">
+                        {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}: {seriesScore.p2Wins}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
                 {creatingMatches && (
@@ -333,7 +357,20 @@ const ChallengeDetails = () => {
                                 {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}
                               </div>
                               <div className="mt-1">
-                                Score: {(m.player1_points ?? 0)} - {(m.player2_points ?? 0)}
+                                {m.status === "completed" && m.winner_user_id ? (
+                                  <div className="d-flex align-items-center">
+                                    <Trophy size={16} className="me-1 text-warning" />
+                                    <span className="text-success fw-bold">
+                                      Winner: {m.winner_user_id === players.p1?.id 
+                                        ? (players.p1?.username || `User ${players.p1?.id}`)
+                                        : (players.p2?.username || `User ${players.p2?.id}`)}
+                                    </span>
+                                  </div>
+                                ) : m.status === "disputed" ? (
+                                  <span className="text-danger fw-bold">Disputed - Awaiting Resolution</span>
+                                ) : (
+                                  <span className="text-muted">Score: {(m.player1_points ?? 0)} - {(m.player2_points ?? 0)}</span>
+                                )}
                               </div>
                             </div>
                             <div className="d-flex align-items-center gap-2">
