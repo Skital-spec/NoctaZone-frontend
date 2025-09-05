@@ -1029,8 +1029,8 @@ export default function WhatsAppStyleChat() {
 
                   <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
                     <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                      Kshs 
-                      <strong style={{ color: '#00ffcc' }}>Financial Details</strong>
+                     
+                      <strong style={{ color: '#00ffcc' }}>Token Details</strong>
                     </div>
                     <p style={{ marginBottom: 8 }}>
                       <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}}>{selectedChallenge.entry_fee} tokens</span>
