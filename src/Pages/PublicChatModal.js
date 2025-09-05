@@ -44,6 +44,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       const { data: messagesData, error: messagesError } = await supabase
         .from("public_chat")
         .select("*")
+        .neq("message_type", "challenge") // avoid fetching challenge announcements at all
         .order("created_at", { ascending: true });
 
       if (messagesError) {
@@ -53,8 +54,11 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
         return;
       }
 
+      // Filter out public challenge announcements from chat feed
+      const nonChallengeMessages = (messagesData || []).filter(m => m.message_type !== 'challenge');
+
       // Then, get all unique user IDs from messages
-      const userIds = [...new Set(messagesData.map(msg => msg.user_id))];
+      const userIds = [...new Set(nonChallengeMessages.map(msg => msg.user_id))];
       
       // Fetch usernames for all users at once
       const { data: profilesData, error: profilesError } = await supabase
@@ -76,7 +80,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       }
 
       // Add usernames to messages
-      const messagesWithUsernames = messagesData.map(msg => ({
+      const messagesWithUsernames = nonChallengeMessages.map(msg => ({
         ...msg,
         username: usernameMap[msg.user_id] || "Anonymous"
       }));
@@ -87,6 +91,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
 
     fetchMessages();
 
+    
     // Set up real-time subscription for new messages and deletions
     const channel = supabase
       .channel("public-chat-realtime")
@@ -94,14 +99,15 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "public_chat" },
         async (payload) => {
-          // The message already includes username from the insert, so we can use it directly
+          // Ignore public challenge announcements in the chat feed
+          if (payload.new?.message_type === 'challenge') return;
+
           const newMessage = {
             ...payload.new,
             username: payload.new.username || "Anonymous"
           };
 
           setMessages((prev) => {
-            // Prevent duplicates by checking if message already exists
             const exists = prev.some(msg => msg.id === newMessage.id);
             if (exists) return prev;
             return [...prev, newMessage];
@@ -206,8 +212,9 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           "postgres_changes",
           { event: "UPDATE", schema: "public", table: "challenges" },
           (payload) => {
-            // Remove challenges that are no longer open or pending
-            if (payload.new.challenge_type !== "open" || payload.new.status !== "pending") {
+            // Remove challenges that are no longer open/pending or are full
+            if (payload.new.challenge_type !== "open" || payload.new.status !== "pending" ||
+                (payload.new.current_participants >= payload.new.participants)) {
               setChallenges(prev => prev.filter(c => c.id !== payload.new.id));
             }
           }
@@ -216,14 +223,25 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "challenge_participants" },
           (payload) => {
-            // Update challenge participant count
-            setChallenges(prev => 
-              prev.map(challenge => 
-                challenge.id === payload.new.challenge_id 
-                  ? { ...challenge, current_participants: (challenge.current_participants || 0) + 1 } 
-                  : challenge
-              )
-            );
+            // Update challenge participant count and remove when full
+            setChallenges(prev => {
+              return prev.reduce((acc, challenge) => {
+                if (challenge.id !== payload.new.challenge_id) {
+                  acc.push(challenge);
+                  return acc;
+                }
+                const updated = {
+                  ...challenge,
+                  current_participants: (challenge.current_participants || 1) + 1
+                };
+                if (updated.current_participants >= updated.participants) {
+                  // Challenge is now full; remove from list
+                  return acc;
+                }
+                acc.push(updated);
+                return acc;
+              }, []);
+            });
           }
         )
         .subscribe();
@@ -465,17 +483,23 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       }
       
       // Update local state
-      setChallenges(prev => 
-        prev.map(c => 
-          c.id === selectedChallenge.id 
-            ? { 
-                ...c, 
+      setChallenges(prev => {
+        const updated = prev.map(c =>
+          c.id === selectedChallenge.id
+            ? {
+                ...c,
                 hasJoined: true,
                 current_participants: (c.current_participants || 1) + 1
-              } 
+              }
             : c
-        )
-      );
+        );
+        // If after join it's full, remove it
+        return updated.filter(c =>
+          c.id !== selectedChallenge.id
+            ? true
+            : ((c.current_participants || 1) < c.participants)
+        );
+      });
       
       setShowChallengeModal(false);
       setError(null);

@@ -626,10 +626,6 @@ const CreateChallenge = () => {
                             <Trophy size={18} className="me-2 text-warning" />
                             <strong>Prize Pool: {calculatePrize()} Tokens</strong>
                           </div>
-                          <small className="text-muted">
-                            Total Stake: {(parseFloat(formData.entryFee) * formData.participants).toFixed(2)} Tokens 
-                            (85% goes to winner)
-                          </small>
                         </div>
                       </Col>
                     </Row>
@@ -857,52 +853,52 @@ const CreateChallenge = () => {
           show={confirmModalOpen}
           onHide={() => setConfirmModalOpen(false)}
           style={modalStyles}
+          centered
           contentLabel="Confirm Challenge Creation"
         >
-          <div className="text-white">
+          <div className="text-white" style={{ position: 'relative' }}>
             <button 
-              style={{background: '#00ffcc', border:'none', borderRadius:'20px'}}
+              style={{background: '#00ffcc', border:'none', borderRadius:'20px', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 12, right: 12 }}
               onClick={() => setConfirmModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
             >
-              <X size={24} />
+              <X size={20} color="#000" />
             </button>
-            <h2 className="text-xl font-bold mb-4 pr-8" style={{color: '#00ffcc'}} >
+            <h2 className="mb-3" style={{color: '#00ffcc', fontWeight: 700, paddingRight: '40px', fontSize: 20}}>
               Confirm Challenge Creation
             </h2>
-            <div className="mb-6 text-gray-300">
-              <p className="mb-3">
-                <strong>Game:</strong> {gameTypes.find(g => g.value === formData.gameType)?.label}
+            <div className="mb-4" style={{ color: '#d1d5db' }}>
+              <p className="mb-2">
+               <span style={{color: '#000000ad', fontWeight: 700}}><strong>Game: </strong> </span> <span style={{color: '#00ffcc', fontWeight: 700}}>{gameTypes.find(g => g.value === formData.gameType)?.label}</span>
+              </p>
+              <p className="mb-2">
+              <span style={{color: '#000000ad', fontWeight: 700}}>  <strong>Entry Fee: </strong></span><span style={{color: '#00ffcc', fontWeight: 700}}>{formData.entryFee} Tokens</span>
+              </p>
+              <p className="mb-2">
+              <span style={{color: '#000000ad', fontWeight: 700}}>  <strong>Prize: </strong></span><span style={{color: '#00ffcc', fontWeight: 700}}>{calculatePrize()} Tokens</span>
               </p>
               <p className="mb-3">
-                <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{formData.entryFee} Tokens</span>
+              <span style={{color: '#000000ad', fontWeight: 700}}>  <strong>Type: </strong></span><span style={{color: '#00ffcc', fontWeight: 700}}>{formData.challengeType === "challenge" ? `Challenge to @${selectedUser?.username}` : "Open Challenge"}</span>
               </p>
-              <p className="mb-3">
-                <strong>Prize:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{calculatePrize()} Tokens</span>
-              </p>
-              <p className="mb-3">
-                <strong>Type:</strong> {formData.challengeType === "challenge" ? `Challenge to @${selectedUser?.username}` : "Open Challenge"}
-              </p>
-              <p className="text-sm text-gray-400">
+              <p className="text-muted" style={{ fontSize: 14 }}>
                 Are you sure you want to create this challenge?
               </p>
             </div>
-            <div className="flex space-x-4">
-             <button 
-              style={{background: '#00ffcc', border:'none', padding:'7px 27px', borderRadius:'10px', marginTop:'10px'}}
-              onClick={handleConfirmCreate}
-              disabled={isSubmitting}
-              className="flex-1 bg-[#00ffcc] text-black font-bold py-3 rounded hover:bg-[#00e6b8] transition-all shadow-[0_0_10px_#00ffccaa] disabled:opacity-50"
-            >
-              {isSubmitting ? "Creating..." : "Yes, Create Challenge"}
-            </button>
-            <button 
-              style={{background: '#00ffcc', border:'none', padding:'7px 27px', borderRadius:'10px'}}
-              onClick={() => setConfirmModalOpen(false)}
-              className="flex-1 bg-gray-800 text-white font-bold py-3 rounded hover:bg-gray-700 transition-colors border border-gray-600"
-            >
-              Cancel
-            </button>
+            <div className="d-flex flex-column flex-sm-row gap-3">
+              <button 
+                style={{background: '#00ffcc', border:'none', padding:'10px 20px', borderRadius:'10px', fontWeight: 700}}
+                onClick={handleConfirmCreate}
+                disabled={isSubmitting}
+                className="w-100"
+              >
+                {isSubmitting ? "Creating..." : "Yes, Create Challenge"}
+              </button>
+              <button 
+                style={{background: 'transparent', border:'1px solid #3a3a3a', color:'#000000ad', padding:'10px 20px', borderRadius:'10px', fontWeight: 700}}
+                onClick={() => setConfirmModalOpen(false)}
+                className="w-100"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </Modal>
@@ -912,49 +908,49 @@ const CreateChallenge = () => {
           show={lowBalanceModalOpen}
           onHide={() => setLowBalanceModalOpen(false)}
           style={modalStyles}
+          centered
           contentLabel="Insufficient Balance"
         >
-          <div className="text-white">
+          <div className="text-white" style={{ position: 'relative' }}>
             <button 
-              style={{background: '#00ffcc', border:'none', borderRadius:'20px'}}
+              style={{background: '#00ffcc', border:'none', borderRadius:'20px', width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', top: 12, right: 12 }}
               onClick={() => setLowBalanceModalOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
             >
-              <X size={24} />
+              <X size={20} color="#000" />
             </button>
-            <h2 className="text-xl font-bold text-red-400 mb-4 pr-8">
+            <h2 className="mb-3" style={{ color: '#ff6b6b', fontWeight: 700, paddingRight: '40px', fontSize: 20 }}>
               Insufficient Balance
             </h2>
-            <div className="mb-6">
-              <p className="text-gray-300 mb-2">
+            <div className="mb-4">
+              <p className="mb-2" style={{ color: '#d1d5db' }}>
                 You don't have enough tokens to create this challenge.
               </p>
-              <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700">
-                <p className="text-sm text-gray-400">Required:</p>
-                <p className="text-lg font-semibold" style={{color: '#00ffcc'}}>
+              <div style={{ background:'#1a1a1a', padding:'12px', borderRadius: '10px', border:'1px solid #3a3a3a' }}>
+                <p className="mb-1" style={{ color:'#9ca3af', fontSize: 14 }}>Required:</p>
+                <p className="mb-2" style={{ color:'#00ffcc', fontSize: 18, fontWeight: 600 }}>
                   {formData.entryFee} Tokens
                 </p>
-                <p className="text-sm text-gray-400 mt-2">Your Balance:</p>
-                <p className="text-lg font-semibold text-red-400">
+                <p className="mb-1" style={{ color:'#9ca3af', fontSize: 14 }}>Your Balance:</p>
+                <p className="mb-0" style={{ color:'#ff6b6b', fontSize: 18, fontWeight: 600 }}>
                   {balance} Tokens
                 </p>
               </div>
             </div>
-            <div className="flex space-x-4">
+            <div className="d-flex flex-column flex-sm-row gap-3">
               <button 
-                style={{background: '#00ffcc', border:'none', padding:'7px 17px', borderRadius:'10px'}}
+                style={{background: '#00ffcc', border:'none', padding:'10px 20px', borderRadius:'10px', fontWeight: 700}}
                 onClick={() => {
                   setLowBalanceModalOpen(false);
                   navigate("/wallet");
                 }}
-                className="flex-1 bg-[#00ffcc] text-black font-bold py-3 rounded hover:bg-[#00e6b8] transition-all shadow-[0_0_10px_#00ffccaa]"
+                className="w-100"
               >
                 Deposit Now
               </button>
               <button 
-                style={{background: '#00ffcc', border:'none', padding:'7px 27px', borderRadius:'10px', marginTop:'10px', marginLeft:'10px'}}
+                style={{background: 'transparent', border:'1px solid #3a3a3a', color:'#fff', padding:'10px 20px', borderRadius:'10px', fontWeight: 700}}
                 onClick={() => setLowBalanceModalOpen(false)}
-                className="py-3 rounded"
+                className="w-100"
               >
                 Cancel
               </button>
