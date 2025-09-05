@@ -63,8 +63,8 @@ const ChallengeDetails = () => {
         
         // Fetch complete user profiles from Supabase
         const { data: userProfiles, error: profileError } = await supabase
-          .from('users')
-          .select('id, username, full_name, avatar_url')
+          .from('profiles')
+          .select('id, username, avatar_url')
           .in('id', playerIds);
         
         if (!profileError && userProfiles) {
@@ -294,11 +294,11 @@ const ChallengeDetails = () => {
                 <div className="mb-2 fw-bold">Best of 3 Series</div>
                 <div className="mb-3">
                   <Badge bg="dark" className="me-2">
-                    {players.p1?.username || players.p1?.full_name || `User ${players.p1?.id}` || "Player 1"}:{" "}
+                    {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}:{" "}
                     {seriesScore.p1Wins}
                   </Badge>
                   <Badge bg="dark">
-                    {players.p2?.username || players.p2?.full_name || `User ${players.p2?.id}` || "Player 2"}:{" "}
+                    {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}:{" "}
                     {seriesScore.p2Wins}
                   </Badge>
                 </div>
@@ -329,8 +329,8 @@ const ChallengeDetails = () => {
                             <div className="mb-2 mb-md-0">
                               <div className="fw-bold">Match {m.match_number}</div>
                               <div className="small text-muted">
-                                {players.p1?.username || players.p1?.full_name || `User ${players.p1?.id}` || "Player 1"} vs{" "}
-                                {players.p2?.username || players.p2?.full_name || `User ${players.p2?.id}` || "Player 2"}
+                                {players.p1?.username || `User ${players.p1?.id}` || "Player 1"} vs{" "}
+                                {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}
                               </div>
                               <div className="mt-1">
                                 Score: {(m.player1_points ?? 0)} - {(m.player2_points ?? 0)}
@@ -380,10 +380,10 @@ const ChallengeDetails = () => {
                   )}
                   <div>
                     <div className="fw-bold">
-                      {players.p1?.username || players.p1?.full_name || `User ${players.p1?.id}` || "Player 1"}
+                      {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}
                     </div>
                     <div className="small text-muted">
-                      Creator{players.p1?.username ? ` (${players.p1.username})` : players.p1?.full_name ? ` (${players.p1.full_name})` : ""}
+                      Creator{players.p1?.username ? ` (${players.p1.username})` : ""}
                     </div>
                   </div>
                 </div>
@@ -408,7 +408,7 @@ const ChallengeDetails = () => {
                   <div>
                     <div className="fw-bold">
                       {players.p2 ? 
-                        (players.p2.username || players.p2.full_name || `User ${players.p2.id}`) : 
+                        (players.p2.username || `User ${players.p2.id}`) : 
                         "Waiting..."
                       }
                     </div>

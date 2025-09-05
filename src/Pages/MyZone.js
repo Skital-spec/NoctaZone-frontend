@@ -622,11 +622,20 @@ const handleJoinChallenge = async (challenge) => {
                               variant="outline-primary"
                               size="sm"
                               onClick={() => {
-                                setSelectedHistoryMatch(match);
-                                setShowHistoryModal(true);
+                                // If challenge is ongoing, navigate to challenge page
+                                if (match.status === "ongoing" || match.status === "active" || match.status === "pending") {
+                                  navigate(`/challenge/${match.id}`);
+                                } else {
+                                  // If challenge has ended, show modal
+                                  setSelectedHistoryMatch(match);
+                                  setShowHistoryModal(true);
+                                }
                               }}
                             >
-                              View Details
+                              {(match.status === "ongoing" || match.status === "active" || match.status === "pending") 
+                                ? "Go to Challenge" 
+                                : "View Details"
+                              }
                             </Button>
                           </div>
                         </Card.Body>
