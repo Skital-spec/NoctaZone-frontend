@@ -5,6 +5,12 @@ import { Trophy, ChevronLeft, ChevronRight } from "lucide-react";
 
 const ACCENT = "#00ffcc";
 
+// Helper function to check if a tournament is a challenge container
+const isChallengeContainer = (tournament) => {
+  // Check if the name starts with "Challenge #"
+  return tournament.name && tournament.name.startsWith("Challenge #");
+};
+
 const TournamentsCarousel = () => {
   const [userId, setUserId] = useState(null);
   const [tournaments, setTournaments] = useState([]);
@@ -23,15 +29,23 @@ const TournamentsCarousel = () => {
     fetchUser();
   }, []);
 
-  // Fetch tournaments (max 8)
+  // Fetch tournaments (max 8) - FIXED: Filter out challenge containers
   useEffect(() => {
     const fetchTournaments = async () => {
       try {
         const { data, error } = await supabase
           .from("tournament_with_game")
           .select("*")
-          .limit(8);
-        if (!error && data) setTournaments(data);
+          .limit(20); // Fetch more to account for filtering
+        
+        if (!error && data) {
+          // Filter out challenge containers and limit to 8 real tournaments
+          const realTournaments = data
+            .filter(tournament => !isChallengeContainer(tournament))
+            .slice(0, 8);
+          
+          setTournaments(realTournaments);
+        }
       } catch (err) {
         console.error("Error fetching tournaments:", err);
       }
