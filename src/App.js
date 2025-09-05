@@ -42,6 +42,8 @@ import ReportResults from './Pages/ReportResults';
 import Adminresults from './Pages/Adminresults';
 import Withdrawalrequests from './Pages/Withdrawalrequests';
 
+
+
 function App() {
   return (
     <div className="App">
@@ -56,6 +58,7 @@ function App() {
             <Route path='/tournament/:id/report-match/:matchId' element={<ReportResults/>}/>
             <Route path='/wallet' element={<Wallet/>}/>
             <Route path='/challengedetails' element={<ChallengeDetails/>}/>
+            <Route path='/challenge/:id' element={<ChallengeDetails/>}/>
             <Route path='/paymentconfirmationmodal' element={<PaymentConfirmationModal/>}/>
             <Route path='/userselectionmodal' element={<UserSelectionModal/>}/>
             <Route path='/createchallenge' element={<CreateChallenge/>}/>
