@@ -40,7 +40,14 @@ export default function WhatsAppStyleChat() {
     { value: "cod", label: "Call of Duty" },
     { value: "fortnite", label: "Fortnite" },
     { value: "apex", label: "Apex Legends" },
-    { value: "valorant", label: "Valorant" }
+    { value: "valorant", label: "Valorant" },
+    { value: "pubg", label: "PUBG" },
+    { value: "chess", label: "Chess" },
+    { value: "dreamleague", label: "Dream League" },
+    { value: "leagueoflegends", label: "League of Legends" },
+    { value: "minecraft", label: "Minecraft" },
+    { value: "asphaltlegends", label: "Asphalt Legends" },
+    { value: "realpool3d", label: "Real Pool 3D" }
   ];
 
   // --- Get current user once on mount ---
