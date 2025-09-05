@@ -160,7 +160,7 @@ const filteredChallenges = publicChallenges.filter((challenge) => {
         participation_type: "created",
         joined_at: challenge.created_at,
         entry_fee_paid: challenge.entry_fee,
-        creator: { username: "Unknown", avatar_url: null }
+        creator: { username: "You", avatar_url: null }
       }));
 
       console.log("�� Created challenges:", createdChallenges);
