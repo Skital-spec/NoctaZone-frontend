@@ -52,10 +52,42 @@ const ChallengeDetails = () => {
       if (!chRes.ok) throw new Error("Failed to load challenge");
       const chJson = await chRes.json();
       setChallenge(chJson.challenge);
-      setPlayers(chJson.players || { p1: null, p2: null });
+      
+      // 2) Get detailed player information from Supabase if we have player IDs
+      let playersData = chJson.players || { p1: null, p2: null };
+      
+      if (playersData.p1?.id || playersData.p2?.id) {
+        const playerIds = [];
+        if (playersData.p1?.id) playerIds.push(playersData.p1.id);
+        if (playersData.p2?.id) playerIds.push(playersData.p2.id);
+        
+        // Fetch complete user profiles from Supabase
+        const { data: userProfiles, error: profileError } = await supabase
+          .from('users')
+          .select('id, username, full_name, avatar_url')
+          .in('id', playerIds);
+        
+        if (!profileError && userProfiles) {
+          // Merge the complete user data
+          if (playersData.p1?.id) {
+            const p1Profile = userProfiles.find(u => u.id === playersData.p1.id);
+            if (p1Profile) {
+              playersData.p1 = { ...playersData.p1, ...p1Profile };
+            }
+          }
+          if (playersData.p2?.id) {
+            const p2Profile = userProfiles.find(u => u.id === playersData.p2.id);
+            if (p2Profile) {
+              playersData.p2 = { ...playersData.p2, ...p2Profile };
+            }
+          }
+        }
+      }
+      
+      setPlayers(playersData);
 
-      // 2) Ensure matches (only if two players present)
-      if (chJson.players?.p1?.id && chJson.players?.p2?.id) {
+      // 3) Ensure matches (only if two players present)
+      if (playersData?.p1?.id && playersData?.p2?.id) {
         const ensureRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/ensure-matches`, {
           method: "POST",
           credentials: "include"
@@ -70,7 +102,7 @@ const ChallengeDetails = () => {
           setMatches(mJson.matches || []);
         }
       } else {
-        // 3) Fetch existing matches (might be 0 until opponent joins)
+        // 4) Fetch existing matches (might be 0 until opponent joins)
         const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
         const mJson = await mRes.json();
         setMatches(mJson.matches || []);
@@ -262,11 +294,11 @@ const ChallengeDetails = () => {
                 <div className="mb-2 fw-bold">Best of 3 Series</div>
                 <div className="mb-3">
                   <Badge bg="dark" className="me-2">
-                    {players.p1?.username || players.p1?.full_name || "Player 1"}:{" "}
+                    {players.p1?.username || players.p1?.full_name || `User ${players.p1?.id}` || "Player 1"}:{" "}
                     {seriesScore.p1Wins}
                   </Badge>
                   <Badge bg="dark">
-                    {players.p2?.username || players.p2?.full_name || "Player 2"}:{" "}
+                    {players.p2?.username || players.p2?.full_name || `User ${players.p2?.id}` || "Player 2"}:{" "}
                     {seriesScore.p2Wins}
                   </Badge>
                 </div>
@@ -297,8 +329,8 @@ const ChallengeDetails = () => {
                             <div className="mb-2 mb-md-0">
                               <div className="fw-bold">Match {m.match_number}</div>
                               <div className="small text-muted">
-                                {players.p1?.username || "Player 1"} vs{" "}
-                                {players.p2?.username || "Player 2"}
+                                {players.p1?.username || players.p1?.full_name || `User ${players.p1?.id}` || "Player 1"} vs{" "}
+                                {players.p2?.username || players.p2?.full_name || `User ${players.p2?.id}` || "Player 2"}
                               </div>
                               <div className="mt-1">
                                 Score: {(m.player1_points ?? 0)} - {(m.player2_points ?? 0)}
@@ -347,8 +379,12 @@ const ChallengeDetails = () => {
                     </div>
                   )}
                   <div>
-                    <div className="fw-bold">{players.p1?.username || players.p1?.full_name || "Player 1"}</div>
-                    <div className="small text-muted">Creator</div>
+                    <div className="fw-bold">
+                      {players.p1?.username || players.p1?.full_name || `User ${players.p1?.id}` || "Player 1"}
+                    </div>
+                    <div className="small text-muted">
+                      Creator{players.p1?.username ? ` (${players.p1.username})` : players.p1?.full_name ? ` (${players.p1.full_name})` : ""}
+                    </div>
                   </div>
                 </div>
 
@@ -370,7 +406,12 @@ const ChallengeDetails = () => {
                     </div>
                   )}
                   <div>
-                    <div className="fw-bold">{players.p2?.username || players.p2?.full_name || "Waiting..."}</div>
+                    <div className="fw-bold">
+                      {players.p2 ? 
+                        (players.p2.username || players.p2.full_name || `User ${players.p2.id}`) : 
+                        "Waiting..."
+                      }
+                    </div>
                     <div className="small text-muted">
                       {players.p2 ? "Opponent" : "Waiting for opponent to join"}
                     </div>
