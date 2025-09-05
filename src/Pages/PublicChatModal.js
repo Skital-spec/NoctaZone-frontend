@@ -572,7 +572,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
                         </div>
                         <div className="d-flex align-items-center">
                           <Badge bg={challenge.hasJoined ? "success" : "primary"} className="me-2">
-                            {challenge.hasJoined ? "Joined" : "Join"}
+                            {challenge.hasJoined ? "Joined" : "Open to Join"}
                           </Badge>
                           <Button 
                             size="sm" 
@@ -737,7 +737,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
               <div className="d-flex justify-content-between align-items-center mb-3">
                 <h5>{selectedChallenge.game_type} Challenge</h5>
                 <Badge bg={selectedChallenge.hasJoined ? "success" : "primary"}>
-                  {selectedChallenge.hasJoined ? "Already Joined" : "Open to Join"}
+                  {selectedChallenge.hasJoined ? "Already Joined" : "Welcome"}
                 </Badge>
               </div>
               
