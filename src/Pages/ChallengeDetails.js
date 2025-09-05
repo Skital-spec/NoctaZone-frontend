@@ -69,24 +69,28 @@ const ChallengeDetails = () => {
       );
 
       let profileMap = {};
-      if (allUserIds.length > 0) {
+      // Build participant IDs first
+      const p1Id = ch.creator_id;
+      const joinedIds = (partRows || [])
+        .map(p => p.user_id)
+        .filter(uid => !!uid && uid !== p1Id);
+      const p2Id = joinedIds.length > 0 ? joinedIds[0] : null;
+
+      // Fetch only the needed profiles
+      if (p1Id || p2Id) {
+        const needIds = [p1Id, p2Id].filter(Boolean);
         const { data: profiles } = await supabase
           .from("profiles")
-          .select("id, username, avatar_url, full_name");
-        (profiles || [])
-          .filter((p) => allUserIds.includes(p.id))
-          .forEach((p) => {
-            profileMap[p.id] = p;
-          });
+          .select("id, username, avatar_url, full_name")
+          .in("id", needIds);
+        (profiles || []).forEach(p => {
+          profileMap[p.id] = p;
+        });
       }
 
-      // Decide p1/p2
-      const p1 = profileMap[ch.creator_id] || null;
-      const others = (partRows || [])
-        .map((p) => profileMap[p.user_id])
-        .filter(Boolean)
-        .filter((p) => p.id !== ch.creator_id);
-      const p2 = others.length > 0 ? others[0] : null;
+      // Decide p1/p2 with robust fallbacks
+      const p1 = profileMap[p1Id] || (p1Id ? { id: p1Id } : null);
+      const p2 = profileMap[p2Id] || (p2Id ? { id: p2Id } : null);
 
       setPlayers({ p1, p2 });
 
