@@ -754,7 +754,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
               </div>
               
               <div className="mb-3">
-                <strong>Participants:</strong> {selectedChallenge.current_participants || 1} / {selectedChallenge.participants}
+                <strong>Participants:</strong> {selectedChallenge.current_participants || 1} / {selectedChallenge.total_participants}
               </div>
               
               <div className="mb-3">

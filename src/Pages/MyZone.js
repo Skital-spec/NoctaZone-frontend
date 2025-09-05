@@ -238,7 +238,7 @@ const handleJoinChallenge = async (challenge) => {
   return (
     <MainLayout>
       <div className="myzone-page">
-        <style>
+      <style>
           {`
             .challenge-card {
               transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
@@ -304,7 +304,37 @@ const handleJoinChallenge = async (challenge) => {
             .tab-content {
               padding: 2rem 0;
             }
-    
+
+            /* Themed modal for Join Challenge */
+            .challenge-modal-content {
+              background-color: #0d0d0d;
+              border: 2px solid #00ffcc;
+              border-radius: 12px;
+              box-shadow: 0 0 15px #00ffcc55;
+              color: #e5e7eb;
+            }
+            .challenge-modal-header {
+              border-bottom: 1px solid rgba(0,255,204,0.25);
+              background: linear-gradient(180deg, rgba(0,255,204,0.07) 0%, rgba(13,13,13,1) 100%);
+            }
+            .challenge-modal-title {
+              color: #00ffcc;
+              font-weight: 700;
+            }
+            .challenge-modal-section {
+              background: #121212;
+              border: 1px solid #2a2a2a;
+              border-radius: 10px;
+              padding: 12px;
+            }
+            .challenge-modal-label {
+              color: #9ca3af;
+              font-size: 0.85rem;
+            }
+            .challenge-modal-value {
+              color: #e5e7eb;
+              font-weight: 600;
+            }
           `}
         </style>
         {/* Navbar Tabs - use wallet theme classes */}
@@ -623,9 +653,10 @@ const handleJoinChallenge = async (challenge) => {
         onHide={() => setShowChallengeModal(false)}
         size="lg"
         centered
+        contentClassName="challenge-modal-content"
       >
-        <Modal.Header closeButton>
-          <Modal.Title>Challenge Details</Modal.Title>
+        <Modal.Header closeButton className="challenge-modal-header">
+          <Modal.Title className="challenge-modal-title">Challenge Details</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           {selectedChallenge && (
@@ -638,64 +669,72 @@ const handleJoinChallenge = async (challenge) => {
                   className="me-3"
                 />
                 <div>
-                  <h5 className="mb-0">{selectedChallenge.creator?.username}</h5>
+                  <h5 className="mb-0" style={{ color: '#e5e7eb' }}>{selectedChallenge.creator?.username}</h5>
                   <small className="text-muted">
                     Created on {new Date(selectedChallenge.created_at).toLocaleDateString()}
                   </small>
                 </div>
               </div>
 
-              <div className="row mb-4">
+              <div className="row g-3 mb-4">
                 <div className="col-md-6">
-                  <div className="d-flex align-items-center mb-2">
-                    Kshs
-                    <div>
-                      <strong>Entry Fee:</strong>
-                      <div className="text-success fw-bold">{selectedChallenge.entry_fee} Tokens</div>
+                  <div className="challenge-modal-section d-flex align-items-center justify-content-between">
+                    <div className="me-2">
+                      <div className="challenge-modal-label">Entry Fee</div>
+                      <div className="challenge-modal-value" style={{ color: '#00ffcc' }}>
+                        {selectedChallenge.entry_fee} Tokens
+                      </div>
                     </div>
+                    <div style={{ color: '#00ffcc', fontWeight: 700 }}>Kshs</div>
                   </div>
                 </div>
                 <div className="col-md-6">
-                  <div className="d-flex align-items-center mb-2">
-                    <Trophy size={20} className="me-2 text-warning" />
+                  <div className="challenge-modal-section d-flex align-items-center">
+                    <Trophy size={20} className="me-2" style={{ color: '#f6c453' }} />
                     <div>
-                      <strong>Prize Pool:</strong>
-                      <div className="text-warning fw-bold">{selectedChallenge.prize_amount} Tokens</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="row mb-4">
-                <div className="col-md-6">
-                  <div className="d-flex align-items-center mb-2">
-                    <Calendar size={20} className="me-2 text-info" />
-                    <div>
-                      <strong>Play Time:</strong>
-                      <div>{new Date(selectedChallenge.play_time).toLocaleString()}</div>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="d-flex align-items-center mb-2">
-                    <Users size={20} className="me-2 text-primary" />
-                    <div>
-                      <strong>Game Type:</strong>
-                      <div className="text-primary fw-bold">{selectedChallenge.game_type?.toUpperCase()}</div>
+                      <div className="challenge-modal-label">Prize Pool</div>
+                      <div className="challenge-modal-value" style={{ color: '#f6c453' }}>
+                        {selectedChallenge.prize_amount} Tokens
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="mb-4">
-                <h6>Match Rules:</h6>
-                <div className="bg-light p-3 rounded">
-                  <p className="mb-0">{selectedChallenge.rules}</p>
+              <div className="row g-3 mb-4">
+                <div className="col-md-6">
+                  <div className="challenge-modal-section d-flex align-items-center">
+                    <Calendar size={20} className="me-2" style={{ color: '#38bdf8' }} />
+                    <div>
+                      <div className="challenge-modal-label">Play Time</div>
+                      <div className="challenge-modal-value">
+                        {new Date(selectedChallenge.play_time).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="col-md-6">
+                  <div className="challenge-modal-section d-flex align-items-center">
+                    <Users size={20} className="me-2" style={{ color: '#60a5fa' }} />
+                    <div>
+                      <div className="challenge-modal-label">Game Type</div>
+                      <div className="challenge-modal-value" style={{ color: '#60a5fa' }}>
+                        {selectedChallenge.game_type?.toUpperCase()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="challenge-modal-section mb-3">
+                <div className="challenge-modal-label mb-1">Match Rules</div>
+                <div className="challenge-modal-value" style={{ lineHeight: 1.5 }}>
+                  {selectedChallenge.rules}
                 </div>
               </div>
 
               {error && (
-                <Alert variant="danger" className="mb-3">
+                <Alert variant="danger" className="mb-0 mt-3">
                   {error}
                 </Alert>
               )}
@@ -703,25 +742,33 @@ const handleJoinChallenge = async (challenge) => {
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowChallengeModal(false)}>
-            Cancel
-          </Button>
-          {selectedChallenge && selectedChallenge.creator_id !== currentUserId && !selectedChallenge.hasJoined && (
-            <Button
-              variant="primary"
-              onClick={() => handleJoinChallenge(selectedChallenge)}
-              disabled={joiningChallenge}
+          <div className="d-flex flex-column flex-sm-row gap-2 w-100">
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowChallengeModal(false)}
+              className="w-100"
+              style={{ background: 'transparent', border: '1px solid #3a3a3a', color: '#e5e7eb' }}
             >
-              {joiningChallenge ? (
-                <>
-                  <Spinner size="sm" className="me-2" />
-                  Joining...
-                </>
-              ) : (
-                `Join Challenge (${selectedChallenge.entry_fee} Tokens)`
-              )}
+              Cancel
             </Button>
-          )}
+            {selectedChallenge && selectedChallenge.creator_id !== currentUserId && !selectedChallenge.hasJoined && (
+              <Button
+                onClick={() => handleJoinChallenge(selectedChallenge)}
+                disabled={joiningChallenge}
+                className="w-100"
+                style={{ background: '#00ffcc', border: 'none', color: '#000', fontWeight: 700 }}
+              >
+                {joiningChallenge ? (
+                  <>
+                    <Spinner size="sm" className="me-2" />
+                    Joining...
+                  </>
+                ) : (
+                  `Join Challenge (${selectedChallenge.entry_fee} Tokens)`
+                )}
+              </Button>
+            )}
+          </div>
         </Modal.Footer>
       </Modal>
 
