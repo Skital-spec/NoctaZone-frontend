@@ -158,12 +158,12 @@ const Adminresults = () => {
               value={query}
               onChange={(e) => { setQuery(e.target.value); setSubPage(1); setDispPage(1); }}
               placeholder="Search by username, user ID, match ID, tournament ID"
-              className="w-full bg-[#1f1f2e] text-white rounded p-2 outline-none"
+              className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none"
             />
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setDispPage(1); }}
-              className="w-full bg-[#1f1f2e] text-white rounded p-2 outline-none"
+              className="w-full bg-[#94a3b8] text-black rounded p-2 outline-none"
             >
               <option value="all">All dispute statuses</option>
               <option value="open">Open</option>
