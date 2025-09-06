@@ -489,7 +489,7 @@ const ChallengeDetails = () => {
     if (!challenge) return { winAmount: 0, drawAmount: 0, refundAmount: 0 };
     
     const entryFee = challenge.entry_fee || 0;
-    const totalPrize = entryFee * 2; // Both players' entry fees
+    const totalPrize = (entryFee * 0.85) ; // Both players' entry fees
     const winAmount = totalPrize; // Winner gets full prize pool
     const drawAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
     const refundAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
@@ -549,17 +549,7 @@ const ChallengeDetails = () => {
   const confirmCashOut = async () => {
     setProcessingCashOut(true);
     try {
-      // Update wallet balance
-      const refText = `Challenge ${id} - ${
-        cashOutType === 'win' ? 'Prize' : 
-        cashOutType === 'draw' ? 'Cash Back' :
-        cashOutType === 'expired' ? 'Refund (Expired)' :
-        'Refund (Forfeit)'
-      }`;
-      
-      deposit(cashOutAmount, refText);
-      
-      // Update challenge status in backend
+      // First call the backend to cash out and record the transaction
       const updateRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/cash-out`, {
         method: "POST",
         headers: {
@@ -574,16 +564,30 @@ const ChallengeDetails = () => {
       });
       
       if (updateRes.ok) {
+        const result = await updateRes.json();
+        
+        // Update local wallet balance
+        const refText = `Challenge ${id} - ${
+          cashOutType === 'win' ? 'Prize' : 
+          cashOutType === 'draw' ? 'Cash Back' :
+          cashOutType === 'expired' ? 'Refund (Expired)' :
+          'Refund (Forfeit)'
+        }`;
+        
+        deposit(cashOutAmount, refText);
+        
         setCashOutCompleted(true);
         setShowCashOutModal(false);
         // Reload challenge to update status
         await loadChallenge();
       } else {
-        throw new Error("Failed to process cash out");
+        const errorData = await updateRes.json();
+        console.error("Cash out error:", errorData);
+        throw new Error(errorData.error || "Failed to process cash out");
       }
     } catch (error) {
       console.error("Cash out error:", error);
-      alert("Failed to process cash out. Please try again.");
+      alert(`Failed to process cash out: ${error.message}. Please try again.`);
     } finally {
       setProcessingCashOut(false);
     }
