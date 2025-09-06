@@ -589,7 +589,7 @@ const CreateChallenge = () => {
                           required
                         />
                         <Form.Text className="text-muted">
-                          Current wallet balance: {balance} Tokens
+                          Current wallet balance: {parseFloat(balance || 0).toFixed(2)} Tokens
                         </Form.Text>
                       </Form.Group>
                     </Col>
@@ -700,37 +700,53 @@ const CreateChallenge = () => {
                         </div>
                         
                         {formData.challengeType === "challenge" && (
-                          <div className="mt-3 p-3 bg-light rounded">
-                            {selectedUser ? (
-                              <div className="d-flex justify-content-between align-items-center">
-                                <div className="d-flex align-items-center">
-                                  <img
-                                    src={selectedUser.avatar_url || "https://picsum.photos/40"}
-                                    alt={`${selectedUser.username}'s avatar`}
-                                    style={{ width: 40, height: 40, borderRadius: "50%" }}
-                                    className="me-3"
-                                  />
-                                  <div>
-                                    <strong>Selected User:</strong> {selectedUser.username}
-                                    <br />
-                                    <small className="text-muted">@{selectedUser.username}</small>
+                          <div className="mt-3">
+                            <div className="p-3 bg-light rounded">
+                              {selectedUser ? (
+                                <div className="d-flex justify-content-between align-items-center">
+                                  <div className="d-flex align-items-center">
+                                    <img
+                                      src={selectedUser.avatar_url || "https://picsum.photos/40"}
+                                      alt={`${selectedUser.username}'s avatar`}
+                                      style={{ width: 40, height: 40, borderRadius: "50%" }}
+                                      className="me-3"
+                                    />
+                                    <div>
+                                      <strong>Selected User:</strong> {selectedUser.username}
+                                      <br />
+                                      <small className="text-muted">@{selectedUser.username}</small>
+                                    </div>
                                   </div>
+                                  <Button 
+                                    variant="outline-primary" 
+                                    size="sm"
+                                    onClick={() => setShowUserModal(true)}
+                                  >
+                                    Change
+                                  </Button>
                                 </div>
+                              ) : (
                                 <Button 
-                                  variant="outline-primary" 
-                                  size="sm"
+                                  variant="outline-primary"
                                   onClick={() => setShowUserModal(true)}
                                 >
-                                  Change
+                                  Select User to Challenge
                                 </Button>
+                              )}
+                            </div>
+                            
+                            {selectedUser && (
+                              <div className="mt-3 p-3 rounded" style={{ backgroundColor: '#fff3cd', border: '1px solid #ffeaa7' }}>
+                                <div className="d-flex align-items-start">
+                                  <div className="text-warning me-2" style={{ fontSize: '18px' }}>⏰</div>
+                                  <div>
+                                    <strong style={{ color: '#856404' }}>Challenge Expiry Notice:</strong>
+                                    <p className="mb-0 small" style={{ color: '#664d03', marginTop: '4px' }}>
+                                      If this challenge is not accepted within <strong>12 hours</strong>, it will automatically expire and <strong>96% of your stake</strong> ({(parseFloat(formData.entryFee || 0) * 0.96).toFixed(2)} tokens) will be refunded to your account.
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
-                            ) : (
-                              <Button 
-                                variant="outline-primary"
-                                onClick={() => setShowUserModal(true)}
-                              >
-                                Select User to Challenge
-                              </Button>
                             )}
                           </div>
                         )}
@@ -910,7 +926,7 @@ const CreateChallenge = () => {
                 </p>
                 <p className="mb-1" style={{ color:'#9ca3af', fontSize: 14 }}>Your Balance:</p>
                 <p className="mb-0" style={{ color:'#ff6b6b', fontSize: 18, fontWeight: 600 }}>
-                  {balance} Tokens
+                  {parseFloat(balance || 0).toFixed(2)} Tokens
                 </p>
               </div>
             </div>
