@@ -334,19 +334,19 @@ const ReportResults = () => {
                   <div className="grid grid-cols-1 gap-4">
                     <div>
                       <label className="block text-sm mb-1" style={{ color: "#cbd5e1" }}>Describe what happened during the competition</label>
-                      <textarea value={disputeDescription} onChange={(e) => setDisputeDescription(e.target.value)} rows={4} className="w-full bg-[#1f1f2e] text-white rounded p-2 outline-none" />
+                      <textarea value={disputeDescription} onChange={(e) => setDisputeDescription(e.target.value)} rows={4} className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm mb-1" style={{ color: "#cbd5e1" }}>What specific rules do you believe were violated?</label>
-                      <textarea value={disputeRules} onChange={(e) => setDisputeRules(e.target.value)} rows={3} className="w-full bg-[#1f1f2e] text-white rounded p-2 outline-none" />
+                      <textarea value={disputeRules} onChange={(e) => setDisputeRules(e.target.value)} rows={3} className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm mb-1" style={{ color: "#cbd5e1" }}>Do you have witnesses or additional proof?</label>
-                      <textarea value={disputeWitnesses} onChange={(e) => setDisputeWitnesses(e.target.value)} rows={3} className="w-full bg-[#1f1f2e] text-white rounded p-2 outline-none" />
+                      <textarea value={disputeWitnesses} onChange={(e) => setDisputeWitnesses(e.target.value)} rows={3} className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none" />
                     </div>
                     <div>
                       <label className="block text-sm mb-2" style={{ color: "#cbd5e1" }}>Upload Additional Evidence (optional)</label>
-                      <input type="file" multiple accept="image/*,video/*" onChange={handleDisputeFilesChange} className="w-full bg-[#1f1f2e] text-white rounded p-2 outline-none" />
+                      <input type="file" multiple accept="image/*,video/*" onChange={handleDisputeFilesChange} className="w-full bg-[#1f1f2e] text-black rounded p-2 outline-none" />
                       {disputeFiles.length > 0 && (
                         <div className="mt-2 text-xs" style={{ color: "#94a3b8" }}>
                           {disputeFiles.length} file(s) selected

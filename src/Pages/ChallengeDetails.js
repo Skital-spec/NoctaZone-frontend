@@ -9,13 +9,11 @@ import {
   Alert,
   Spinner,
   Modal,
-  ProgressBar
 } from "react-bootstrap";
 import {
   ArrowLeft,
   Users,
   Calendar,
-  Clock,
   User,
   Trophy,
   DollarSign,
