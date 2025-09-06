@@ -177,6 +177,25 @@ export default function WhatsAppStyleChat() {
     }
   };
 
+  // NEW: Helper function to check if a challenge has expired
+  const isChallengeExpired = (challengeData) => {
+    if (!challengeData) return false;
+    
+    // Check if there's an explicit expires_at field
+    if (challengeData.expires_at) {
+      return new Date(challengeData.expires_at) < new Date();
+    }
+    
+    // Check if created more than 12 hours ago (default expiry)
+    if (challengeData.created_at) {
+      const createdAt = new Date(challengeData.created_at);
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      return createdAt < twelveHoursAgo;
+    }
+    
+    return false;
+  };
+
   // NEW: Function to view challenge details
   const viewChallengeDetails = (challengeData) => {
     console.log("📋 Viewing challenge details:", challengeData);
@@ -303,14 +322,48 @@ export default function WhatsAppStyleChat() {
       const challengeId = selectedChallenge.challenge_id || selectedChallenge.id;
       
       if (!challengeId) {
-        throw new Error("Challenge ID not found");
+        throw new Error("Challenge ID not found in selectedChallenge object");
       }
 
       console.log("🚫 Declining challenge:", {
         challengeId,
         userId: currentUser.id,
-        selectedChallengeData: selectedChallenge
+        selectedChallengeData: selectedChallenge,
+        challengeIdFromData: selectedChallenge.challenge_id,
+        idFromData: selectedChallenge.id,
+        allKeys: Object.keys(selectedChallenge)
       });
+
+      // Before making the API call, let's check if this challenge still exists in the database
+      console.log("🔍 Checking if challenge exists in database before declining...");
+      const checkResponse = await fetch(`https://safcom-payment.onrender.com/api/challenges/${challengeId}`, {
+        method: "GET",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include"
+      });
+
+      if (!checkResponse.ok) {
+        if (checkResponse.status === 404) {
+          throw new Error("This challenge no longer exists. It may have been expired, completed, or deleted.");
+        } else {
+          throw new Error(`Unable to verify challenge status (${checkResponse.status}). Please try again.`);
+        }
+      }
+
+      const challengeInfo = await checkResponse.json();
+      console.log("✅ Challenge exists:", challengeInfo);
+
+      // Check if the challenge is in a state that can be declined
+      if (challengeInfo.status !== 'pending') {
+        throw new Error(`Cannot decline this challenge. Current status: ${challengeInfo.status}`);
+      }
+
+      if (challengeInfo.creator_id === currentUser.id) {
+        throw new Error("You cannot decline your own challenge.");
+      }
 
       // Call backend API to decline challenge
       const response = await fetch("https://safcom-payment.onrender.com/api/wallet/challenge-decline", {
@@ -360,11 +413,48 @@ export default function WhatsAppStyleChat() {
 
     } catch (err) {
       console.error("🔥 Challenge decline error:", err);
+      
+      // Provide more user-friendly error messages
+      let errorMessage = err.message;
+      if (err.message.includes("Challenge not found")) {
+        errorMessage = "⚠️ This challenge is no longer available. It may have expired, been completed, or already declined.";
+      } else if (err.message.includes("not pending")) {
+        errorMessage = "⚠️ This challenge cannot be declined as it's no longer in pending status.";
+      } else if (err.message.includes("your own challenge")) {
+        errorMessage = "⚠️ You cannot decline your own challenge. You can cancel it instead.";
+      } else if (err.message.includes("participants")) {
+        errorMessage = "⚠️ This challenge already has participants and cannot be declined.";
+      }
+      
       setAlert({ 
         type: "error", 
-        message: `❌ Failed to decline challenge: ${err.message}` 
+        message: `❌ Failed to decline challenge: ${errorMessage}` 
       });
-      setTimeout(() => setAlert(null), 5000);
+      setTimeout(() => setAlert(null), 7000);
+      
+      // If the challenge was not found, refresh the chat to get updated messages
+      if (err.message.includes("Challenge not found") || err.message.includes("no longer exists")) {
+        console.log("🔄 Refreshing chat due to challenge not found...");
+        if (foundUser && currentUser) {
+          // Refresh messages to get the current state
+          setTimeout(() => {
+            const userId = currentUser.id;
+            const otherId = foundUser.id;
+            supabase
+              .from("private_messages")
+              .select("*, is_read, read_at")
+              .or(`and(sender_id.eq.${userId},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${userId})`)
+              .order("created_at", { ascending: true })
+              .then(({ data: msgs }) => {
+                if (msgs) {
+                  setMessages(msgs);
+                  console.log("✅ Messages refreshed after challenge error");
+                }
+              })
+              .catch(refreshErr => console.warn("Failed to refresh messages:", refreshErr));
+          }, 1000);
+        }
+      }
     } finally {
       setIsDeclining(false);
     }
@@ -646,7 +736,7 @@ export default function WhatsAppStyleChat() {
   // NEW: Challenge Message Component
   const ChallengeMessageComponent = ({ msg, challengeData }) => {
     const gameLabel = gameTypes.find(g => g.value === challengeData.game_type)?.label || challengeData.game_type;
-    const isExpired = challengeData.expires_at && new Date(challengeData.expires_at) < new Date();
+    const isExpired = isChallengeExpired(challengeData);
     
     return (
       <div style={{ 
@@ -656,13 +746,14 @@ export default function WhatsAppStyleChat() {
       }}>
         <div
           style={{
-            background: "linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)",
+            background: isExpired ? "linear-gradient(135deg, #2a1f1f 0%, #3a2a2a 100%)" : "linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%)",
             color: "#fff",
             padding: "16px",
             borderRadius: 12,
             maxWidth: "85%",
-            border: "2px solid #00ffcc",
-            boxShadow: "0 4px 15px rgba(0, 255, 204, 0.2)",
+            border: isExpired ? "2px solid #666" : "2px solid #00ffcc",
+            boxShadow: isExpired ? "0 4px 15px rgba(102, 102, 102, 0.2)" : "0 4px 15px rgba(0, 255, 204, 0.2)",
+            opacity: isExpired ? 0.7 : 1
           }}
         >
           {/* Challenge Header */}
@@ -670,11 +761,11 @@ export default function WhatsAppStyleChat() {
             display: 'flex', 
             alignItems: 'center', 
             marginBottom: 12,
-            color: '#00ffcc',
+            color: isExpired ? '#999' : '#00ffcc',
             fontWeight: 'bold'
           }}>
             <GamepadIcon size={20} style={{ marginRight: 8 }} />
-            🎮 GAME CHALLENGE
+            {isExpired ? "❌ EXPIRED CHALLENGE" : "🎮 GAME CHALLENGE"}
           </div>
 
           {/* Challenge Details */}
@@ -690,8 +781,8 @@ export default function WhatsAppStyleChat() {
             </div>
             
             {isExpired && (
-              <div style={{ color: '#ff4444', fontSize: 12, marginTop: 8 }}>
-                ⚠️ This challenge has expired
+              <div style={{ color: '#ff4444', fontSize: 12, marginTop: 8, fontWeight: 'bold' }}>
+                ⚠️ This challenge has expired and is no longer available
               </div>
             )}
           </div>
