@@ -65,7 +65,53 @@ export default function WhatsAppStyleChat() {
     })();
   }, []);
 
-  // NEW: Fetch user balance
+  // NEW: Auto-expiry check for private challenges
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const checkExpiredChallenges = async () => {
+      try {
+        console.log("🕐 Checking for expired private challenges...");
+        
+        // Call backend API to process expired challenges
+        const response = await fetch("https://safcom-payment.onrender.com/api/wallet/process-expired-challenges", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            user_id: currentUser.id
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          console.log("🕐 Expired challenges processed:", result);
+          
+          // If any challenges were expired and refunded, refresh balance
+          if (result.processed_count > 0) {
+            await fetchBalance(currentUser.id);
+            // Update navbar balance
+            window.dispatchEvent(new CustomEvent('balanceUpdated', {
+              detail: { balance: result.new_balance || balance }
+            }));
+          }
+        }
+      } catch (err) {
+        console.error("🔥 Error checking expired challenges:", err);
+      }
+    };
+
+    // Check immediately
+    checkExpiredChallenges();
+    
+    // Set up interval to check every 5 minutes
+    const intervalId = setInterval(checkExpiredChallenges, 5 * 60 * 1000);
+    
+    return () => clearInterval(intervalId);
+  }, [currentUser, balance]);
   const fetchBalance = async (uid) => {
     try {
       console.log("Fetching balance for user:", uid);
@@ -629,10 +675,10 @@ export default function WhatsAppStyleChat() {
               <strong>Game:</strong> {gameLabel}
             </div>
             <div style={{ marginBottom: 6 }}>
-              <strong>Entry Fee:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.entry_fee} tokens</span>
+              <strong>Entry Fee:</strong> <span style={{ color: '#00ffcc' }}>{parseFloat(challengeData.entry_fee || 0).toFixed(2)} tokens</span>
             </div>
             <div style={{ marginBottom: 6 }}>
-              <strong>Prize:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.entry_fee * 2 * 0.85} tokens</span>
+              <strong>Prize:</strong> <span style={{ color: '#00ffcc' }}>{parseFloat((challengeData.entry_fee * 2 * 0.85) || 0).toFixed(2)} tokens</span>
             </div>
             
             {isExpired && (
@@ -1121,10 +1167,10 @@ export default function WhatsAppStyleChat() {
                     <strong>Game:</strong> {gameTypes.find(g => g.value === selectedChallenge.game_type)?.label}
                   </p>
                   <p className="mb-3">
-                    <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.entry_fee} tokens</span>
+                    <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{parseFloat(selectedChallenge.entry_fee || 0).toFixed(2)} tokens</span>
                   </p>
                   <p className="mb-3">
-                    <strong>Prize:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.entry_fee * 2 * 0.85} tokens</span>
+                    <strong>Prize:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{parseFloat((selectedChallenge.entry_fee * 2 * 0.85) || 0).toFixed(2)} tokens</span>
                   </p>
                   <div style={{ 
                     background: '#1a1a1a', 
@@ -1134,10 +1180,10 @@ export default function WhatsAppStyleChat() {
                     marginTop: 16
                   }}>
                     <p style={{ fontSize: 14, marginBottom: 8 }}>
-                      <strong>Your Balance:</strong> {balance} tokens
+                      <strong>Your Balance:</strong> {parseFloat(balance || 0).toFixed(2)} tokens
                     </p>
                     <p style={{ fontSize: 14, color: balance >= selectedChallenge.entry_fee ? '#00ffcc' : '#ff4444' }}>
-                      <strong>After Acceptance:</strong> {balance - selectedChallenge.entry_fee} tokens
+                      <strong>After Acceptance:</strong> {parseFloat((balance - selectedChallenge.entry_fee) || 0).toFixed(2)} tokens
                     </p>
                   </div>
                   <p className="text-sm text-gray-400 mt-4">
@@ -1221,11 +1267,11 @@ export default function WhatsAppStyleChat() {
                   <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700">
                     <p className="text-sm text-gray-400">Required:</p>
                     <p className="text-lg font-semibold" style={{color: '#00ffcc'}}>
-                      {selectedChallenge.entry_fee} tokens
+                      {parseFloat(selectedChallenge.entry_fee || 0).toFixed(2)} tokens
                     </p>
                     <p className="text-sm text-gray-400 mt-2">Your Balance:</p>
                     <p className="text-lg font-semibold text-red-400">
-                      {balance} tokens
+                      {parseFloat(balance || 0).toFixed(2)} tokens
                     </p>
                   </div>
                 </div>
