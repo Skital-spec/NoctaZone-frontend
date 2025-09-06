@@ -47,6 +47,24 @@ const ChallengeDetails = () => {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [startWindowTimeLeft, setStartWindowTimeLeft] = useState({ minutes: 0, seconds: 0 });
 
+  // Get current user ID from Supabase auth
+  const [currentUserId, setCurrentUserId] = useState(null);
+  
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        if (user) {
+          setCurrentUserId(user.id);
+        }
+      } catch (err) {
+        console.error('Failed to get current user:', err);
+      }
+    };
+    getCurrentUser();
+  }, []);
+
   // Challenge states
   const CHALLENGE_STATES = {
     WAITING_FOR_START: 'waiting_for_start',
@@ -393,24 +411,6 @@ const ChallengeDetails = () => {
     
     return CHALLENGE_STATES.WAITING_FOR_START;
   }, [challenge, seriesScore]);
-
-  // Get current user ID from Supabase auth
-  const [currentUserId, setCurrentUserId] = useState(null);
-  
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (user) {
-          setCurrentUserId(user.id);
-        }
-      } catch (err) {
-        console.error('Failed to get current user:', err);
-      }
-    };
-    getCurrentUser();
-  }, []);
 
   // Check if current user can start challenge
   const canStartChallenge = useMemo(() => {
