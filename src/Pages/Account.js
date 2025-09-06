@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Container, Form, Button, Alert, Modal } from "react-bootstrap";
-import { User, Gamepad2, KeyRound, Trophy, Trash2 } from "lucide-react";
+import { User, Gamepad2, KeyRound, Trash2 } from "lucide-react";
 import MainLayout from "../Components/MainLayout";
 import { supabase } from "../supabaseClient";
 
@@ -31,12 +31,7 @@ export default function Account() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  // Stats
-  const [stats, setStats] = useState({
-    totalTournaments: 0,
-    totalWinnings: 0,
-    totalWins: 0
-  });
+  // Stats - REMOVED
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -110,8 +105,7 @@ export default function Account() {
           setDateJoined(data.created_at || "");
         }
 
-        // Fetch user stats
-        await fetchUserStats(user.id);
+        // Stats fetching removed
       } catch (err) {
         console.error("fetchProfile:", err);
         setMessage({ type: "danger", text: "Failed to load profile." });
@@ -128,43 +122,7 @@ export default function Account() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchUserStats = async (userId) => {
-    try {
-      // Fetch tournament participations
-      const { data: tournaments, error: tournamentsError } = await supabase
-        .from("tournament_participants")
-        .select("tournament_id")
-        .eq("user_id", userId);
 
-      if (tournamentsError) throw tournamentsError;
-
-      // Fetch total winnings
-      const { data: winnings, error: winningsError } = await supabase
-        .from("tournament_participants")
-        .select("winnings")
-        .eq("user_id", userId);
-
-      if (winningsError) throw winningsError;
-
-      // Fetch total match wins
-      const { data: matches, error: matchesError } = await supabase
-        .from("matches")
-        .select("id")
-        .eq("winner_id", userId);
-
-      if (matchesError) throw matchesError;
-
-      const totalWinnings = winnings.reduce((sum, w) => sum + (w.winnings || 0), 0);
-
-      setStats({
-        totalTournaments: tournaments?.length || 0,
-        totalWinnings,
-        totalWins: matches?.length || 0
-      });
-    } catch (err) {
-      console.error("Error fetching stats:", err);
-    }
-  };
 
   // handle avatar file selection + preview
   const handleAvatarChange = (file) => {
@@ -390,7 +348,6 @@ export default function Account() {
           {[
             { id: "profile", label: "Profile" },
             { id: "preferences", label: "Gaming Preferences" },
-            { id: "stats", label: "Statistics" },
             { id: "password", label: "Security" }
           ].map((tab) => (
             <div
@@ -510,45 +467,7 @@ export default function Account() {
             </div>
           )}
 
-          {/* Statistics */}
-          {activeTab === "stats" && (
-            <div className="privacy-policy-container text-center">
-              <div className="privacy-policy-header">
-                <Trophy size={40} className="privacy-icon" />
-                <h1>Statistics</h1>
-                <p className="sub-heading">Your gaming achievements</p>
-              </div>
 
-              <div className="privacy-policy-content">
-                <div className="row text-center">
-                  <div className="col-md-4 mb-4">
-                    <div className="card bg-dark text-light" style={{ border: "2px solid #00ffcc" }}>
-                      <div className="card-body">
-                        <h3 style={{ color: "#00ffcc" }}>{stats.totalTournaments}</h3>
-                        <p className="card-title">Total Tournaments</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-4 mb-4">
-                    <div className="card bg-dark text-light" style={{ border: "2px solid #00ffcc" }}>
-                      <div className="card-body">
-                        <h3 style={{ color: "#00ffcc" }}>KSh {stats.totalWinnings.toLocaleString()}</h3>
-                        <p className="card-title">Total Winnings</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-4 mb-4">
-                    <div className="card bg-dark text-light" style={{ border: "2px solid #00ffcc" }}>
-                      <div className="card-body">
-                        <h3 style={{ color: "#00ffcc" }}>{stats.totalWins}</h3>
-                        <p className="card-title">Matches Won</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Password */}
           {activeTab === "password" && (
