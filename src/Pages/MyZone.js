@@ -557,7 +557,7 @@ const handleJoinChallenge = async (challenge) => {
                           
                           <div className="mb-3">
                             <div className="d-flex align-items-center mb-2">
-                              <span className="fw-bold">{match.entry_fee} Tokens</span>
+                              <span className="fw-bold">Entry fee: {match.entry_fee} Tokens</span>
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Trophy size={16} className="me-2 text-warning" />
