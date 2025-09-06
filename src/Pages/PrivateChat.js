@@ -334,38 +334,12 @@ export default function WhatsAppStyleChat() {
         allKeys: Object.keys(selectedChallenge)
       });
 
-      // Before making the API call, let's check if this challenge still exists in the database
-      console.log("🔍 Checking if challenge exists in database before declining...");
-      const checkResponse = await fetch(`https://safcom-payment.onrender.com/api/challenges/${challengeId}`, {
-        method: "GET",
-        headers: { 
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        credentials: "include"
-      });
-
-      if (!checkResponse.ok) {
-        if (checkResponse.status === 404) {
-          throw new Error("This challenge no longer exists. It may have been expired, completed, or deleted.");
-        } else {
-          throw new Error(`Unable to verify challenge status (${checkResponse.status}). Please try again.`);
-        }
-      }
-
-      const challengeInfo = await checkResponse.json();
-      console.log("✅ Challenge exists:", challengeInfo);
-
-      // Check if the challenge is in a state that can be declined
-      if (challengeInfo.status !== 'pending') {
-        throw new Error(`Cannot decline this challenge. Current status: ${challengeInfo.status}`);
-      }
-
-      if (challengeInfo.creator_id === currentUser.id) {
-        throw new Error("You cannot decline your own challenge.");
-      }
+      // Note: Skipping pre-check for now due to endpoint deployment issues
+      // Will let the decline API handle validation
+      console.log("🚀 Proceeding directly to decline API...");
 
       // Call backend API to decline challenge
+      console.log("📞 Making API call to decline challenge...");
       const response = await fetch("https://safcom-payment.onrender.com/api/wallet/challenge-decline", {
         method: "POST",
         headers: { 
@@ -379,6 +353,9 @@ export default function WhatsAppStyleChat() {
         }),
       });
 
+      console.log("👀 Response status:", response.status, response.statusText);
+      console.log("👀 Response headers:", [...response.headers.entries()]);
+
       let result;
       try {
         result = await response.json();
@@ -391,7 +368,13 @@ export default function WhatsAppStyleChat() {
 
       if (!response.ok) {
         console.error("❌ Challenge decline failed:", result);
-        throw new Error(result.error || result.details || `Server error: ${response.status}`);
+        
+        // Handle specific error cases
+        if (response.status === 404) {
+          throw new Error("The decline feature is temporarily unavailable. This may be due to a server deployment issue. Please try again in a few minutes or contact support.");
+        } else {
+          throw new Error(result.error || result.details || `Server error: ${response.status}`);
+        }
       }
 
       if (!result.success && result.success !== undefined) {
@@ -424,6 +407,8 @@ export default function WhatsAppStyleChat() {
         errorMessage = "⚠️ You cannot decline your own challenge. You can cancel it instead.";
       } else if (err.message.includes("participants")) {
         errorMessage = "⚠️ This challenge already has participants and cannot be declined.";
+      } else if (err.message.includes("temporarily unavailable") || err.message.includes("deployment")) {
+        errorMessage = "⚠️ The decline feature is temporarily unavailable due to server maintenance. You can: \n\n1. Wait for the challenger to cancel the challenge\n2. Simply ignore this challenge (it will expire automatically)\n3. Contact the challenger directly to resolve this";
       }
       
       setAlert({ 
