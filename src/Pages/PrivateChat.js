@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import { X, Trophy, Calendar, User, GamepadIcon } from "lucide-react";
+import { X,  Calendar,  GamepadIcon } from "lucide-react";
 import MainLayout from "../Components/MainLayout";
 
 export default function WhatsAppStyleChat() {

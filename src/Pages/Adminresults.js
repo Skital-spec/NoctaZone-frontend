@@ -31,6 +31,7 @@ const Adminresults = () => {
           .select(
             `id, match_id, user_id, player1_goals, player2_goals, declared_winner, evidence, created_at,
              profiles:user_id ( id, username ),
+             winner_profile:declared_winner ( id, username ),
              match:match_id ( id, tournament_id, status, winner_user_id )`
           )
           .order("created_at", { ascending: false })
@@ -60,10 +61,13 @@ const Adminresults = () => {
         if (query && query.trim().length > 0) {
           const q = query.trim().toLowerCase();
           submissionRows = submissionRows.filter((s) => {
-            const username = s.profiles?.username || "";
+            const submitterUsername = s.profiles?.username || "";
+            const winnerUsername = s.winner_profile?.username || "";
             return (
-              username.toLowerCase().includes(q) ||
+              submitterUsername.toLowerCase().includes(q) ||
+              winnerUsername.toLowerCase().includes(q) ||
               String(s.user_id).toLowerCase().includes(q) ||
+              String(s.declared_winner || "").toLowerCase().includes(q) ||
               String(s.match?.id || "").toLowerCase().includes(q) ||
               String(s.match?.tournament_id || "").toLowerCase().includes(q)
             );
@@ -153,7 +157,7 @@ const Adminresults = () => {
             <input
               value={query}
               onChange={(e) => { setQuery(e.target.value); setSubPage(1); setDispPage(1); }}
-              placeholder="Search by username, match ID, tournament ID"
+              placeholder="Search by username, user ID, match ID, tournament ID"
               className="w-full bg-[#1f1f2e] text-white rounded p-2 outline-none"
             />
             <select
@@ -208,14 +212,17 @@ const Adminresults = () => {
                             <div className="text-xs" style={{ color: "#94a3b8" }}>Tournament #{s.match?.tournament_id}</div>
                           </td>
                           <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>
-                            <div className="font-semibold">{s.user?.username || s.user_id}</div>
-                            <div className="text-xs" style={{ color: "#94a3b8" }}>{s.user_id}</div>
+                            <div className="font-semibold">{s.profiles?.username || `User ${s.user_id}`}</div>
+                            <div className="text-xs" style={{ color: "#94a3b8" }}>User ID: {s.user_id}</div>
                           </td>
                           <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>
                             {s.player1_goals ?? s.player1_points} - {s.player2_goals ?? s.player2_points}
                           </td>
                           <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>
-                            {s.declared_winner === 'draw' ? 'DRAW' : (s.declared_winner_username || s.declared_winner || '-')}
+                            {s.declared_winner === 'draw' ? 'DRAW' : (
+                              s.winner_profile?.username || 
+                              (s.declared_winner ? `User ${s.declared_winner}` : '-')
+                            )}
                           </td>
                           <td className="p-3 text-sm">
                             {(Array.isArray(s.evidence) ? s.evidence : []).length === 0 ? (
@@ -274,8 +281,8 @@ const Adminresults = () => {
                             <div className="text-xs" style={{ color: "#94a3b8" }}>Tournament #{d.tournament_id}</div>
                           </td>
                           <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>
-                            <div className="font-semibold">{d.user?.username || d.created_by}</div>
-                            <div className="text-xs" style={{ color: "#94a3b8" }}>{d.created_by}</div>
+                            <div className="font-semibold">{d.user?.username || `User ${d.created_by}`}</div>
+                            <div className="text-xs" style={{ color: "#94a3b8" }}>User ID: {d.created_by}</div>
                           </td>
                           <td className="p-3 text-sm">{statusBadge(d.status)}</td>
                           <td className="p-3 text-sm">
