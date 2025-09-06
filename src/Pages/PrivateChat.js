@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import { X,  Calendar,  GamepadIcon } from "lucide-react";
 import MainLayout from "../Components/MainLayout";
 
 export default function WhatsAppStyleChat() {
   const { userId } = useParams();
+  const navigate = useNavigate();
 
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -23,8 +24,10 @@ export default function WhatsAppStyleChat() {
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showLowBalanceModal, setShowLowBalanceModal] = useState(false);
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
   const [balance, setBalance] = useState(0);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
   const [alert, setAlert] = useState(null);
 
   // refs for cleanup and scroll
@@ -222,21 +225,94 @@ export default function WhatsAppStyleChat() {
       
       setAlert({ 
         type: "success", 
-        message: `✅ Challenge accepted successfully! ${entryFee} tokens deducted. New balance: ${newBalance || balance - entryFee} tokens. Good luck! 🎮` 
+        message: `✅ Challenge accepted successfully! ${entryFee} tokens deducted. Navigating to challenge details...` 
+      });
+
+      // Navigate to challenge details page after 2 seconds
+      setTimeout(() => {
+        navigate(`/challenge/${selectedChallenge.challenge_id}`);
+      }, 2000);
+
+    } catch (err) {
+      console.error("🔥 Challenge acceptance error:", err);
+      setAlert({ 
+        type: "error", 
+        message: `❌ Failed to accept challenge: ${err.message}` 
+      });
+      setTimeout(() => setAlert(null), 5000);
+    } finally {
+      setIsAccepting(false);
+    }
+  };
+
+  // NEW: Function to decline challenge
+  const declineChallenge = async () => {
+    if (!selectedChallenge || !currentUser) return;
+
+    setIsDeclining(true);
+    setAlert(null);
+
+    try {
+      console.log("🚫 Declining challenge:", {
+        challengeId: selectedChallenge.challenge_id,
+        userId: currentUser.id
+      });
+
+      // Call backend API to decline challenge
+      const response = await fetch("https://safcom-payment.onrender.com/api/wallet/challenge-decline", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          user_id: currentUser.id,
+          challenge_id: selectedChallenge.challenge_id
+        }),
+      });
+
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error("❌ Failed to parse response:", parseError);
+        throw new Error("Invalid response from server");
+      }
+
+      console.log("🚫 Challenge decline response:", result);
+
+      if (!response.ok) {
+        console.error("❌ Challenge decline failed:", result);
+        throw new Error(result.error || result.details || `Server error: ${response.status}`);
+      }
+
+      if (!result.success && result.success !== undefined) {
+        console.error("❌ Challenge decline was not successful:", result);
+        throw new Error(result.error || "Challenge decline failed");
+      }
+
+      // Close modals and show success
+      setShowDeclineModal(false);
+      setShowConfirmModal(false);
+      
+      setAlert({ 
+        type: "success", 
+        message: `✅ Challenge declined successfully! Creator has been refunded 96% of their stake.` 
       });
 
       // Auto-hide alert after 5 seconds
       setTimeout(() => setAlert(null), 5000);
 
     } catch (err) {
-      console.error("🔥 Challenge acceptance error:", err);
+      console.error("🔥 Challenge decline error:", err);
       setAlert({ 
-        type: "danger", 
-        message: `❌ Failed to accept challenge: ${err.message}` 
+        type: "error", 
+        message: `❌ Failed to decline challenge: ${err.message}` 
       });
       setTimeout(() => setAlert(null), 5000);
     } finally {
-      setIsAccepting(false);
+      setIsDeclining(false);
     }
   };
 
@@ -556,7 +632,10 @@ export default function WhatsAppStyleChat() {
               <strong>Entry Fee:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.entry_fee} tokens</span>
             </div>
             <div style={{ marginBottom: 6 }}>
-              <strong>Prize:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.prize_amount} tokens</span>
+              <strong>Prize:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.entry_fee * 2 * 0.85} tokens</span>
+            </div>
+            <div style={{ marginBottom: 6 }}>
+              <strong>Challenger:</strong> @{challengeData.sender_username || challengeData.creator_username || 'Unknown'}
             </div>
             
             {isExpired && (
@@ -568,52 +647,77 @@ export default function WhatsAppStyleChat() {
 
           {/* Action Button */}
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => viewChallengeDetails(challengeData)}
-              style={{
-                background: '#00ffcc',
-                color: '#000',
-                border: 'none',
+            {isExpired ? (
+              <div style={{
                 padding: '8px 16px',
                 borderRadius: 6,
                 fontSize: 14,
                 fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.target.style.background = '#00e6b8'}
-              onMouseLeave={(e) => e.target.style.background = '#00ffcc'}
-            >
-              View Details
-            </button>
-            {!isExpired && (
-              <button
-                onClick={() => {
-                  setSelectedChallenge(challengeData);
-                  setShowConfirmModal(true);
-                }}
-                style={{
-                  background: 'transparent',
-                  color: '#00ffcc',
-                  border: '2px solid #00ffcc',
-                  padding: '8px 16px',
-                  borderRadius: 6,
-                  fontSize: 14,
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background = '#00ffcc';
-                  e.target.style.color = '#000';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = 'transparent';
-                  e.target.style.color = '#00ffcc';
-                }}
-              >
-                Quick Accept
-              </button>
+                background: '#333',
+                color: '#999',
+                textAlign: 'center',
+                flex: 1
+              }}>
+                Closed
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => {
+                    setSelectedChallenge(challengeData);
+                    setShowConfirmModal(true);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    color: '#00ffcc',
+                    border: '2px solid #00ffcc',
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    fontSize: 14,
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    flex: 1
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = '#00ffcc';
+                    e.target.style.color = '#000';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'transparent';
+                    e.target.style.color = '#00ffcc';
+                  }}
+                >
+                  View Details
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedChallenge(challengeData);
+                    setShowDeclineModal(true);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    color: '#ff4444',
+                    border: '2px solid #ff4444',
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    fontSize: 14,
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = '#ff4444';
+                    e.target.style.color = '#000';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'transparent';
+                    e.target.style.color = '#ff4444';
+                  }}
+                >
+                  Decline
+                </button>
+              </>
             )}
           </div>
 
@@ -984,161 +1088,7 @@ export default function WhatsAppStyleChat() {
           )}
         </div>
 
-        {/* Challenge Details Modal */}
-        {showChallengeModal && selectedChallenge && (
-          <div style={modalStyles.overlay}>
-            <div style={modalStyles.content}>
-              <div className="text-white">
-                <button 
-                  style={{
-                    background: '#00ffcc', 
-                    border:'none', 
-                    borderRadius:'50%',
-                    width: '30px',
-                    height: '30px',
-                    position: 'absolute',
-                    top: '15px',
-                    right: '15px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowChallengeModal(false)}
-                >
-                  <X size={18} color="#000" />
-                </button>
-                
-                <h2 className="text-xl font-bold mb-4 pr-8" style={{color: '#00ffcc'}} >
-                  🎮 Challenge Details
-                </h2>
-                
-                <div className="mb-6 text-gray-300">
-                  <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                      <GamepadIcon size={20} style={{ marginRight: 8, color: '#00ffcc' }} />
-                      <strong style={{ color: '#00ffcc' }}>Game Information</strong>
-                    </div>
-                    <p style={{ marginBottom: 8 }}>
-                      <strong>Game:</strong> {gameTypes.find(g => g.value === selectedChallenge.game_type)?.label || selectedChallenge.game_type}
-                    </p>
-                  </div>
-
-                  <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                     
-                      <strong style={{ color: '#00ffcc' }}>Token Details</strong>
-                    </div>
-                    <p style={{ marginBottom: 8 }}>
-                      <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}}>{selectedChallenge.entry_fee} tokens</span>
-                    </p>
-                    <p style={{ marginBottom: 8 }}>
-                      <strong>Prize Pool:</strong> <span style={{color: '#00ffcc'}}>{selectedChallenge.prize_amount} tokens</span>
-                    </p>
-                    <p style={{ fontSize: 12, color: '#999' }}>
-                      Your current balance: {balance} tokens
-                    </p>
-                  </div>
-
-                  <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
-                      <Calendar size={20} style={{ marginRight: 8, color: '#00ffcc' }} />
-                      <strong style={{ color: '#00ffcc' }}>Schedule</strong>
-                    </div>
-                    <p style={{ marginBottom: 8 }}>
-                      <strong>Play Time:</strong> {selectedChallenge.play_time ? new Date(selectedChallenge.play_time).toLocaleString() : 'Not specified'}
-                    </p>
-                    <p style={{ marginBottom: 8 }}>
-                      <strong>Expires:</strong> {selectedChallenge.expires_at ? new Date(selectedChallenge.expires_at).toLocaleString() : 'No expiration'}
-                    </p>
-                  </div>
-
-                  {selectedChallenge.rules && (
-                    <div style={{ marginBottom: 16, padding: 16, background: '#1a1a1a', borderRadius: 8, border: '1px solid #333' }}>
-                      <strong style={{ color: '#00ffcc', display: 'block', marginBottom: 8 }}>Match Rules:</strong>
-                      <p style={{ fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                        {selectedChallenge.rules}
-                      </p>
-                    </div>
-                  )}
-                </div>
-                
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  {selectedChallenge.expires_at && new Date(selectedChallenge.expires_at) > new Date() ? (
-                    <>
-                      <button 
-                        style={{
-                          background: '#00ffcc', 
-                          border:'none', 
-                          padding:'12px 24px', 
-                          borderRadius:'8px',
-                          color: '#000',
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          flex: 1,
-                          minWidth: '120px'
-                        }}
-                        onClick={() => {
-                          setShowChallengeModal(false);
-                          setShowConfirmModal(true);
-                        }}
-                      >
-                        Accept Challenge
-                      </button>
-                      <button 
-                        style={{
-                          background: 'transparent', 
-                          border:'2px solid #666', 
-                          padding:'12px 24px', 
-                          borderRadius:'8px',
-                          color: '#666',
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          flex: 1,
-                          minWidth: '120px'
-                        }}
-                        onClick={() => setShowChallengeModal(false)}
-                      >
-                        Close
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ 
-                        color: '#ff4444', 
-                        textAlign: 'center', 
-                        width: '100%', 
-                        marginBottom: 12,
-                        padding: 8,
-                        background: '#2a1a1a',
-                        borderRadius: 6,
-                        border: '1px solid #ff4444'
-                      }}>
-                        ⚠️ This challenge has expired and can no longer be accepted
-                      </div>
-                      <button 
-                        style={{
-                          background: '#666', 
-                          border:'none', 
-                          padding:'12px 24px', 
-                          borderRadius:'8px',
-                          color: '#fff',
-                          fontWeight: 'bold',
-                          cursor: 'pointer',
-                          width: '100%'
-                        }}
-                        onClick={() => setShowChallengeModal(false)}
-                      >
-                        Close
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
+      
         {/* Confirm Accept Challenge Modal */}
         {showConfirmModal && selectedChallenge && (
           <div style={modalStyles.overlay}>
@@ -1177,10 +1127,10 @@ export default function WhatsAppStyleChat() {
                     <strong>Entry Fee:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.entry_fee} tokens</span>
                   </p>
                   <p className="mb-3">
-                    <strong>Prize:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.prize} tokens</span>
+                    <strong>Prize:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.entry_fee * 2 * 0.85} tokens</span>
                   </p>
                   <p className="mb-3">
-                    <strong>Challenger:</strong> @{selectedChallenge.sender_username}
+                    <strong>Challenger:</strong> @{selectedChallenge.sender_username || selectedChallenge.creator_username || 'Unknown'}
                   </p>
                   <div style={{ 
                     background: '#1a1a1a', 
@@ -1318,6 +1268,98 @@ export default function WhatsAppStyleChat() {
                       flex: 1
                     }}
                     onClick={() => setShowLowBalanceModal(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Decline Challenge Modal */}
+        {showDeclineModal && selectedChallenge && (
+          <div style={modalStyles.overlay}>
+            <div style={modalStyles.content}>
+              <div className="text-white">
+                <button 
+                  style={{
+                    background: '#00ffcc', 
+                    border:'none', 
+                    borderRadius:'50%',
+                    width: '30px',
+                    height: '30px',
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setShowDeclineModal(false)}
+                >
+                  <X size={18} color="#000" />
+                </button>
+                
+                <h2 className="text-xl font-bold text-red-400 mb-4 pr-8">
+                  Decline Challenge
+                </h2>
+                
+                <div className="mb-6">
+                  <p className="text-gray-300 mb-4">
+                    Are you sure you want to decline this challenge?
+                  </p>
+                  
+                  <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 mb-4">
+                    <p className="text-sm text-gray-400">Challenge Details:</p>
+                    <p className="font-semibold" style={{color: '#00ffcc'}}>
+                      {gameTypes.find(g => g.value === selectedChallenge.game_type)?.label}
+                    </p>
+                    <p className="text-sm text-gray-400">Challenger:</p>
+                    <p className="font-semibold text-white">
+                      @{selectedChallenge.sender_username || selectedChallenge.creator_username || 'Unknown'}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-yellow-900/20 border border-yellow-600 p-3 rounded">
+                    <p className="text-yellow-300 text-sm">
+                      ⚠️ The challenger will be refunded 96% of their stake (4% platform fee).
+                    </p>
+                  </div>
+                </div>
+                
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button 
+                    style={{
+                      background: '#ff4444', 
+                      border:'none', 
+                      padding:'12px 20px', 
+                      borderRadius:'8px',
+                      color: '#fff',
+                      fontWeight: 'bold',
+                      cursor: isDeclining ? 'not-allowed' : 'pointer',
+                      flex: 1,
+                      opacity: isDeclining ? 0.7 : 1
+                    }}
+                    onClick={declineChallenge}
+                    disabled={isDeclining}
+                  >
+                    {isDeclining ? "Declining..." : "Yes, Decline Challenge"}
+                  </button>
+                  <button 
+                    style={{
+                      background: 'transparent', 
+                      border:'2px solid #666', 
+                      padding:'12px 20px', 
+                      borderRadius:'8px',
+                      color: '#666',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      flex: 1
+                    }}
+                    onClick={() => setShowDeclineModal(false)}
+                    disabled={isDeclining}
                   >
                     Cancel
                   </button>
