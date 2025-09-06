@@ -31,7 +31,14 @@ import { useWallet } from "../context/WalletContext";
 const ChallengeDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { balance, deposit } = useWallet();
+  const walletContext = useWallet();
+  
+  // Destructure with fallbacks in case wallet context fails
+  const { 
+    balance = 0, 
+    deposit = () => {}, 
+    loading: walletLoading = false 
+  } = walletContext || {};
   const [challenge, setChallenge] = useState(null);
   const [players, setPlayers] = useState({ p1: null, p2: null });
   const [matches, setMatches] = useState([]);
@@ -53,10 +60,25 @@ const ChallengeDetails = () => {
   useEffect(() => {
     const getCurrentUser = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) throw error;
-        if (user) {
-          setCurrentUserId(user.id);
+        // Check if there's an active session first
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          return;
+        }
+        
+        if (session?.user) {
+          setCurrentUserId(session.user.id);
+        } else {
+          // Fallback to getUser if session is available
+          const { data: { user }, error } = await supabase.auth.getUser();
+          if (error) {
+            console.error('Auth error:', error);
+            return;
+          }
+          if (user) {
+            setCurrentUserId(user.id);
+          }
         }
       } catch (err) {
         console.error('Failed to get current user:', err);
@@ -489,10 +511,18 @@ const ChallengeDetails = () => {
     if (!challenge) return { winAmount: 0, drawAmount: 0, refundAmount: 0 };
     
     const entryFee = challenge.entry_fee || 0;
-    const totalPrize = (entryFee * 0.85) ; // Both players' entry fees
-    const winAmount = totalPrize; // Winner gets full prize pool
+    const totalStake = entryFee * 2; // Both players' entry fees
+    const winAmount = Math.floor(totalStake * 0.85); // Winner gets 85% of total stake
     const drawAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
     const refundAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
+    
+    console.log('💰 Cash out amounts calculated:', {
+      entryFee,
+      totalStake,
+      winAmount,
+      drawAmount,
+      refundAmount
+    });
     
     return { winAmount, drawAmount, refundAmount };
   };
@@ -525,6 +555,20 @@ const ChallengeDetails = () => {
   };
 
   const handleCashOut = (type) => {
+    if (!currentUserId) {
+      alert('Please wait for authentication to complete.');
+      return;
+    }
+    
+    // Verify user is a participant before allowing cash out
+    const isPlayer1 = currentUserId === players.p1?.id;
+    const isPlayer2 = currentUserId === players.p2?.id;
+    
+    if (!isPlayer1 && !isPlayer2) {
+      alert('You are not a participant in this challenge.');
+      return;
+    }
+    
     const amounts = getCashOutAmounts();
     setCashOutType(type);
     
@@ -543,12 +587,33 @@ const ChallengeDetails = () => {
         setCashOutAmount(0);
     }
     
+    console.log('💰 Cash out initiated:', {
+      type,
+      amount: type === 'win' ? amounts.winAmount :
+              type === 'draw' ? amounts.drawAmount :
+              amounts.refundAmount,
+      isPlayer1,
+      isPlayer2
+    });
+    
     setShowCashOutModal(true);
   };
 
   const confirmCashOut = async () => {
+    if (!currentUserId) {
+      alert('Please wait for authentication to complete.');
+      return;
+    }
+    
     setProcessingCashOut(true);
     try {
+      console.log('🚀 Starting cash out process:', {
+        challengeId: id,
+        userId: currentUserId,
+        type: cashOutType,
+        amount: cashOutAmount
+      });
+      
       // First call the backend to cash out and record the transaction
       const updateRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/cash-out`, {
         method: "POST",
@@ -563,9 +628,10 @@ const ChallengeDetails = () => {
         })
       });
       
+      const responseData = await updateRes.json();
+      console.log('💰 Cash out response:', responseData);
+      
       if (updateRes.ok) {
-        const result = await updateRes.json();
-        
         // Update local wallet balance
         const refText = `Challenge ${id} - ${
           cashOutType === 'win' ? 'Prize' : 
@@ -581,9 +647,8 @@ const ChallengeDetails = () => {
         // Reload challenge to update status
         await loadChallenge();
       } else {
-        const errorData = await updateRes.json();
-        console.error("Cash out error:", errorData);
-        throw new Error(errorData.error || "Failed to process cash out");
+        console.error("Cash out error:", responseData);
+        throw new Error(responseData.error || `HTTP ${updateRes.status}: ${updateRes.statusText}`);
       }
     } catch (error) {
       console.error("Cash out error:", error);
@@ -694,6 +759,11 @@ const ChallengeDetails = () => {
             <span className="visually-hidden">Loading...</span>
           </Spinner>
           <div className="mt-3">Loading challenge...</div>
+          {walletLoading && (
+            <div className="mt-2 text-muted">
+              <small>Initializing wallet...</small>
+            </div>
+          )}
         </Container>
     );
   }
@@ -860,7 +930,7 @@ const ChallengeDetails = () => {
         )}
 
         {/* Congratulations and Cash Out Section */}
-        {canCashOut && !cashOutCompleted && (
+        {canCashOut && !cashOutCompleted && currentUserId && (
           <Card className="mb-4 border-0 shadow">
             <Card.Body className="text-center p-5">
               {challengeState === CHALLENGE_STATES.COMPLETED ? (
@@ -924,6 +994,20 @@ const ChallengeDetails = () => {
                   </>
                 )
               ) : null}
+            </Card.Body>
+          </Card>
+        )}
+        
+        {/* Authentication required message */}
+        {canCashOut && !cashOutCompleted && !currentUserId && (
+          <Card className="mb-4 border-warning">
+            <Card.Body className="text-center p-4">
+              <AlertTriangle size={48} className="text-warning mb-3" />
+              <h4 className="text-warning">Authentication Required</h4>
+              <p className="text-muted">
+                Please wait while we verify your identity before proceeding with cash out.
+              </p>
+              <Spinner animation="border" size="sm" className="text-warning" />
             </Card.Body>
           </Card>
         )}

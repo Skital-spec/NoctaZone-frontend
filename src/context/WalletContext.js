@@ -19,12 +19,28 @@ export const WalletProvider = ({ children }) => {
   useEffect(() => {
     const initializeWallet = async () => {
       try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) throw error;
+        // Check if there's an active session first
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Session error during wallet initialization:', sessionError);
+          return;
+        }
         
-        if (user) {
-          setUserId(user.id);
-          await fetchBalance(user.id);
+        if (session?.user) {
+          setUserId(session.user.id);
+          await fetchBalance(session.user.id);
+        } else {
+          // Fallback to getUser if session is available
+          const { data: { user }, error } = await supabase.auth.getUser();
+          if (error) {
+            console.error('Failed to initialize wallet:', error);
+            return;
+          }
+          
+          if (user) {
+            setUserId(user.id);
+            await fetchBalance(user.id);
+          }
         }
       } catch (error) {
         console.error('Failed to initialize wallet:', error);
