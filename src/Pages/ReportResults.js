@@ -132,7 +132,17 @@ const ReportResults = () => {
       form.append("player2Goals", String(parseInt(player2Goals) || 0));
       form.append("player1Points", String(parseInt(player1Goals) || 0));
       form.append("player2Points", String(parseInt(player2Goals) || 0));
-      form.append("declared_winner", declaredWinner || "");
+      
+      // Handle draw case: send null for declared_winner when it's a draw
+      // The backend will determine draw based on equal scores
+      if (declaredWinner === "draw") {
+        form.append("declared_winner", ""); // Send empty string instead of "draw"
+        form.append("is_draw", "true"); // Add flag to indicate this is a draw
+      } else {
+        form.append("declared_winner", declaredWinner || "");
+        form.append("is_draw", "false");
+      }
+      
       evidenceFiles.forEach((file) => form.append("evidence_files[]", file));
 
       const res = await fetch(`https://safcom-payment.onrender.com/api/matches/${matchId}/submit`, {
@@ -141,6 +151,7 @@ const ReportResults = () => {
         body: form
       });
       const data = await res.json();
+      
       if (!res.ok) throw new Error(data?.error || "Failed to submit results");
 
       setSuccess(
@@ -377,8 +388,14 @@ const ReportResults = () => {
                           <td className="p-2 text-sm" style={{ color: "#e5e7eb" }}>{s.player1_goals ?? s.player1_points}</td>
                           <td className="p-2 text-sm" style={{ color: "#e5e7eb" }}>{s.player2_goals ?? s.player2_points}</td>
                           <td className="p-2 text-sm" style={{ color: "#e5e7eb" }}>
-  {s.declared_winner === 'draw' ? 'DRAW' : players.p1?.id === s.declared_winner ? players.p1?.username
-    : players.p2?.id === s.declared_winner ? players.p2?.username : s.declared_winner}</td>
+  {/* Handle draw display: if scores are equal and both > 0, or if declared_winner is null and scores equal, show DRAW */}
+  {((s.player1_goals === s.player2_goals && s.player1_goals > 0) || 
+    (!s.declared_winner && s.player1_goals === s.player2_goals && s.player1_goals > 0)) ? 'DRAW' : 
+   (s.declared_winner ? 
+     (players.p1?.id === s.declared_winner ? players.p1?.username :
+      players.p2?.id === s.declared_winner ? players.p2?.username : s.declared_winner) : 
+     '-')
+  }</td>
                           <td className="p-3 text-sm">
                             {(Array.isArray(s.evidence) ? s.evidence : []).length === 0 ? (
                               <span style={{ color: "#94a3b8" }}>-</span>
