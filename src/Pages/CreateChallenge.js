@@ -535,28 +535,6 @@ const CreateChallenge = () => {
           <h2 className="mb-0">Create Match Challenge</h2>
         </div>
 
-        {/* ✅ Display current balance */}
-        <div className="text-center mb-4">
-          <p className="text-lg" style={{ color: '#00ffcc' }}>
-            Your Balance: <span className="font-bold">{balance} Tokens</span>
-            <button 
-              onClick={refreshBalance} 
-              style={{ 
-                marginLeft: '10px', 
-                padding: '5px 10px', 
-                fontSize: '12px',
-                background: '#00ffcc',
-                color: 'black',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Refresh
-            </button>
-          </p>
-        </div>
-
         {alert && (
           <Alert variant={alert.type} className="mb-4">
             {alert.message}
