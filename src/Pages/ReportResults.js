@@ -19,6 +19,24 @@ const ReportResults = () => {
   const [player2Goals, setPlayer2Goals] = useState(0);
   const [declaredWinner, setDeclaredWinner] = useState("");
 
+  // Automatic winner selection based on scores
+  useEffect(() => {
+    const p1Score = parseInt(player1Goals) || 0;
+    const p2Score = parseInt(player2Goals) || 0;
+    
+    if (p1Score > p2Score) {
+      // P1 wins automatically
+      setDeclaredWinner(players.p1?.id || "");
+    } else if (p2Score > p1Score) {
+      // P2 wins automatically
+      setDeclaredWinner(players.p2?.id || "");
+    } else if (p1Score === p2Score && (p1Score > 0 || p2Score > 0)) {
+      // Draw when scores are equal and not both zero
+      setDeclaredWinner("draw");
+    }
+    // If both scores are 0, allow manual selection
+  }, [player1Goals, player2Goals, players.p1?.id, players.p2?.id]);
+
   // File uploads for evidence (submit flow)
   const [evidenceFiles, setEvidenceFiles] = useState([]);
 
@@ -238,6 +256,9 @@ const ReportResults = () => {
 
             <div className="bg-[#1a1a2e] rounded-lg p-6 mb-6">
               <h3 className="text-xl font-bold mb-3" style={{ color: "#00ffcc" }}>Submit Your Result</h3>
+              <p className="text-sm mb-4" style={{ color: "#cbd5e1" }}>
+                If not sure of scores just choose winner
+              </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm mb-1" >{match?.player1?.username || "Anonymous"}'s Scores</label>
@@ -251,13 +272,27 @@ const ReportResults = () => {
                 </div>
                 <div>
                   <label className="block text-sm mb-1" style={{ color: "#cbd5e1" }}>Winner</label>
-                  <select value={declaredWinner} onChange={(e) => setDeclaredWinner(e.target.value)} className="w-full text-black rounded p-2"
-                    style={{outline: "none", marginLeft:'3%' , border: "none" , marginTop:'2rem'}}>
+                  <select 
+                    value={declaredWinner} 
+                    onChange={(e) => setDeclaredWinner(e.target.value)} 
+                    className="w-full text-black rounded p-2"
+                    style={{outline: "none", marginLeft:'3%' , border: "none" , marginTop:'2rem'}}
+                    disabled={
+                      (parseInt(player1Goals) || 0) !== (parseInt(player2Goals) || 0) || 
+                      ((parseInt(player1Goals) || 0) === (parseInt(player2Goals) || 0) && (parseInt(player1Goals) > 0 || parseInt(player2Goals) > 0))
+                    }
+                  >
                     <option value="">Select winner</option>
                     {players.p1 && (<option value={players.p1.id}>{players.p1.username }</option>)}
                     {players.p2 && (<option value={players.p2.id}>{players.p2.username }</option>)}
                     <option value="draw">DRAW</option>
                   </select>
+                  {((parseInt(player1Goals) || 0) !== (parseInt(player2Goals) || 0) || 
+                    ((parseInt(player1Goals) || 0) === (parseInt(player2Goals) || 0) && (parseInt(player1Goals) > 0 || parseInt(player2Goals) > 0))) && (
+                    <div className="mt-1 text-xs" style={{ color: "#22c55e" }}>
+                      Winner automatically selected based on scores
+                    </div>
+                  )}
                 </div>
               </div>
 
