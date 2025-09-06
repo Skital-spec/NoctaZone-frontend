@@ -421,7 +421,7 @@ const WalletPage = () => {
             <>
               <h2 className="wallet-title">My Wallet</h2>
               <p className="wallet-balance">
-                Balance: <span>{balance} Tokens</span>
+                Balance: <span>{parseFloat(balance || 0).toFixed(2)} Tokens</span>
                 <button onClick={refreshBalance} style={{ marginLeft: '10px', padding: '5px 10px', fontSize: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
                   Refresh
                 </button>
@@ -431,6 +431,27 @@ const WalletPage = () => {
                 <p>User ID: {userId}</p>
                 <p>Email: {userEmail}</p>
               </div>
+
+              {stats && (
+                <div style={{ marginBottom: '20px', padding: '15px', background: 'grey', borderRadius: '8px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', fontSize: '14px' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 'bold', color: '#00ff88' }}>+{parseFloat(stats.total_deposits || 0).toFixed(2)}</div>
+                    <div>Total Deposits</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 'bold', color: '#ff6b6b' }}>-{parseFloat(stats.total_withdrawals || 0).toFixed(2)}</div>
+                    <div>Total Withdrawals</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 'bold', color: '#ffa500' }}>{stats.tournament_count}</div>
+                    <div>Tournaments</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontWeight: 'bold', color: '#007bff' }}>{parseFloat(stats.net_amount || 0).toFixed(2)}</div>
+                    <div>Net Amount</div>
+                  </div>
+                </div>
+              )}
 
               {/* Action selector */}
               <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
@@ -596,7 +617,7 @@ const WalletPage = () => {
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: '16px', fontWeight: 'bold', color: style.color }}>
                               {style.symbol === '+' ? '+' : style.symbol === '-' ? '-' : ''}
-                              {tx.tokens || tx.amount} Tokens
+                              {parseFloat(tx.tokens || tx.amount || 0).toFixed(2)} Tokens
                             </div>
                             {tx.status && (
                               <div style={{ fontSize: '12px', color: tx.status === 'completed' ? 'green' : 'orange', textTransform: 'capitalize' }}>
