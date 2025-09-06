@@ -19,37 +19,53 @@ export const WalletProvider = ({ children }) => {
   useEffect(() => {
     const initializeWallet = async () => {
       try {
-        // Check if there's an active session first
+        // First check if there's an active session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
         if (sessionError) {
           console.error('Session error during wallet initialization:', sessionError);
+          setLoading(false);
           return;
         }
         
+        // Only proceed if we have an active session
         if (session?.user) {
+          console.log('✅ Active session found, initializing wallet for user:', session.user.id);
           setUserId(session.user.id);
           await fetchBalance(session.user.id);
         } else {
-          // Fallback to getUser if session is available
-          const { data: { user }, error } = await supabase.auth.getUser();
-          if (error) {
-            console.error('Failed to initialize wallet:', error);
-            return;
-          }
-          
-          if (user) {
-            setUserId(user.id);
-            await fetchBalance(user.id);
-          }
+          console.log('ℹ️  No active session found - user not logged in');
+          setLoading(false);
+          return;
         }
       } catch (error) {
         console.error('Failed to initialize wallet:', error);
-      } finally {
         setLoading(false);
       }
     };
 
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔐 Auth state changed:', event, session?.user?.id);
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUserId(session.user.id);
+        await fetchBalance(session.user.id);
+        setLoading(false);
+      } else if (event === 'SIGNED_OUT') {
+        setUserId(null);
+        setBalance(0);
+        setTransactions([]);
+        setLoading(false);
+      }
+    });
+
     initializeWallet();
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   // Fetch balance from backend

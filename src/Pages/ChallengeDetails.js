@@ -60,31 +60,43 @@ const ChallengeDetails = () => {
   useEffect(() => {
     const getCurrentUser = async () => {
       try {
-        // Check if there's an active session first
+        // First check if there's an active session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
         if (sessionError) {
           console.error('Session error:', sessionError);
           return;
         }
         
+        // Only proceed if we have an active session
         if (session?.user) {
+          console.log('✅ Active session found in ChallengeDetails:', session.user.id);
           setCurrentUserId(session.user.id);
         } else {
-          // Fallback to getUser if session is available
-          const { data: { user }, error } = await supabase.auth.getUser();
-          if (error) {
-            console.error('Auth error:', error);
-            return;
-          }
-          if (user) {
-            setCurrentUserId(user.id);
-          }
+          console.log('ℹ️  No active session in ChallengeDetails - user not logged in');
         }
       } catch (err) {
         console.error('Failed to get current user:', err);
       }
     };
+    
     getCurrentUser();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔐 Auth state changed in ChallengeDetails:', event, session?.user?.id);
+      
+      if (event === 'SIGNED_IN' && session?.user) {
+        setCurrentUserId(session.user.id);
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUserId(null);
+      }
+    });
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   // Challenge states
@@ -512,16 +524,19 @@ const ChallengeDetails = () => {
     
     const entryFee = challenge.entry_fee || 0;
     const totalStake = entryFee * 2; // Both players' entry fees
-    const winAmount = Math.floor(totalStake * 0.85); // Winner gets 85% of total stake
+    
+    // Win amount: exactly what the database expects (totalStake * 0.85)
+    const winAmount = totalStake * 0.85; // Keep as float, don't floor yet
     const drawAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
     const refundAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
     
     console.log('💰 Cash out amounts calculated:', {
       entryFee,
       totalStake,
-      winAmount,
+      winAmount: winAmount, // Database expects this exact value
       drawAmount,
-      refundAmount
+      refundAmount,
+      'winAmount (floored)': Math.floor(winAmount)
     });
     
     return { winAmount, drawAmount, refundAmount };
@@ -601,7 +616,16 @@ const ChallengeDetails = () => {
 
   const confirmCashOut = async () => {
     if (!currentUserId) {
-      alert('Please wait for authentication to complete.');
+      alert('Please wait for authentication to complete or log in.');
+      return;
+    }
+    
+    // Validate user is a participant
+    const isPlayer1 = currentUserId === players.p1?.id;
+    const isPlayer2 = currentUserId === players.p2?.id;
+    
+    if (!isPlayer1 && !isPlayer2) {
+      alert('You are not a participant in this challenge.');
       return;
     }
     
@@ -611,25 +635,40 @@ const ChallengeDetails = () => {
         challengeId: id,
         userId: currentUserId,
         type: cashOutType,
-        amount: cashOutAmount
+        amount: cashOutAmount,
+        'amount (exact)': cashOutAmount,
+        'amount (string)': cashOutAmount.toString(),
+        challenge: {
+          entry_fee: challenge?.entry_fee,
+          total_stake: (challenge?.entry_fee || 0) * 2,
+          expected_win_amount: (challenge?.entry_fee || 0) * 2 * 0.85
+        }
       });
       
       // First call the backend to cash out and record the transaction
+      const requestBody = {
+        user_id: currentUserId,
+        type: cashOutType,
+        amount: cashOutAmount // Send exact amount as calculated
+      };
+      
+      console.log('📡 Request body:', JSON.stringify(requestBody, null, 2));
+      
       const updateRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/cash-out`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         credentials: "include",
-        body: JSON.stringify({
-          user_id: currentUserId,
-          type: cashOutType,
-          amount: cashOutAmount
-        })
+        body: JSON.stringify(requestBody)
       });
       
       const responseData = await updateRes.json();
-      console.log('💰 Cash out response:', responseData);
+      console.log('💰 Cash out response:', {
+        status: updateRes.status,
+        statusText: updateRes.statusText,
+        data: responseData
+      });
       
       if (updateRes.ok) {
         // Update local wallet balance
@@ -648,7 +687,8 @@ const ChallengeDetails = () => {
         await loadChallenge();
       } else {
         console.error("Cash out error:", responseData);
-        throw new Error(responseData.error || `HTTP ${updateRes.status}: ${updateRes.statusText}`);
+        const errorMsg = responseData.error || responseData.message || `HTTP ${updateRes.status}: ${updateRes.statusText}`;
+        throw new Error(errorMsg);
       }
     } catch (error) {
       console.error("Cash out error:", error);
