@@ -7,7 +7,7 @@ import { Trophy, Users } from "lucide-react";
 const Tournaments = () => {
   const [role, setRole] = useState(null);
   const [userId, setUserId] = useState(null);
-  const [activeTab, setActiveTab] = useState("ongoing");
+  const [activeTab, setActiveTab] = useState("available");
   const [tournaments, setTournaments] = useState([]);
   const [userTournaments, setUserTournaments] = useState([]); // Track joined tournaments
   const [allParticipants, setAllParticipants] = useState([]);
@@ -150,9 +150,13 @@ useEffect(() => {
   let filteredTournaments = tournaments.filter((t) => {
     const isParticipant = hasJoinedTournament(t.id);
     const participation = getUserParticipation(t.id);
+    const seatsTaken = calculateSeatsTaken(t.id);
+    const isFull = seatsTaken >= (t.seats || 0);
 
-    if (activeTab === "ongoing") return t.status === "ongoing";
-    if (activeTab === "upcoming") return t.status === "upcoming";
+    if (activeTab === "available") {
+      // Show upcoming tournaments that are not full
+      return t.status === "upcoming" && !isFull;
+    }
     if (activeTab === "my") return isParticipant;
     if (activeTab === "history") {
       // Show completed tournaments where user participated
@@ -161,16 +165,15 @@ useEffect(() => {
     return true;
   });
 
-  // Sort upcoming tournaments by start time (soonest first)
-  if (activeTab === "upcoming") {
+  // Sort available tournaments by start time (soonest first)
+  if (activeTab === "available") {
     filteredTournaments = filteredTournaments.sort(
       (a, b) => new Date(a.start_time) - new Date(b.start_time)
     );
   }
 
   const tabs = [
-    { id: "ongoing", label: "Ongoing Tournaments" },
-    { id: "upcoming", label: "Upcoming Tournaments" },
+    { id: "available", label: "Available" },
     { id: "my", label: "My Tournaments" },
     { id: "history", label: "History" },
   ];
@@ -540,7 +543,7 @@ const getButtonProps = (tournament) => {
             </p>
             {activeTab === "my" && (
               <button
-                onClick={() => setActiveTab("upcoming")}
+                onClick={() => setActiveTab("available")}
                 className="btn mt-2"
                 style={{
                   backgroundColor: ACCENT,
@@ -548,7 +551,7 @@ const getButtonProps = (tournament) => {
                   fontWeight: 600,
                 }}
               >
-                Browse Upcoming Tournaments
+                Browse Available Tournaments
               </button>
             )}
           </div>
