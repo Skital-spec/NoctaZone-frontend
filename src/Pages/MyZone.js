@@ -131,7 +131,7 @@ const MyZone = () => {
           joined_at: participation?.joined_at || challenge.created_at,
           entry_fee_paid: participation?.entry_fee_paid || challenge.entry_fee,
           creator: { 
-            username: isCreator ? "You" : "Unknown", 
+            username: isCreator ? "You" : "You", 
             avatar_url: null 
           },
           prize_amount: challenge.entry_fee * 2 * 0.85 // Calculate prize
@@ -241,7 +241,7 @@ const filteredChallenges = publicChallenges.filter((challenge) => {
           joined_at: participation?.joined_at || challenge.created_at,
           entry_fee_paid: participation?.entry_fee_paid || challenge.entry_fee,
           creator: { 
-            username: isCreator ? "You" : "Unknown", 
+            username: isCreator ? "You" : "You", 
             avatar_url: null 
           },
           prize_amount: challenge.entry_fee * 2 * 0.85 // Calculate prize
