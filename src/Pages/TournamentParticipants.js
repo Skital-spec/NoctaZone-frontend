@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "../Components/MainLayout";
+import { supabase } from "../supabaseClient";
 
 const TournamentParticipants = () => {
   const { id } = useParams();
@@ -41,8 +42,8 @@ const TournamentParticipants = () => {
         setParticipants(participantsData.participants || []);
         setMatches(matchesData.matches || []);
         
-        // Check if user is admin (implement your admin logic here)
-        setIsAdmin(true); // Placeholder
+        // Check if user is admin
+        await checkUserAdminStatus();
       } catch (err) {
         setError(err.message || "Error fetching tournament data");
       } finally {
@@ -51,6 +52,32 @@ const TournamentParticipants = () => {
     };
     fetchTournamentData();
   }, [id]);
+
+  // Function to check if current user is admin
+  const checkUserAdminStatus = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profile && !profileError) {
+        setIsAdmin(profile.role === "admin");
+      } else {
+        setIsAdmin(false);
+      }
+    } catch (err) {
+      console.error("Error checking admin status:", err);
+      setIsAdmin(false);
+    }
+  };
 
   
   // Generate round-robin matches based on participant count
