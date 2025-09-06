@@ -870,7 +870,7 @@ const ChallengeDetails = () => {
   };
 
   const gotoReport = (matchId) => {
-    navigate(`/tournament/${id}/report-match/${matchId}`);
+    navigate(`/tournament/${id}/reportresults/${matchId}`);
   };
 
   // Animated congratulations component
