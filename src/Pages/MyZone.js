@@ -17,10 +17,20 @@ const MyZone = () => {
   const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [joiningChallenge, setJoiningChallenge] = useState(false);
   const [error, setError] = useState(null);
+  
+  // States for My Matches tab
+  const [activeMatches, setActiveMatches] = useState([]);
+  const [activeMatchesLoading, setActiveMatchesLoading] = useState(false);
+  
+  // States for Match History tab
   const [matchHistory, setMatchHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedHistoryMatch, setSelectedHistoryMatch] = useState(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  
+  // States for My Tournaments tab
+  const [userTournaments, setUserTournaments] = useState([]);
+  const [tournamentsLoading, setTournamentsLoading] = useState(false);
 
 
   const tabs = [
@@ -42,20 +52,102 @@ const MyZone = () => {
     getCurrentUser();
   }, []);
 
-  // Fetch public challenges when Find a Match tab is active
+  // Fetch data based on active tab
   useEffect(() => {
-    if (activeTab === "find" && currentUserId) {
-      fetchPublicChallenges();
+    if (currentUserId) {
+      switch (activeTab) {
+        case "matches":
+          fetchActiveMatches();
+          break;
+        case "find":
+          fetchPublicChallenges();
+          break;
+        case "history":
+          fetchMatchHistory();
+          break;
+        case "tournaments":
+          fetchUserTournaments();
+          break;
+        default:
+          break;
+      }
     }
   }, [activeTab, currentUserId]);
 
-  // Fetch match history when History tab is active
-  useEffect(() => {
-    if (activeTab === "history" && currentUserId) {
-      fetchMatchHistory();
-    }
-  }, [activeTab, currentUserId]);
+  // Fetch active matches (ongoing challenges where user is participant)
+  const fetchActiveMatches = async () => {
+    setActiveMatchesLoading(true);
+    setError(null);
+    
+    try {
+      if (!currentUserId) {
+        console.log("⚠️ No currentUserId available, skipping active matches fetch");
+        setActiveMatches([]);
+        return;
+      }
 
+      console.log("🔍 Fetching active matches for user:", currentUserId);
+      
+      // Get all challenges
+      const { data: allChallenges, error: challengesError } = await supabase
+        .from("challenges")
+        .select("*")
+        .in("status", ["pending", "ongoing", "active"]);
+
+      if (challengesError) {
+        console.error("❌ Error fetching challenges:", challengesError);
+        throw new Error("Failed to fetch challenges");
+      }
+
+      // Get user's participations
+      const { data: userParticipations, error: participationsError } = await supabase
+        .from("challenge_participants")
+        .select("*")
+        .eq("user_id", currentUserId);
+
+      if (participationsError) {
+        console.error("❌ Error fetching participations:", participationsError);
+        throw new Error("Failed to fetch participations");
+      }
+
+      // Filter for active challenges where user is participant (created or joined)
+      const userChallengeIds = userParticipations?.map(p => p.challenge_id) || [];
+      const userCreatedChallenges = allChallenges?.filter(c => c.creator_id === currentUserId) || [];
+      
+      // Combine both created and joined challenges
+      const activeUserChallenges = allChallenges?.filter(challenge => 
+        (userChallengeIds.includes(challenge.id) || challenge.creator_id === currentUserId) &&
+        ["pending", "ongoing", "active"].includes(challenge.status)
+      ) || [];
+
+      // Add participation info
+      const formattedMatches = activeUserChallenges.map(challenge => {
+        const participation = userParticipations?.find(p => p.challenge_id === challenge.id);
+        const isCreator = challenge.creator_id === currentUserId;
+        
+        return {
+          ...challenge,
+          participation_type: isCreator ? "created" : "joined",
+          joined_at: participation?.joined_at || challenge.created_at,
+          entry_fee_paid: participation?.entry_fee_paid || challenge.entry_fee,
+          creator: { 
+            username: isCreator ? "You" : "Unknown", 
+            avatar_url: null 
+          },
+          prize_amount: challenge.entry_fee * 2 * 0.85 // Calculate prize
+        };
+      });
+
+      console.log("🔍 Active matches found:", formattedMatches);
+      setActiveMatches(formattedMatches);
+      
+    } catch (err) {
+      console.error("Error in fetchActiveMatches:", err);
+      setError("Failed to load active matches");
+    } finally {
+      setActiveMatchesLoading(false);
+    }
+  };
   const fetchPublicChallenges = async () => {
     setChallengesLoading(true);
     setError(null);
@@ -106,77 +198,108 @@ const filteredChallenges = publicChallenges.filter((challenge) => {
 
       console.log("🔍 Fetching match history for user:", currentUserId);
       
-      // Try a simpler query first - just get all challenges
-      const { data: allChallenges, error: allChallengesError } = await supabase
+      // Get only completed challenges
+      const { data: completedChallenges, error: challengesError } = await supabase
         .from("challenges")
-        .select("*");
+        .select("*")
+        .eq("status", "completed");
 
-      console.log("🔍 All challenges query result:", { data: allChallenges, error: allChallengesError });
+      console.log("🔍 All challenges query result:", { data: completedChallenges, error: challengesError });
       
-      if (allChallengesError) {
-        console.error("❌ Error fetching all challenges:", allChallengesError);
-        setError("Failed to load challenges");
+      if (challengesError) {
+        console.error("❌ Error fetching completed challenges:", challengesError);
+        setError("Failed to load match history");
         return;
       }
 
-      // Filter challenges for this user manually
-      const userCreatedChallenges = allChallenges?.filter(c => c.creator_id === currentUserId) || [];
-      console.log("🔍 User created challenges (filtered):", userCreatedChallenges);
-      
-      // Get participations
-      const { data: allParticipations, error: participationsError } = await supabase
+      // Get user's participations
+      const { data: userParticipations, error: participationsError } = await supabase
         .from("challenge_participants")
-        .select("*");
+        .select("*")
+        .eq("user_id", currentUserId);
 
-      console.log("�� All participations query result:", { data: allParticipations, error: participationsError });
-      
       if (participationsError) {
         console.error("❌ Error fetching participations:", participationsError);
-        setError("Failed to load participations");
-        return;
+        throw new Error("Failed to fetch participations");
       }
 
-      // Filter participations for this user
-      const userParticipations = allParticipations?.filter(p => p.user_id === currentUserId) || [];
-      console.log("🔍 User participations (filtered):", userParticipations);
+      // Filter for completed challenges where user was participant (created or joined)
+      const userChallengeIds = userParticipations?.map(p => p.challenge_id) || [];
       
-      // Get challenge details for participations
-      const participatedChallenges = userParticipations.map(participation => {
-        const challenge = allChallenges?.find(c => c.id === participation.challenge_id);
+      const userCompletedChallenges = completedChallenges?.filter(challenge => 
+        userChallengeIds.includes(challenge.id) || challenge.creator_id === currentUserId
+      ) || [];
+
+      // Format the matches with participation info
+      const formattedHistory = userCompletedChallenges.map(challenge => {
+        const participation = userParticipations?.find(p => p.challenge_id === challenge.id);
+        const isCreator = challenge.creator_id === currentUserId;
+        
         return {
           ...challenge,
-          participation_type: "joined",
-          joined_at: participation.joined_at,
-          entry_fee_paid: participation.entry_fee_paid,
-          creator: { username: "Unknown", avatar_url: null }
+          participation_type: isCreator ? "created" : "joined",
+          joined_at: participation?.joined_at || challenge.created_at,
+          entry_fee_paid: participation?.entry_fee_paid || challenge.entry_fee,
+          creator: { 
+            username: isCreator ? "You" : "Unknown", 
+            avatar_url: null 
+          },
+          prize_amount: challenge.entry_fee * 2 * 0.85 // Calculate prize
         };
-      }).filter(Boolean); // Remove any undefined challenges
+      }).sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
 
-      console.log("🔍 Participated challenges:", participatedChallenges);
-      
-      // Format created challenges
-      const createdChallenges = userCreatedChallenges.map(challenge => ({
-        ...challenge,
-        participation_type: "created",
-        joined_at: challenge.created_at,
-        entry_fee_paid: challenge.entry_fee,
-        creator: { username: "You", avatar_url: null }
-      }));
-
-      console.log("�� Created challenges:", createdChallenges);
-
-      // Combine and sort by date
-      const allMatches = [...participatedChallenges, ...createdChallenges]
-        .sort((a, b) => new Date(b.joined_at) - new Date(a.joined_at));
-
-      console.log("🔍 Final combined matches:", allMatches);
-      setMatchHistory(allMatches);
+      console.log("🔍 Match history found:", formattedHistory);
+      setMatchHistory(formattedHistory);
       
     } catch (err) {
       console.error("Error in fetchMatchHistory:", err);
       setError("Failed to load match history");
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  // Fetch user tournaments (tournaments where user is participant)
+  const fetchUserTournaments = async () => {
+    setTournamentsLoading(true);
+    setError(null);
+    
+    try {
+      if (!currentUserId) {
+        console.log("⚠️ No currentUserId available, skipping tournaments fetch");
+        setUserTournaments([]);
+        return;
+      }
+
+      console.log("🔍 Fetching user tournaments for user:", currentUserId);
+      
+      // Get user's tournament participations
+      const { data: participations, error: participationsError } = await supabase
+        .from("tournament_participants")
+        .select("*, tournaments(*)")
+        .eq("user_id", currentUserId);
+
+      if (participationsError) {
+        console.error("❌ Error fetching tournament participations:", participationsError);
+        throw new Error("Failed to fetch user tournaments");
+      }
+
+      // Format tournaments with participation info
+      const formattedTournaments = participations?.map(participation => ({
+        ...participation.tournaments,
+        participation_date: participation.created_at,
+        entry_fee_paid: participation.entry_fee || participation.tournaments?.entry_fee,
+        is_participant: true
+      })) || [];
+
+      console.log("🔍 User tournaments found:", formattedTournaments);
+      setUserTournaments(formattedTournaments);
+      
+    } catch (err) {
+      console.error("Error in fetchUserTournaments:", err);
+      setError("Failed to load tournaments");
+    } finally {
+      setTournamentsLoading(false);
     }
   };
 
@@ -356,17 +479,115 @@ const handleJoinChallenge = async (challenge) => {
           {activeTab === "matches" && (
             <div className="tab-content">
               <div className="d-flex justify-content-between align-items-center mb-4">
-                <h2>My Matches</h2>
-                <Button 
-                  variant="primary" 
-                  onClick={handleCreateChallenge}
-                  className="d-flex align-items-center"
-                >
-                  <Plus size={18} className="me-2" />
-                  Create Match Challenge
-                </Button>
+                <h2>My Active Matches</h2>
+                <div className="d-flex gap-2">
+                  <Button 
+                    variant="outline-primary" 
+                    onClick={fetchActiveMatches}
+                    disabled={activeMatchesLoading}
+                  >
+                    {activeMatchesLoading ? (
+                      <>
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Refreshing...
+                      </>
+                    ) : (
+                      "Refresh"
+                    )}
+                  </Button>
+                  <Button 
+                    variant="primary" 
+                    onClick={handleCreateChallenge}
+                    className="d-flex align-items-center"
+                  >
+                    <Plus size={18} className="me-2" />
+                    Create Match Challenge
+                  </Button>
+                </div>
               </div>
-              <p>Create challenges, track matches, and compete with other players.</p>
+              
+              {error && (
+                <Alert variant="danger" className="mb-4">
+                  {error}
+                </Alert>
+              )}
+
+              {activeMatchesLoading ? (
+                <div className="text-center py-5">
+                  <Spinner animation="border" variant="primary" />
+                  <p className="mt-3">Loading your active matches...</p>
+                </div>
+              ) : activeMatches.length === 0 ? (
+                <div className="text-center py-5">
+                  <Gamepad size={48} className="text-muted mb-3" />
+                  <h4>No Active Matches</h4>
+                  <p className="text-muted">
+                    You don't have any ongoing matches at the moment. 
+                    Create or join a challenge to get started!
+                  </p>
+                  <Button 
+                    variant="primary" 
+                    onClick={() => setActiveTab("find")}
+                    className="d-flex align-items-center mx-auto"
+                  >
+                    <Search size={18} className="me-2" />
+                    Find a Match
+                  </Button>
+                </div>
+              ) : (
+                <div className="row">
+                  {activeMatches.map((match) => (
+                    <div key={match.id} className="col-md-6 col-lg-4 mb-4">
+                      <Card className="h-100 challenge-card">
+                        <Card.Body>
+                          <div className="d-flex align-items-center mb-3">
+                            <div className="d-flex justify-content-between align-items-center w-100">
+                              <Badge bg={match.participation_type === "created" ? "primary" : "success"} className="me-2">
+                                {match.participation_type === "created" ? "Created" : "Joined"}
+                              </Badge>
+                              <Badge bg={match.status === "ongoing" ? "warning" : match.status === "active" ? "info" : "secondary"}>
+                                {match.status?.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          <h5 className="card-title mb-3">
+                            {match.game_type?.toUpperCase()} Challenge
+                          </h5>
+                          
+                          <div className="mb-3">
+                            <div className="d-flex align-items-center mb-2">
+                              <span className="fw-bold">{match.entry_fee} Tokens</span>
+                            </div>
+                            <div className="d-flex align-items-center mb-2">
+                              <Trophy size={16} className="me-2 text-warning" />
+                              <span className="fw-bold">{match.prize_amount} Tokens Prize</span>
+                            </div>
+                            <div className="d-flex align-items-center mb-2">
+                              <Calendar size={16} className="me-2 text-info" />
+                              <span>{new Date(match.play_time).toLocaleString()}</span>
+                            </div>
+                            <div className="d-flex align-items-center">
+                              <Users size={16} className="me-2 text-primary" />
+                              <span>{match.participants || 0} Participants</span>
+                            </div>
+                          </div>
+                          
+                          <div className="d-flex justify-content-between align-items-center">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => navigate(`/challenge/${match.id}`)}
+                            >
+                              View Challenge
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 {activeTab === "find" && (
@@ -640,8 +861,115 @@ const handleJoinChallenge = async (challenge) => {
 
           {activeTab === "tournaments" && (
             <div className="tab-content">
-              <h2>My Tournaments</h2>
-              <p>See all the tournaments you are participating in or have completed.</p>
+              <div className="d-flex justify-content-between align-items-center mb-4">
+                <h2>My Tournaments</h2>
+                <Button 
+                  variant="outline-primary" 
+                  onClick={fetchUserTournaments}
+                  disabled={tournamentsLoading}
+                >
+                  {tournamentsLoading ? (
+                    <>
+                      <Spinner animation="border" size="sm" className="me-2" />
+                      Refreshing...
+                    </>
+                  ) : (
+                    "Refresh"
+                  )}
+                </Button>
+              </div>
+              
+              {error && (
+                <Alert variant="danger" className="mb-4">
+                  {error}
+                </Alert>
+              )}
+
+              {tournamentsLoading ? (
+                <div className="text-center py-5">
+                  <Spinner animation="border" variant="primary" />
+                  <p className="mt-3">Loading your tournaments...</p>
+                </div>
+              ) : userTournaments.length === 0 ? (
+                <div className="text-center py-5">
+                  <Trophy size={48} className="text-muted mb-3" />
+                  <h4>No Tournaments Found</h4>
+                  <p className="text-muted">
+                    You haven't joined any tournaments yet. 
+                    Check out available tournaments to participate!
+                  </p>
+                  <Button 
+                    variant="primary" 
+                    onClick={() => navigate('/tournaments')}
+                    className="d-flex align-items-center mx-auto"
+                  >
+                    <Trophy size={18} className="me-2" />
+                    Browse Tournaments
+                  </Button>
+                </div>
+              ) : (
+                <div className="row">
+                  {userTournaments.map((tournament) => (
+                    <div key={tournament.id} className="col-md-6 col-lg-4 mb-4">
+                      <Card className="h-100 challenge-card">
+                        <Card.Body>
+                          <div className="d-flex align-items-center mb-3">
+                            <div className="d-flex justify-content-between align-items-center w-100">
+                              <Badge bg="success" className="me-2">
+                                Participant
+                              </Badge>
+                              <Badge bg={tournament.status === "active" ? "warning" : tournament.status === "completed" ? "success" : "secondary"}>
+                                {tournament.status?.toUpperCase()}
+                              </Badge>
+                            </div>
+                          </div>
+                          
+                          <h5 className="card-title mb-3">
+                            {tournament.name}
+                          </h5>
+                          
+                          <div className="mb-3">
+                            <div className="d-flex align-items-center mb-2">
+                              <span className="fw-bold">{tournament.entry_fee} Tokens Entry</span>
+                            </div>
+                            <div className="d-flex align-items-center mb-2">
+                              <Trophy size={16} className="me-2 text-warning" />
+                              <span className="fw-bold">{tournament.prize_pool} Tokens Prize Pool</span>
+                            </div>
+                            <div className="d-flex align-items-center mb-2">
+                              <Calendar size={16} className="me-2 text-info" />
+                              <span>{new Date(tournament.start_date).toLocaleDateString()}</span>
+                            </div>
+                            <div className="d-flex align-items-center">
+                              <Users size={16} className="me-2 text-primary" />
+                              <span>{tournament.seats_taken || 0}/{tournament.max_participants} Participants</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mb-3">
+                            <h6>Description:</h6>
+                            <p className="text-muted small">
+                              {tournament.description?.length > 100 
+                                ? `${tournament.description.substring(0, 100)}...` 
+                                : tournament.description}
+                            </p>
+                          </div>
+                          
+                          <div className="d-flex justify-content-between align-items-center">
+                            <Button
+                              variant="outline-primary"
+                              size="sm"
+                              onClick={() => navigate(`/tournament/${tournament.id}`)}
+                            >
+                              View Tournament
+                            </Button>
+                          </div>
+                        </Card.Body>
+                      </Card>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </Container>

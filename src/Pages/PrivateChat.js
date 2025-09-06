@@ -1129,9 +1129,6 @@ export default function WhatsAppStyleChat() {
                   <p className="mb-3">
                     <strong>Prize:</strong> <span style={{color: '#00ffcc'}} className="font-bold">{selectedChallenge.entry_fee * 2 * 0.85} tokens</span>
                   </p>
-                  <p className="mb-3">
-                    <strong>Challenger:</strong> @{selectedChallenge.sender_username || selectedChallenge.creator_username || 'Unknown'}
-                  </p>
                   <div style={{ 
                     background: '#1a1a1a', 
                     padding: 12, 
@@ -1312,19 +1309,12 @@ export default function WhatsAppStyleChat() {
                   </p>
                   
                   <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 mb-4">
-                    <p className="text-sm text-gray-400">Challenge Details:</p>
-                    <p className="font-semibold" style={{color: '#00ffcc'}}>
-                      {gameTypes.find(g => g.value === selectedChallenge.game_type)?.label}
-                    </p>
-                    <p className="text-sm text-gray-400">Challenger:</p>
-                    <p className="font-semibold text-white">
-                      @{selectedChallenge.sender_username || selectedChallenge.creator_username || 'Unknown'}
-                    </p>
+                    <p className="text-sm text-gray-400">Challenge Details: <span style={{color: '#00ffcc'}}>{gameTypes.find(g => g.value === selectedChallenge.game_type)?.label}</span> </p> 
                   </div>
                   
                   <div className="bg-yellow-900/20 border border-yellow-600 p-3 rounded">
                     <p className="text-yellow-300 text-sm">
-                      ⚠️ The challenger will be refunded 96% of their stake (4% platform fee).
+                      ⚠️ The challenger will be refunded his stake amount.
                     </p>
                   </div>
                 </div>
