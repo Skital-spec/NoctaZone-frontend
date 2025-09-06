@@ -959,7 +959,7 @@ const handleJoinChallenge = async (challenge) => {
                             <Button
                               variant="outline-primary"
                               size="sm"
-                              onClick={() => navigate(`/tournament/${tournament.id}`)}
+                              onClick={() => navigate(`/tournament/${tournament.id}/participants`)}
                             >
                               View Tournament
                             </Button>
