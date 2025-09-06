@@ -204,7 +204,7 @@ export default function WhatsAppStyleChat() {
       }
 
       console.log("🎮 Accepting challenge:", {
-        challengeId: selectedChallenge.challenge_id,
+        challengeId: selectedChallenge.challenge_id || selectedChallenge.id,
         userId: currentUser.id,
         entryFee
       });
@@ -219,7 +219,7 @@ export default function WhatsAppStyleChat() {
         credentials: "include",
         body: JSON.stringify({
           user_id: currentUser.id,
-          challenge_id: selectedChallenge.challenge_id,
+          challenge_id: selectedChallenge.challenge_id || selectedChallenge.id,
           entry_fee: entryFee
         }),
       });
@@ -276,7 +276,7 @@ export default function WhatsAppStyleChat() {
 
       // Navigate to challenge details page after 2 seconds
       setTimeout(() => {
-        navigate(`/challenge/${selectedChallenge.challenge_id}`);
+        navigate(`/challenge/${selectedChallenge.challenge_id || selectedChallenge.id}`);
       }, 2000);
 
     } catch (err) {
@@ -299,9 +299,17 @@ export default function WhatsAppStyleChat() {
     setAlert(null);
 
     try {
+      // Get the challenge ID - it could be stored as challenge_id or id
+      const challengeId = selectedChallenge.challenge_id || selectedChallenge.id;
+      
+      if (!challengeId) {
+        throw new Error("Challenge ID not found");
+      }
+
       console.log("🚫 Declining challenge:", {
-        challengeId: selectedChallenge.challenge_id,
-        userId: currentUser.id
+        challengeId,
+        userId: currentUser.id,
+        selectedChallengeData: selectedChallenge
       });
 
       // Call backend API to decline challenge
@@ -314,7 +322,7 @@ export default function WhatsAppStyleChat() {
         credentials: "include",
         body: JSON.stringify({
           user_id: currentUser.id,
-          challenge_id: selectedChallenge.challenge_id
+          challenge_id: challengeId
         }),
       });
 
@@ -1351,13 +1359,9 @@ export default function WhatsAppStyleChat() {
                     Are you sure you want to decline this challenge?
                   </p>
                   
-                  <div className="bg-[#1a1a1a] p-3 rounded border border-gray-700 mb-4">
-                    <p className="text-sm text-gray-400">Challenge Details: <span style={{color: '#00ffcc'}}>{gameTypes.find(g => g.value === selectedChallenge.game_type)?.label}</span> </p> 
-                  </div>
-                  
                   <div className="bg-yellow-900/20 border border-yellow-600 p-3 rounded">
                     <p className="text-yellow-300 text-sm">
-                      ⚠️ The challenger will be refunded his stake amount.
+                      ⚠️ The challenger will be refunded their tokens.
                     </p>
                   </div>
                 </div>
