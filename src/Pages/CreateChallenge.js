@@ -740,9 +740,9 @@ const CreateChallenge = () => {
                                 <div className="d-flex align-items-start">
                                   <div className="text-warning me-2" style={{ fontSize: '18px' }}>⏰</div>
                                   <div>
-                                    <strong style={{ color: '#856404' }}>Challenge Expiry Notice:</strong>
+                                    <strong style={{ color: '#856404' }}>Notice:</strong>
                                     <p className="mb-0 small" style={{ color: '#664d03', marginTop: '4px' }}>
-                                      If this challenge is not accepted within <strong>12 hours</strong>, it will automatically expire and <strong>96% of your stake</strong> ({(parseFloat(formData.entryFee || 0) * 0.96).toFixed(2)} tokens) will be refunded to your account.
+                                      If this challenge is not accepted within <strong>12 hours</strong>, it will automatically expire and your tokens will be refunded to your wallet.
                                     </p>
                                   </div>
                                 </div>
