@@ -291,6 +291,11 @@ const ChallengeDetails = () => {
 
     const now = new Date().getTime();
     
+    // Check if challenge is completed (winner or draw)
+    if (seriesScore.seriesWinner || seriesScore.isDraw) {
+      return CHALLENGE_STATES.COMPLETED;
+    }
+    
     // Check if challenge is expired
     if (challenge.challenge_ends_at && new Date(challenge.challenge_ends_at).getTime() < now) {
       return CHALLENGE_STATES.EXPIRED;
@@ -312,7 +317,7 @@ const ChallengeDetails = () => {
     }
     
     return CHALLENGE_STATES.WAITING_FOR_START;
-  }, [challenge]);
+  }, [challenge, seriesScore]);
 
   // Check if current user can start challenge
   const canStartChallenge = useMemo(() => {
@@ -331,7 +336,28 @@ const ChallengeDetails = () => {
            !(isPlayer1 ? challenge.p1_started_at : challenge.p2_started_at);
   }, [challenge, players, challengeState]);
 
-  // Check if current user can cash out
+  // Check for forfeit scenarios (when only one player reports and time expires)
+  const checkForfeitScenario = useMemo(() => {
+    if (!challenge || challengeState !== CHALLENGE_STATES.EXPIRED) return null;
+    
+    // Check if only one player has reported results
+    const reportedMatches = matches.filter(m => m.status === 'completed');
+    const disputedMatches = matches.filter(m => m.status === 'disputed');
+    
+    // If there are reported matches but not all matches are complete, and time expired
+    if (reportedMatches.length > 0 && reportedMatches.length < 3 && disputedMatches.length === 0) {
+      // Determine who reported and who didn't
+      // This is a simplified check - in reality you'd want to track who reported what
+      const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+      if (currentUserId === players.p1?.id || currentUserId === players.p2?.id) {
+        return { winner: currentUserId, type: 'forfeit' };
+      }
+    }
+    
+    return null;
+  }, [challenge, challengeState, matches, players]);
+
+  // Enhanced canCashOut that includes forfeit scenarios
   const canCashOut = useMemo(() => {
     if (!challenge || !players.p1 || !players.p2) return false;
     
@@ -343,11 +369,14 @@ const ChallengeDetails = () => {
     
     if (!isPlayer1 && !isPlayer2) return false;
     
-    // Can cash out if series is complete (winner or draw) or challenge expired/forfeited
-    return seriesScore.seriesWinner || seriesScore.isDraw || 
-           challengeState === CHALLENGE_STATES.EXPIRED || 
-           challengeState === CHALLENGE_STATES.FORFEITED;
-  }, [challenge, players, seriesScore, challengeState]);
+    // Can cash out if:
+    // 1. Challenge is completed with winner/draw
+    // 2. Challenge expired (refund scenario)
+    // 3. Forfeit scenario (opponent didn't report)
+    return challengeState === CHALLENGE_STATES.COMPLETED ||
+           challengeState === CHALLENGE_STATES.EXPIRED ||
+           (checkForfeitScenario && checkForfeitScenario.winner === currentUserId);
+  }, [challenge, players, challengeState, checkForfeitScenario]);
 
   // Calculate cash out amounts
   const getCashOutAmounts = () => {
@@ -488,7 +517,7 @@ const ChallengeDetails = () => {
       <div className={`text-center mb-4 ${isVisible ? 'animate__animated animate__bounceIn' : 'opacity-0'}`}>
         <div className="display-4 mb-3">
           {type === 'win' ? '🎉' : 
-           type === 'draw' ? '��' :
+           type === 'draw' ? '🤝' :
            type === 'expired' ? '⏰' :
            type === 'forfeit' ? '🏆' : '🎊'}
         </div>
@@ -694,57 +723,70 @@ const ChallengeDetails = () => {
           </Card>
         )}
 
-        {/* Challenge Expired */}
-        {challengeState === CHALLENGE_STATES.EXPIRED && (
-          <Card className="mb-4 border-info">
-            <Card.Body className="text-center p-4">
-              <CongratulationsText 
-                type="expired" 
-                message="Challenge Time Expired!"
-              />
-              <Button
-                variant="info"
-                size="lg"
-                onClick={() => handleCashOut('expired')}
-                className="px-5"
-              >
-                <DollarSign size={20} className="me-2" />
-                Claim Refund ({getCashOutAmounts().refundAmount} Tokens)
-              </Button>
-            </Card.Body>
-          </Card>
-        )}
-
         {/* Congratulations and Cash Out Section */}
-        {canCashOut && !cashOutCompleted && challengeState === CHALLENGE_STATES.COMPLETED && (
+        {canCashOut && !cashOutCompleted && (
           <Card className="mb-4 border-0 shadow">
             <Card.Body className="text-center p-5">
-              {seriesScore.isDraw ? (
-                <>
-                  <CongratulationsText type="draw" />
-                  <Button
-                    variant="warning"
-                    size="lg"
-                    onClick={() => handleCashOut('draw')}
-                    className="px-5"
-                  >
-                    <DollarSign size={20} className="me-2" />
-                    Take Cash Back ({getCashOutAmounts().drawAmount} Tokens)
-                  </Button>
-                </>
-              ) : seriesScore.seriesWinner ? (
-                <>
-                  <CongratulationsText type="win" winner={seriesScore.seriesWinner} />
-                  <Button
-                    variant="success"
-                    size="lg"
-                    onClick={() => handleCashOut('win')}
-                    className="px-5"
-                  >
-                    <Trophy size={20} className="me-2" />
-                    Cash Out Prize ({getCashOutAmounts().winAmount} Tokens)
-                  </Button>
-                </>
+              {challengeState === CHALLENGE_STATES.COMPLETED ? (
+                // Normal completion - winner or draw
+                seriesScore.isDraw ? (
+                  <>
+                    <CongratulationsText type="draw" />
+                    <Button
+                      variant="warning"
+                      size="lg"
+                      onClick={() => handleCashOut('draw')}
+                      className="px-5"
+                    >
+                      <DollarSign size={20} className="me-2" />
+                      Take Cash Back ({getCashOutAmounts().drawAmount} Tokens)
+                    </Button>
+                  </>
+                ) : seriesScore.seriesWinner ? (
+                  <>
+                    <CongratulationsText type="win" winner={seriesScore.seriesWinner} />
+                    <Button
+                      variant="success"
+                      size="lg"
+                      onClick={() => handleCashOut('win')}
+                      className="px-5"
+                    >
+                      <Trophy size={20} className="me-2" />
+                      Cash Out Prize ({getCashOutAmounts().winAmount} Tokens)
+                    </Button>
+                  </>
+                ) : null
+              ) : challengeState === CHALLENGE_STATES.EXPIRED ? (
+                // Challenge expired
+                checkForfeitScenario && checkForfeitScenario.winner === (localStorage.getItem('userId') || sessionStorage.getItem('userId')) ? (
+                  // Won by forfeit
+                  <>
+                    <CongratulationsText type="forfeit" message="You Won by Default!" />
+                    <Button
+                      variant="success"
+                      size="lg"
+                      onClick={() => handleCashOut('win')}
+                      className="px-5"
+                    >
+                      <Trophy size={20} className="me-2" />
+                      Cash Out Prize ({getCashOutAmounts().winAmount} Tokens)
+                    </Button>
+                  </>
+                ) : (
+                  // Regular expiry refund
+                  <>
+                    <CongratulationsText type="expired" message="Challenge Time Expired!" />
+                    <Button
+                      variant="info"
+                      size="lg"
+                      onClick={() => handleCashOut('expired')}
+                      className="px-5"
+                    >
+                      <DollarSign size={20} className="me-2" />
+                      Claim Refund ({getCashOutAmounts().refundAmount} Tokens)
+                    </Button>
+                  </>
+                )
               ) : null}
             </Card.Body>
           </Card>
