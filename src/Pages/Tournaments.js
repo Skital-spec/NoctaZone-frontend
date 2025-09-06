@@ -146,6 +146,21 @@ useEffect(() => {
     return userTournaments.find(participation => participation.tournament_id === tournamentId);
   };
 
+  // Add this helper function to calculate seats taken for a tournament
+  const calculateSeatsTaken = (tournamentId) => {
+    return allParticipants.filter(p => 
+      p.tournament_id === tournamentId && 
+      ["registered", "active", "completed"].includes(p.status)
+    ).length;
+  };
+
+  // Update the formatSeats helper to use dynamic calculation
+  const formatSeats = (tournamentId, totalSeats) => {
+    const taken = calculateSeatsTaken(tournamentId);
+    const total = totalSeats || 0;
+    return `${taken}/${total}`;
+  };
+
   // Filter tournaments based on tab
   let filteredTournaments = tournaments.filter((t) => {
     const isParticipant = hasJoinedTournament(t.id);
@@ -186,20 +201,7 @@ useEffect(() => {
     if (status === "completed") return "#6c757d";
     return "#6c757d";
   };
-// Add this helper function to calculate seats taken for a tournament
-const calculateSeatsTaken = (tournamentId) => {
-  return allParticipants.filter(p => 
-    p.tournament_id === tournamentId && 
-    ["registered", "active", "completed"].includes(p.status)
-  ).length;
-};
 
-// Update the formatSeats helper to use dynamic calculation
-const formatSeats = (tournamentId, totalSeats) => {
-  const taken = calculateSeatsTaken(tournamentId);
-  const total = totalSeats || 0;
-  return `${taken}/${total}`;
-};
 
   // ✅ Updated: Helper to determine button text and action with participation data
 // Update the getButtonProps function to handle full tournaments
