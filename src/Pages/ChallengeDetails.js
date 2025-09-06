@@ -615,7 +615,7 @@ const ChallengeDetails = () => {
     return null;
   }, [challenge, challengeState, matches, players, currentUserId]);
 
-  // Enhanced canCashOut that includes forfeit scenarios
+  // Enhanced canCashOut that includes forfeit scenarios and winner validation
   const canCashOut = useMemo(() => {
     if (!challenge || !players.p1 || !players.p2) {
       return false;
@@ -633,25 +633,39 @@ const ChallengeDetails = () => {
       return false;
     }
     
-    // Can cash out if:
-    // 1. Challenge is completed with winner/draw
-    // 2. Challenge expired (refund scenario)
-    // 3. Forfeit scenario (opponent didn't report)
-    const canCash = challengeState === CHALLENGE_STATES.COMPLETED ||
-           challengeState === CHALLENGE_STATES.EXPIRED ||
-           (checkForfeitScenario && checkForfeitScenario.winner === currentUserId);
-    
-    if (canCash) {
-      console.log('💰 User CAN cash out:', {
-        challengeState,
-        isCompleted: challengeState === CHALLENGE_STATES.COMPLETED,
-        isExpired: challengeState === CHALLENGE_STATES.EXPIRED,
-        hasForfeit: !!(checkForfeitScenario && checkForfeitScenario.winner === currentUserId)
-      });
+    // Challenge completed scenarios
+    if (challengeState === CHALLENGE_STATES.COMPLETED) {
+      // For draw: both players can cash out
+      if (seriesScore.isDraw) {
+        return true;
+      }
+      // For win: only the winner can cash out
+      if (seriesScore.seriesWinner) {
+        return seriesScore.seriesWinner.id === currentUserId;
+      }
+      return false;
     }
     
-    return canCash;
-  }, [challenge, players, challengeState, checkForfeitScenario, currentUserId]);
+    // Challenge expired scenarios - refunds for all participants
+    if (challengeState === CHALLENGE_STATES.EXPIRED) {
+      // Forfeit scenario - only the winner can cash out
+      if (checkForfeitScenario && checkForfeitScenario.winner === currentUserId) {
+        return true;
+      }
+      // Regular expiry - all participants get refunds
+      if (!checkForfeitScenario) {
+        return true;
+      }
+      return false;
+    }
+    
+    // Start window expired - refunds for all participants
+    if (challengeState === CHALLENGE_STATES.START_WINDOW_EXPIRED) {
+      return true;
+    }
+    
+    return false;
+  }, [challenge, players, challengeState, checkForfeitScenario, currentUserId, seriesScore]);
 
   // Calculate cash out amounts
   const getCashOutAmounts = () => {
@@ -874,19 +888,22 @@ const ChallengeDetails = () => {
           {type === 'win' ? '🎉' : 
            type === 'draw' ? '🤝' :
            type === 'expired' ? '⏰' :
-           type === 'forfeit' ? '🏆' : '🎊'}
+           type === 'forfeit' ? '🏆' :
+           type === 'lose' ? '😔' : '🎊'}
         </div>
         <h2 className={`fw-bold ${
           type === 'win' ? 'text-success' : 
           type === 'draw' ? 'text-warning' :
           type === 'expired' ? 'text-info' :
-          type === 'forfeit' ? 'text-success' : 'text-primary'
+          type === 'forfeit' ? 'text-success' :
+          type === 'lose' ? 'text-danger' : 'text-primary'
         }`}>
           {message || (
             type === 'win' ? `Congratulations ${winner?.username || `User ${winner?.id}`}! You've Won!` :
             type === 'draw' ? "Congratulations! You've Both Drawn!" :
             type === 'expired' ? "Challenge Expired - Refunds Available!" :
             type === 'forfeit' ? "You Won by Default!" :
+            type === 'lose' ? `${winner?.username || `User ${winner?.id}`} Won the Challenge!` :
             "Congratulations!"
           )}
         </h2>
@@ -895,6 +912,7 @@ const ChallengeDetails = () => {
            type === 'draw' ? "It's a tie! Both players showed great skill." :
            type === 'expired' ? "The challenge time has expired. You can claim your refund." :
            type === 'forfeit' ? "Your opponent didn't report results in time!" :
+           type === 'lose' ? "Better luck next time! Keep practicing to improve your skills." :
            "Well done!"}
         </p>
       </div>
@@ -1137,7 +1155,8 @@ const ChallengeDetails = () => {
                       Take Cash Back ({getCashOutAmounts().drawAmount} Tokens)
                     </Button>
                   </>
-                ) : seriesScore.seriesWinner ? (
+                ) : seriesScore.seriesWinner && seriesScore.seriesWinner.id === currentUserId ? (
+                  // Only show win button to the actual winner
                   <>
                     <CongratulationsText type="win" winner={seriesScore.seriesWinner} />
                     <Button
@@ -1149,6 +1168,14 @@ const ChallengeDetails = () => {
                       <Trophy size={20} className="me-2" />
                       Cash Out Prize ({getCashOutAmounts().winAmount} Tokens)
                     </Button>
+                  </>
+                ) : seriesScore.seriesWinner ? (
+                  // Show congratulations to loser but no cash-out button
+                  <>
+                    <CongratulationsText type="lose" winner={seriesScore.seriesWinner} />
+                    <div className="text-muted">
+                      Better luck next time! The winner gets the prize.
+                    </div>
                   </>
                 ) : null
               ) : challengeState === CHALLENGE_STATES.EXPIRED ? (
