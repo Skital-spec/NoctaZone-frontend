@@ -19,27 +19,6 @@ const ReportResults = () => {
   const [player2Goals, setPlayer2Goals] = useState(0);
   const [declaredWinner, setDeclaredWinner] = useState("");
 
-  // Automatic winner selection based on scores
-  useEffect(() => {
-    const p1Score = parseInt(player1Goals) || 0;
-    const p2Score = parseInt(player2Goals) || 0;
-    
-    // Only run automatic selection if we have player data
-    if (players.p1 && players.p2) {
-      if (p1Score > p2Score) {
-        // P1 wins automatically
-        setDeclaredWinner(players.p1.id);
-      } else if (p2Score > p1Score) {
-        // P2 wins automatically
-        setDeclaredWinner(players.p2.id);
-      } else if (p1Score === p2Score && (p1Score > 0 || p2Score > 0)) {
-        // Draw when scores are equal and not both zero
-        setDeclaredWinner("draw");
-      }
-    }
-    // If both scores are 0, allow manual selection
-  }, [player1Goals, player2Goals, players.p1, players.p2]);
-
   // File uploads for evidence (submit flow)
   const [evidenceFiles, setEvidenceFiles] = useState([]);
 
@@ -97,6 +76,29 @@ const ReportResults = () => {
     if (!match) return { p1: null, p2: null };
     return { p1: match.player1, p2: match.player2 };
   }, [match]);
+
+
+
+  // Automatic winner selection based on scores
+  useEffect(() => {
+    const p1Score = parseInt(player1Goals) || 0;
+    const p2Score = parseInt(player2Goals) || 0;
+    
+    // Only run automatic selection if we have player data
+    if (players.p1 && players.p2) {
+      if (p1Score > p2Score) {
+        // P1 wins automatically
+        setDeclaredWinner(players.p1.id);
+      } else if (p2Score > p1Score) {
+        // P2 wins automatically
+        setDeclaredWinner(players.p2.id);
+      } else if (p1Score === p2Score && (p1Score > 0 || p2Score > 0)) {
+        // Draw when scores are equal and not both zero
+        setDeclaredWinner("draw");
+      }
+    }
+    // If both scores are 0, allow manual selection
+  }, [player1Goals, player2Goals, players.p1, players.p2]);
 
   const canSubmit = useMemo(() => {
     if (!players.p1 || !players.p2 || !currentUserId) return false;
