@@ -1361,10 +1361,15 @@ const ChallengeDetails = () => {
                       }
                       
                       return (
-                        <Card key={m.id}>
+                        <Card key={m.id} className={m.status === 'completed' ? 'border-success' : ''}>
                           <Card.Body className="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
                             <div className="mb-2 mb-md-0">
-                              <div className="fw-bold">Match {m.match_number}</div>
+                              <div className="fw-bold d-flex align-items-center">
+                                Match {m.match_number}
+                                {m.status === 'completed' && (
+                                  <CheckCircle size={16} className="ms-2 text-success" />
+                                )}
+                              </div>
                               <div className="small text-muted">
                                 {players.p1?.username || `User ${players.p1?.id}` || "Player 1"} vs{" "}
                                 {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}
@@ -1396,18 +1401,27 @@ const ChallengeDetails = () => {
                             </div>
                             <div className="d-flex align-items-center gap-2">
                               <Badge bg={statusVariant}>{(m.status || "pending").toUpperCase()}</Badge>
-                              {/* Only show Report Results button if challenge is not completed */}
-                              {challenge.status !== 'completed' && challengeState !== CHALLENGE_STATES.COMPLETED && (
+                              {/* Only show Report Results button if individual match is not completed AND challenge is not completed */}
+                              {m.status !== 'completed' && 
+                               challenge.status !== 'completed' && 
+                               challengeState !== CHALLENGE_STATES.COMPLETED && (
                                 <Button
                                   variant="outline-primary"
+                                  size="sm"
                                   onClick={() => gotoReport(m.id)}
                                 >
                                   Report Results
                                 </Button>
                               )}
-                              {/* Show completion status for completed challenges */}
+                              {/* Show match completion status for individual completed matches */}
+                              {m.status === 'completed' && (
+                                <Badge bg="success" className="px-2 py-1">
+                                  Match Complete
+                                </Badge>
+                              )}
+                              {/* Show challenge completion status for completed challenges */}
                               {(challenge.status === 'completed' || challengeState === CHALLENGE_STATES.COMPLETED) && (
-                                <Badge bg="success" className="px-3 py-2">
+                                <Badge bg="info" className="px-2 py-1">
                                   Challenge Complete
                                 </Badge>
                               )}
