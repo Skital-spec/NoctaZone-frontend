@@ -561,7 +561,7 @@ const handleJoinChallenge = async (challenge) => {
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Trophy size={16} className="me-2 text-warning" />
-                              <span className="fw-bold">{match.prize_amount} Tokens Prize</span>
+                              <span className="fw-bold">Prize: {match.prize} Tokens </span>
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Calendar size={16} className="me-2 text-info" />
@@ -660,7 +660,7 @@ const handleJoinChallenge = async (challenge) => {
                     </div>
                     <div className="d-flex align-items-center mb-2">
                       <Trophy size={16} className="me-2 text-warning" />
-                      <span className="fw-bold">{challenge.prize_amount} Tokens Prize</span>
+                      <span className="fw-bold">Prize: {challenge.prize} Tokens </span>
                     </div>
                     <div className="d-flex align-items-center mb-2">
                       <Calendar size={16} className="me-2 text-info" />
@@ -821,7 +821,7 @@ const handleJoinChallenge = async (challenge) => {
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Trophy size={16} className="me-2 text-warning" />
-                              <span className="fw-bold">{match.prize_amount} Tokens Prize</span>
+                              <span className="fw-bold">Prize: {match.prize} Tokens </span>
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Calendar size={16} className="me-2 text-info" />
@@ -934,7 +934,7 @@ const handleJoinChallenge = async (challenge) => {
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Trophy size={16} className="me-2 text-warning" />
-                              <span className="fw-bold">{tournament.prize} Tokens Prize Pool</span>
+                              <span className="fw-bold">Prize: {tournament.prize} Tokens  </span>
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Calendar size={16} className="me-2 text-info" />
