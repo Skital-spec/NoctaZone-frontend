@@ -120,16 +120,30 @@ const ChallengeDetails = () => {
       if (!currentUserId || !id) return;
       
       console.log('🔍 [UseEffect] Checking cash-out status for user:', currentUserId, 'challenge:', id);
+      console.log('🔍 [UseEffect] Data types:', {
+        challengeId: id,
+        challengeIdType: typeof id,
+        currentUserId: currentUserId,
+        currentUserIdType: typeof currentUserId
+      });
       
       try {
         const { data: existingCashOut, error: cashOutError } = await supabase
           .from("challenge_cash_outs")
-          .select("id, type, amount, created_at")
+          .select("id, type, amount, created_at, challenge_id, user_id")
           .eq("challenge_id", id)
           .eq("user_id", currentUserId)
           .maybeSingle();
         
         console.log('💰 [UseEffect] Cash-out check result:', { existingCashOut, cashOutError });
+        
+        // Also try a broader search to see if any records exist for this challenge
+        const { data: allCashOuts, error: allCashOutsError } = await supabase
+          .from("challenge_cash_outs")
+          .select("*")
+          .eq("challenge_id", id);
+        
+        console.log('📋 [UseEffect] All cash-outs for challenge', id, ':', allCashOuts);
         
         if (!cashOutError && existingCashOut) {
           console.log('✅ [UseEffect] User has already cashed out - hiding buttons:', existingCashOut);
@@ -338,15 +352,30 @@ const ChallengeDetails = () => {
       // 2) Check if current user has already cashed out
       if (currentUserId) {
         console.log('🔍 Checking cash-out status for user:', currentUserId, 'challenge:', id);
+        console.log('🔍 Data types:', {
+          challengeId: id,
+          challengeIdType: typeof id,
+          currentUserId: currentUserId,
+          currentUserIdType: typeof currentUserId
+        });
+        
         try {
           const { data: existingCashOut, error: cashOutError } = await supabase
             .from("challenge_cash_outs")
-            .select("id, type, amount, created_at")
+            .select("id, type, amount, created_at, challenge_id, user_id")
             .eq("challenge_id", id)
             .eq("user_id", currentUserId)
             .maybeSingle();
           
           console.log('💰 Cash-out check result:', { existingCashOut, cashOutError });
+          
+          // Also try a broader search to see if any records exist for this challenge
+          const { data: allCashOuts, error: allCashOutsError } = await supabase
+            .from("challenge_cash_outs")
+            .select("*")
+            .eq("challenge_id", id);
+          
+          console.log('📋 All cash-outs for challenge', id, ':', allCashOuts);
           
           if (!cashOutError && existingCashOut) {
             console.log('✅ User has already cashed out:', existingCashOut);
