@@ -634,9 +634,6 @@ export default function WhatsAppStyleChat() {
             <div style={{ marginBottom: 6 }}>
               <strong>Prize:</strong> <span style={{ color: '#00ffcc' }}>{challengeData.entry_fee * 2 * 0.85} tokens</span>
             </div>
-            <div style={{ marginBottom: 6 }}>
-              <strong>Challenger:</strong> @{challengeData.sender_username || challengeData.creator_username || 'Unknown'}
-            </div>
             
             {isExpired && (
               <div style={{ color: '#ff4444', fontSize: 12, marginTop: 8 }}>
