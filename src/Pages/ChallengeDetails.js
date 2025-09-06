@@ -114,6 +114,41 @@ const ChallengeDetails = () => {
     loadChallenge();
   }, [id, currentUserId]); // Re-load when user ID changes
 
+  // Separate effect to check cash-out status when currentUserId becomes available
+  useEffect(() => {
+    const checkCashOutStatus = async () => {
+      if (!currentUserId || !id) return;
+      
+      console.log('🔍 [UseEffect] Checking cash-out status for user:', currentUserId, 'challenge:', id);
+      
+      try {
+        const { data: existingCashOut, error: cashOutError } = await supabase
+          .from("challenge_cash_outs")
+          .select("id, type, amount, created_at")
+          .eq("challenge_id", id)
+          .eq("user_id", currentUserId)
+          .maybeSingle();
+        
+        console.log('💰 [UseEffect] Cash-out check result:', { existingCashOut, cashOutError });
+        
+        if (!cashOutError && existingCashOut) {
+          console.log('✅ [UseEffect] User has already cashed out - hiding buttons:', existingCashOut);
+          setCashOutCompleted(true);
+          setCashOutAmount(existingCashOut.amount);
+          setCashOutType(existingCashOut.type);
+        } else {
+          console.log('❌ [UseEffect] User has NOT cashed out yet - showing buttons if eligible');
+          setCashOutCompleted(false);
+        }
+      } catch (error) {
+        console.error('⚠️ [UseEffect] Error checking cash-out status:', error);
+        setCashOutCompleted(false);
+      }
+    };
+    
+    checkCashOutStatus();
+  }, [currentUserId, id]); // Check whenever currentUserId or challenge ID changes
+
   useEffect(() => {
     if (!challenge || challenge.challenge_type !== 'open') return;
     if (players.p2) return;
@@ -302,25 +337,33 @@ const ChallengeDetails = () => {
       
       // 2) Check if current user has already cashed out
       if (currentUserId) {
+        console.log('🔍 Checking cash-out status for user:', currentUserId, 'challenge:', id);
         try {
           const { data: existingCashOut, error: cashOutError } = await supabase
             .from("challenge_cash_outs")
-            .select("id, type, amount")
+            .select("id, type, amount, created_at")
             .eq("challenge_id", id)
             .eq("user_id", currentUserId)
             .maybeSingle();
           
+          console.log('💰 Cash-out check result:', { existingCashOut, cashOutError });
+          
           if (!cashOutError && existingCashOut) {
-            console.log('💰 User has already cashed out:', existingCashOut);
+            console.log('✅ User has already cashed out:', existingCashOut);
             setCashOutCompleted(true);
             setCashOutAmount(existingCashOut.amount);
             setCashOutType(existingCashOut.type);
           } else {
+            console.log('❌ User has NOT cashed out yet');
             setCashOutCompleted(false);
           }
         } catch (error) {
-          console.error('Error checking cash-out status:', error);
+          console.error('⚠️ Error checking cash-out status:', error);
+          setCashOutCompleted(false); // Default to not completed on error
         }
+      } else {
+        console.log('⚠️ No currentUserId available during cash-out check');
+        setCashOutCompleted(false);
       }
       
       // 3) Get detailed player information from Supabase if we have player IDs
@@ -874,12 +917,13 @@ const ChallengeDetails = () => {
                 <strong>Challenge State:</strong> {challengeState}<br/>
                 <strong>Can Cash Out:</strong> {canCashOut ? 'Yes' : 'No'}<br/>
                 <strong>Cash Out Completed:</strong> {cashOutCompleted ? 'Yes' : 'No'}<br/>
+                <strong>Current User ID:</strong> {currentUserId || 'Not logged in'}<br/>
+                <strong>Button Should Show:</strong> {(canCashOut && !cashOutCompleted && currentUserId) ? 'Yes' : 'No'}<br/>
                 <strong>Series Winner:</strong> {seriesScore.seriesWinner?.username || 'None'}<br/>
                 <strong>Is Draw:</strong> {seriesScore.isDraw ? 'Yes' : 'No'}<br/>
                 <strong>All Matches Complete:</strong> {seriesScore.allMatchesComplete ? 'Yes' : 'No'}<br/>
                 <strong>Challenge Status:</strong> {challenge?.status}<br/>
                 <strong>Completed Matches:</strong> {matches.filter(m => m.status === 'completed').length} / {matches.length}<br/>
-                <strong>Current User:</strong> {currentUserId || 'Not logged in'}
               </div>
             </Card.Body>
           </Card>
@@ -994,7 +1038,19 @@ const ChallengeDetails = () => {
         )}
 
         {/* Congratulations and Cash Out Section */}
-        {canCashOut && !cashOutCompleted && currentUserId && (
+        {(() => {
+          const shouldShow = canCashOut && !cashOutCompleted && currentUserId;
+          console.log('💱 Cash-out button render check:', {
+            canCashOut,
+            cashOutCompleted,
+            currentUserId: !!currentUserId,
+            shouldShow,
+            challengeState,
+            seriesWinner: seriesScore.seriesWinner?.username,
+            isDraw: seriesScore.isDraw
+          });
+          return shouldShow;
+        })() && (
           <Card className="mb-4 border-0 shadow">
             <Card.Body className="text-center p-5">
               {challengeState === CHALLENGE_STATES.COMPLETED ? (
