@@ -94,6 +94,7 @@ const ChallengeDetails = () => {
       
       if (match1 && match2 && match1.winner_user_id === match2.winner_user_id && match1.winner_user_id !== 'draw') {
         match3Needed = false;
+        console.log('🎆 Series ended early - same winner in matches 1 & 2:', match1.winner_user_id);
       }
     }
     
@@ -119,16 +120,44 @@ const ChallengeDetails = () => {
       }
     }
     
-    return { p1Wins, p2Wins, seriesWinner, isDraw, match3Needed, allMatchesComplete };
+    const result = { p1Wins, p2Wins, seriesWinner, isDraw, match3Needed, allMatchesComplete };
+    
+    // Only log when there's a significant state change
+    if (allMatchesComplete || seriesWinner || isDraw) {
+      console.log('🏆 Series Complete:', {
+        ...result,
+        seriesWinnerName: seriesWinner?.username,
+        requiredMatches,
+        completedCount: completedMatches.length
+      });
+    }
+    
+    return result;
   }, [players, matches]);
 
   // Auto-update challenge status when all matches are complete
   useEffect(() => {
     const updateChallengeStatus = async () => {
+      console.log('🔍 Checking challenge completion:', {
+        challenge: challenge?.status,
+        allMatchesComplete: seriesScore.allMatchesComplete,
+        seriesWinner: seriesScore.seriesWinner?.username,
+        isDraw: seriesScore.isDraw
+      });
+      
       if (!challenge || !seriesScore.allMatchesComplete) return;
-      if (challenge.status === 'completed') return; // Already completed
+      if (challenge.status === 'completed') {
+        console.log('✅ Challenge already completed');
+        return;
+      }
+      
+      console.log('🎯 Attempting to update challenge status to completed');
       
       try {
+        // Get current user ID
+        const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+        
+        // Call backend API to update challenge status
         const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/update-status`, {
           method: "POST",
           headers: {
@@ -138,16 +167,24 @@ const ChallengeDetails = () => {
           body: JSON.stringify({
             status: 'completed',
             winner_id: seriesScore.seriesWinner?.id || null,
-            is_draw: seriesScore.isDraw
+            is_draw: seriesScore.isDraw,
+            user_id: currentUserId // Include user_id for authentication if needed
           })
         });
         
         if (response.ok) {
+          console.log('✅ Challenge status updated successfully');
           // Reload challenge to get updated status
           await loadChallenge();
+        } else {
+          const errorData = await response.json();
+          console.warn('⚠️ Backend status update failed:', errorData.error);
+          // Continue with local state calculation for UI
         }
       } catch (error) {
-        console.error("Failed to update challenge status:", error);
+        console.error('❌ Failed to update challenge status:', error);
+        // Even if the API call fails, we can still show the completion UI
+        // based on the local seriesScore calculation
       }
     };
     
@@ -329,6 +366,11 @@ const ChallengeDetails = () => {
     
     // Check if challenge is completed (winner or draw)
     if (seriesScore.seriesWinner || seriesScore.isDraw) {
+      console.log('🏁 Challenge COMPLETED:', {
+        hasWinner: !!seriesScore.seriesWinner,
+        isDraw: seriesScore.isDraw,
+        winnerName: seriesScore.seriesWinner?.username
+      });
       return CHALLENGE_STATES.COMPLETED;
     }
     
@@ -395,23 +437,41 @@ const ChallengeDetails = () => {
 
   // Enhanced canCashOut that includes forfeit scenarios
   const canCashOut = useMemo(() => {
-    if (!challenge || !players.p1 || !players.p2) return false;
+    if (!challenge || !players.p1 || !players.p2) {
+      return false;
+    }
     
     const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
-    if (!currentUserId) return false;
+    if (!currentUserId) {
+      console.log('🚫 canCashOut: false - no current user ID');
+      return false;
+    }
     
     const isPlayer1 = currentUserId === players.p1.id;
     const isPlayer2 = currentUserId === players.p2.id;
     
-    if (!isPlayer1 && !isPlayer2) return false;
+    if (!isPlayer1 && !isPlayer2) {
+      return false;
+    }
     
     // Can cash out if:
     // 1. Challenge is completed with winner/draw
     // 2. Challenge expired (refund scenario)
     // 3. Forfeit scenario (opponent didn't report)
-    return challengeState === CHALLENGE_STATES.COMPLETED ||
+    const canCash = challengeState === CHALLENGE_STATES.COMPLETED ||
            challengeState === CHALLENGE_STATES.EXPIRED ||
            (checkForfeitScenario && checkForfeitScenario.winner === currentUserId);
+    
+    if (canCash) {
+      console.log('💰 User CAN cash out:', {
+        challengeState,
+        isCompleted: challengeState === CHALLENGE_STATES.COMPLETED,
+        isExpired: challengeState === CHALLENGE_STATES.EXPIRED,
+        hasForfeit: !!(checkForfeitScenario && checkForfeitScenario.winner === currentUserId)
+      });
+    }
+    
+    return canCash;
   }, [challenge, players, challengeState, checkForfeitScenario]);
 
   // Calculate cash out amounts
@@ -650,6 +710,28 @@ const ChallengeDetails = () => {
           </Button>
           <h2 className="mb-0">Challenge Details</h2>
         </div>
+
+        {/* Debug Information - Remove this in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card className="mb-4 border-info">
+            <Card.Header className="bg-info text-white">
+              <h6 className="mb-0">Debug Info (Development Only)</h6>
+            </Card.Header>
+            <Card.Body>
+              <div className="small">
+                <strong>Challenge State:</strong> {challengeState}<br/>
+                <strong>Can Cash Out:</strong> {canCashOut ? 'Yes' : 'No'}<br/>
+                <strong>Cash Out Completed:</strong> {cashOutCompleted ? 'Yes' : 'No'}<br/>
+                <strong>Series Winner:</strong> {seriesScore.seriesWinner?.username || 'None'}<br/>
+                <strong>Is Draw:</strong> {seriesScore.isDraw ? 'Yes' : 'No'}<br/>
+                <strong>All Matches Complete:</strong> {seriesScore.allMatchesComplete ? 'Yes' : 'No'}<br/>
+                <strong>Challenge Status:</strong> {challenge?.status}<br/>
+                <strong>Completed Matches:</strong> {matches.filter(m => m.status === 'completed').length} / {matches.length}<br/>
+                <strong>Current User:</strong> {localStorage.getItem('userId') || sessionStorage.getItem('userId')}
+              </div>
+            </Card.Body>
+          </Card>
+        )}
 
         {/* Challenge Start Section */}
         {challengeState === CHALLENGE_STATES.START_WINDOW_ACTIVE && (
