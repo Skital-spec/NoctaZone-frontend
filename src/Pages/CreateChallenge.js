@@ -238,7 +238,7 @@ const CreateChallenge = () => {
         .from('private_messages')
         .insert({
           sender_id: userId,
-          recipient_id: selectedUser.id,
+          receiver_id: selectedUser.id,
           message_type: 'challenge',
           content: `🎮 Challenge: ${gameTypes.find(g => g.value === formData.gameType)?.label} match for ${entryFee} tokens`,
           challenge_data: {
@@ -264,10 +264,10 @@ const CreateChallenge = () => {
       
       // Optional: Send real-time notification if you have Socket.IO or similar
       try {
-        // Emit socket event to notify the recipient in real-time
+        // Emit socket event to notify the receiver in real-time
         if (window.socket) {
           window.socket.emit('challenge_received', {
-            recipient_id: selectedUser.id,
+            receiver_id: selectedUser.id,
             sender_id: userId,
             challenge_id: challengeId,
             message: `New challenge from @${currentUser?.username}: ${formData.gameType} for ${entryFee} tokens`
