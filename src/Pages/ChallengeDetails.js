@@ -71,6 +71,89 @@ const ChallengeDetails = () => {
     return () => clearInterval(t);
   }, [challenge, players.p2]);
 
+  // Enhanced series score calculation with match 3 logic
+  const seriesScore = useMemo(() => {
+    if (!players.p1 || !players.p2 || matches.length === 0) {
+      return { p1Wins: 0, p2Wins: 0, seriesWinner: null, isDraw: false, match3Needed: true, allMatchesComplete: false };
+    }
+    
+    let p1Wins = 0;
+    let p2Wins = 0;
+    const completedMatches = matches.filter(m => m.status === "completed");
+    
+    completedMatches.forEach((m) => {
+      if (m.winner_user_id === players.p1.id) p1Wins++;
+      else if (m.winner_user_id === players.p2.id) p2Wins++;
+    });
+    
+    // Check if match 3 is needed (if same winner in matches 1 and 2)
+    let match3Needed = true;
+    if (completedMatches.length >= 2) {
+      const match1 = completedMatches.find(m => m.match_number === 1);
+      const match2 = completedMatches.find(m => m.match_number === 2);
+      
+      if (match1 && match2 && match1.winner_user_id === match2.winner_user_id && match1.winner_user_id !== 'draw') {
+        match3Needed = false;
+      }
+    }
+    
+    // Determine if all required matches are complete
+    const requiredMatches = match3Needed ? 3 : 2;
+    const allMatchesComplete = completedMatches.length >= requiredMatches;
+    
+    // Determine series winner or draw
+    let seriesWinner = null;
+    let isDraw = false;
+    
+    if (!match3Needed && completedMatches.length >= 2) {
+      // Series ended early (same winner in matches 1 and 2)
+      seriesWinner = p1Wins > p2Wins ? players.p1 : players.p2;
+    } else if (completedMatches.length === 3) {
+      // All 3 matches completed
+      if (p1Wins > p2Wins) {
+        seriesWinner = players.p1;
+      } else if (p2Wins > p1Wins) {
+        seriesWinner = players.p2;
+      } else {
+        isDraw = true;
+      }
+    }
+    
+    return { p1Wins, p2Wins, seriesWinner, isDraw, match3Needed, allMatchesComplete };
+  }, [players, matches]);
+
+  // Auto-update challenge status when all matches are complete
+  useEffect(() => {
+    const updateChallengeStatus = async () => {
+      if (!challenge || !seriesScore.allMatchesComplete) return;
+      if (challenge.status === 'completed') return; // Already completed
+      
+      try {
+        const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/update-status`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            status: 'completed',
+            winner_id: seriesScore.seriesWinner?.id || null,
+            is_draw: seriesScore.isDraw
+          })
+        });
+        
+        if (response.ok) {
+          // Reload challenge to get updated status
+          await loadChallenge();
+        }
+      } catch (error) {
+        console.error("Failed to update challenge status:", error);
+      }
+    };
+    
+    updateChallengeStatus();
+  }, [challenge, seriesScore.allMatchesComplete, seriesScore.seriesWinner, seriesScore.isDraw, id]);
+
   // Timer effect for countdowns
   useEffect(() => {
     let interval;
@@ -237,53 +320,6 @@ const ChallengeDetails = () => {
 
     setMatches(current);
   };
-
-  // Enhanced series score calculation with match 3 logic
-  const seriesScore = useMemo(() => {
-    if (!players.p1 || !players.p2 || matches.length === 0) {
-      return { p1Wins: 0, p2Wins: 0, seriesWinner: null, isDraw: false, match3Needed: true };
-    }
-    
-    let p1Wins = 0;
-    let p2Wins = 0;
-    const completedMatches = matches.filter(m => m.status === "completed");
-    
-    completedMatches.forEach((m) => {
-      if (m.winner_user_id === players.p1.id) p1Wins++;
-      else if (m.winner_user_id === players.p2.id) p2Wins++;
-    });
-    
-    // Check if match 3 is needed (if same winner in matches 1 and 2)
-    let match3Needed = true;
-    if (completedMatches.length >= 2) {
-      const match1 = completedMatches.find(m => m.match_number === 1);
-      const match2 = completedMatches.find(m => m.match_number === 2);
-      
-      if (match1 && match2 && match1.winner_user_id === match2.winner_user_id && match1.winner_user_id !== 'draw') {
-        match3Needed = false;
-      }
-    }
-    
-    // Determine series winner or draw
-    let seriesWinner = null;
-    let isDraw = false;
-    
-    if (!match3Needed) {
-      // Series ended early (same winner in matches 1 and 2)
-      seriesWinner = p1Wins > p2Wins ? players.p1 : players.p2;
-    } else if (completedMatches.length === 3) {
-      // All 3 matches completed
-      if (p1Wins > p2Wins) {
-        seriesWinner = players.p1;
-      } else if (p2Wins > p1Wins) {
-        seriesWinner = players.p2;
-      } else {
-        isDraw = true;
-      }
-    }
-    
-    return { p1Wins, p2Wins, seriesWinner, isDraw, match3Needed };
-  }, [players, matches]);
 
   // Determine challenge state
   const challengeState = useMemo(() => {
@@ -960,12 +996,21 @@ const ChallengeDetails = () => {
                             </div>
                             <div className="d-flex align-items-center gap-2">
                               <Badge bg={statusVariant}>{(m.status || "pending").toUpperCase()}</Badge>
-                              <Button
-                                variant="outline-primary"
-                                onClick={() => gotoReport(m.id)}
-                              >
-                                Report Results
-                              </Button>
+                              {/* Only show Report Results button if challenge is not completed */}
+                              {challenge.status !== 'completed' && challengeState !== CHALLENGE_STATES.COMPLETED && (
+                                <Button
+                                  variant="outline-primary"
+                                  onClick={() => gotoReport(m.id)}
+                                >
+                                  Report Results
+                                </Button>
+                              )}
+                              {/* Show completion status for completed challenges */}
+                              {(challenge.status === 'completed' || challengeState === CHALLENGE_STATES.COMPLETED) && (
+                                <Badge bg="success" className="px-3 py-2">
+                                  Challenge Complete
+                                </Badge>
+                              )}
                             </div>
                           </Card.Body>
                         </Card>
@@ -1086,7 +1131,7 @@ const ChallengeDetails = () => {
                 {cashOutType === 'win' ? '🏆' : 
                  cashOutType === 'draw' ? '🤝' :
                  cashOutType === 'expired' ? '⏰' :
-                 cashOutType === 'forfeit' ? '🏆' : '��'}
+                 cashOutType === 'forfeit' ? '🏆' : '🎊'}
               </div>
               <h4>
                 {cashOutType === 'win' ? 'Claim Your Prize!' : 
