@@ -128,6 +128,13 @@ const ChallengeDetails = () => {
       });
       
       try {
+        // First, test basic table access
+        const { data: tableTest, error: tableTestError } = await supabase
+          .from("challenge_cash_outs")
+          .select("count", { count: 'exact' });
+        
+        console.log('🔧 [UseEffect] Table access test:', { tableTest, tableTestError });
+        
         const { data: existingCashOut, error: cashOutError } = await supabase
           .from("challenge_cash_outs")
           .select("id, type, amount, created_at, challenge_id, user_id")
@@ -136,6 +143,23 @@ const ChallengeDetails = () => {
           .maybeSingle();
         
         console.log('💰 [UseEffect] Cash-out check result:', { existingCashOut, cashOutError });
+        
+        // Also try different query approaches
+        const { data: testQuery1, error: testError1 } = await supabase
+          .from("challenge_cash_outs")
+          .select("*")
+          .eq("challenge_id", String(id)) // Try as string
+          .eq("user_id", currentUserId);
+        
+        console.log('🔍 [UseEffect] Query test 1 (challenge_id as string):', { testQuery1, testError1 });
+        
+        const { data: testQuery2, error: testError2 } = await supabase
+          .from("challenge_cash_outs")
+          .select("*")
+          .eq("challenge_id", parseInt(id)) // Try as number
+          .eq("user_id", currentUserId);
+        
+        console.log('🔍 [UseEffect] Query test 2 (challenge_id as number):', { testQuery2, testError2 });
         
         // Also try a broader search to see if any records exist for this challenge
         const { data: allCashOuts, error: allCashOutsError } = await supabase
@@ -349,42 +373,58 @@ const ChallengeDetails = () => {
       const chJson = await chRes.json();
       setChallenge(chJson.challenge);
       
-      // 2) Check if current user has already cashed out
+      // 2) Check if current user has already cashed out using server-side check
       if (currentUserId) {
         console.log('🔍 Checking cash-out status for user:', currentUserId, 'challenge:', id);
-        console.log('🔍 Data types:', {
-          challengeId: id,
-          challengeIdType: typeof id,
-          currentUserId: currentUserId,
-          currentUserIdType: typeof currentUserId
-        });
         
         try {
-          const { data: existingCashOut, error: cashOutError } = await supabase
-            .from("challenge_cash_outs")
-            .select("id, type, amount, created_at, challenge_id, user_id")
-            .eq("challenge_id", id)
-            .eq("user_id", currentUserId)
-            .maybeSingle();
+          // Use server-side endpoint that has the same access as the cash-out validation
+          const cashOutCheckResponse = await fetch(
+            `https://safcom-payment.onrender.com/api/challenges/${id}/cash-out-status?user_id=${currentUserId}`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              credentials: 'include'
+            }
+          );
           
-          console.log('💰 Cash-out check result:', { existingCashOut, cashOutError });
-          
-          // Also try a broader search to see if any records exist for this challenge
-          const { data: allCashOuts, error: allCashOutsError } = await supabase
-            .from("challenge_cash_outs")
-            .select("*")
-            .eq("challenge_id", id);
-          
-          console.log('📋 All cash-outs for challenge', id, ':', allCashOuts);
-          
-          if (!cashOutError && existingCashOut) {
-            console.log('✅ User has already cashed out:', existingCashOut);
-            setCashOutCompleted(true);
-            setCashOutAmount(existingCashOut.amount);
-            setCashOutType(existingCashOut.type);
+          if (cashOutCheckResponse.ok) {
+            const cashOutStatus = await cashOutCheckResponse.json();
+            console.log('💰 Server cash-out status check:', cashOutStatus);
+            
+            if (cashOutStatus.hasCashedOut) {
+              console.log('✅ User has already cashed out:', cashOutStatus.cashOut);
+              setCashOutCompleted(true);
+              setCashOutAmount(cashOutStatus.cashOut.amount);
+              setCashOutType(cashOutStatus.cashOut.type);
+            } else {
+              console.log('❌ User has NOT cashed out yet');
+              setCashOutCompleted(false);
+            }
           } else {
-            console.log('❌ User has NOT cashed out yet');
-            setCashOutCompleted(false);
+            console.warn('⚠️ Failed to check cash-out status from server, falling back to client check');
+            
+            // Fallback to direct Supabase query
+            const { data: existingCashOut, error: cashOutError } = await supabase
+              .from("challenge_cash_outs")
+              .select("id, type, amount, created_at, challenge_id, user_id")
+              .eq("challenge_id", id)
+              .eq("user_id", currentUserId)
+              .maybeSingle();
+            
+            console.log('💰 Fallback cash-out check result:', { existingCashOut, cashOutError });
+            
+            if (!cashOutError && existingCashOut) {
+              console.log('✅ User has already cashed out (fallback):', existingCashOut);
+              setCashOutCompleted(true);
+              setCashOutAmount(existingCashOut.amount);
+              setCashOutType(existingCashOut.type);
+            } else {
+              console.log('❌ User has NOT cashed out yet (fallback)');
+              setCashOutCompleted(false);
+            }
           }
         } catch (error) {
           console.error('⚠️ Error checking cash-out status:', error);
