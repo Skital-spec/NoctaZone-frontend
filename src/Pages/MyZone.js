@@ -561,15 +561,11 @@ const handleJoinChallenge = async (challenge) => {
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Trophy size={16} className="me-2 text-warning" />
-                              <span className="fw-bold">Prize: {match.prize} Tokens </span>
+                              <span className="fw-bold">Prize: {match.prize_amount} Tokens </span>
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Calendar size={16} className="me-2 text-info" />
                               <span>{new Date(match.play_time).toLocaleString()}</span>
-                            </div>
-                            <div className="d-flex align-items-center">
-                              <Users size={16} className="me-2 text-primary" />
-                              <span>{match.participants || 0} Participants</span>
                             </div>
                           </div>
                           
