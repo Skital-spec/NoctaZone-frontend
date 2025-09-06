@@ -112,7 +112,7 @@ const ChallengeDetails = () => {
 
   useEffect(() => {
     loadChallenge();
-  }, [id]);
+  }, [id, currentUserId]); // Re-load when user ID changes
 
   useEffect(() => {
     if (!challenge || challenge.challenge_type !== 'open') return;
@@ -300,7 +300,30 @@ const ChallengeDetails = () => {
       const chJson = await chRes.json();
       setChallenge(chJson.challenge);
       
-      // 2) Get detailed player information from Supabase if we have player IDs
+      // 2) Check if current user has already cashed out
+      if (currentUserId) {
+        try {
+          const { data: existingCashOut, error: cashOutError } = await supabase
+            .from("challenge_cash_outs")
+            .select("id, type, amount")
+            .eq("challenge_id", id)
+            .eq("user_id", currentUserId)
+            .maybeSingle();
+          
+          if (!cashOutError && existingCashOut) {
+            console.log('💰 User has already cashed out:', existingCashOut);
+            setCashOutCompleted(true);
+            setCashOutAmount(existingCashOut.amount);
+            setCashOutType(existingCashOut.type);
+          } else {
+            setCashOutCompleted(false);
+          }
+        } catch (error) {
+          console.error('Error checking cash-out status:', error);
+        }
+      }
+      
+      // 3) Get detailed player information from Supabase if we have player IDs
       let playersData = chJson.players || { p1: null, p2: null };
       
       if (playersData.p1?.id || playersData.p2?.id) {
@@ -333,7 +356,7 @@ const ChallengeDetails = () => {
       
       setPlayers(playersData);
 
-      // 3) Ensure matches (only if two players present)
+      // 4) Ensure matches (only if two players present)
       if (playersData?.p1?.id && playersData?.p2?.id) {
         const ensureRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/ensure-matches`, {
           method: "POST",
@@ -349,7 +372,7 @@ const ChallengeDetails = () => {
           setMatches(mJson.matches || []);
         }
       } else {
-        // 4) Fetch existing matches (might be 0 until opponent joins)
+        // 5) Fetch existing matches (might be 0 until opponent joins)
         const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
         const mJson = await mRes.json();
         setMatches(mJson.matches || []);
@@ -683,6 +706,7 @@ const ChallengeDetails = () => {
         
         setCashOutCompleted(true);
         setShowCashOutModal(false);
+        console.log('✅ Cash out completed successfully - buttons should now disappear');
         // Reload challenge to update status
         await loadChallenge();
       } else {
