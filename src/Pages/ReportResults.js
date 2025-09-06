@@ -321,8 +321,8 @@ const ReportResults = () => {
                     <thead className="bg-[#1f1f2e]" style={{ color: "#00ffcc" }}>
                       <tr>
                         <th className="p-3">User</th>
-                        <th className="p-3">P1 Goals</th>
-                        <th className="p-3">P2 Goals</th>
+                        <th className="p-3">{match?.player1?.username || "Anonymous"}'s Scores</th>
+                        <th className="p-3">{match?.player2?.username || "Anonymous"}'s Scores</th>
                         <th className="p-3">Winner</th>
                         <th className="p-3">Evidence</th>
                         <th className="p-3">Submitted</th>
