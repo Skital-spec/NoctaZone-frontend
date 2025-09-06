@@ -344,7 +344,7 @@ export default function WhatsAppStyleChat() {
       
       setAlert({ 
         type: "success", 
-        message: `✅ Challenge declined successfully! Creator has been refunded 96% of their stake.` 
+        message: `✅ Challenge declined successfully! Creator has been refunded their stake.` 
       });
 
       // Auto-hide alert after 5 seconds
