@@ -24,18 +24,21 @@ const ReportResults = () => {
     const p1Score = parseInt(player1Goals) || 0;
     const p2Score = parseInt(player2Goals) || 0;
     
-    if (p1Score > p2Score) {
-      // P1 wins automatically
-      setDeclaredWinner(players.p1?.id || "");
-    } else if (p2Score > p1Score) {
-      // P2 wins automatically
-      setDeclaredWinner(players.p2?.id || "");
-    } else if (p1Score === p2Score && (p1Score > 0 || p2Score > 0)) {
-      // Draw when scores are equal and not both zero
-      setDeclaredWinner("draw");
+    // Only run automatic selection if we have player data
+    if (players.p1 && players.p2) {
+      if (p1Score > p2Score) {
+        // P1 wins automatically
+        setDeclaredWinner(players.p1.id);
+      } else if (p2Score > p1Score) {
+        // P2 wins automatically
+        setDeclaredWinner(players.p2.id);
+      } else if (p1Score === p2Score && (p1Score > 0 || p2Score > 0)) {
+        // Draw when scores are equal and not both zero
+        setDeclaredWinner("draw");
+      }
     }
     // If both scores are 0, allow manual selection
-  }, [player1Goals, player2Goals, players.p1?.id, players.p2?.id]);
+  }, [player1Goals, player2Goals, players.p1, players.p2]);
 
   // File uploads for evidence (submit flow)
   const [evidenceFiles, setEvidenceFiles] = useState([]);
