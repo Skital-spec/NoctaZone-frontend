@@ -154,9 +154,6 @@ const ChallengeDetails = () => {
       console.log('🎯 Attempting to update challenge status to completed');
       
       try {
-        // Get current user ID
-        const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
-        
         // Call backend API to update challenge status
         const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/update-status`, {
           method: "POST",
@@ -189,7 +186,7 @@ const ChallengeDetails = () => {
     };
     
     updateChallengeStatus();
-  }, [challenge, seriesScore.allMatchesComplete, seriesScore.seriesWinner, seriesScore.isDraw, id]);
+  }, [challenge, seriesScore.allMatchesComplete, seriesScore.seriesWinner, seriesScore.isDraw, id, currentUserId]);
 
   // Timer effect for countdowns
   useEffect(() => {
@@ -397,12 +394,27 @@ const ChallengeDetails = () => {
     return CHALLENGE_STATES.WAITING_FOR_START;
   }, [challenge, seriesScore]);
 
+  // Get current user ID from Supabase auth
+  const [currentUserId, setCurrentUserId] = useState(null);
+  
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        if (user) {
+          setCurrentUserId(user.id);
+        }
+      } catch (err) {
+        console.error('Failed to get current user:', err);
+      }
+    };
+    getCurrentUser();
+  }, []);
+
   // Check if current user can start challenge
   const canStartChallenge = useMemo(() => {
-    if (!challenge || !players.p1 || !players.p2) return false;
-    
-    const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
-    if (!currentUserId) return false;
+    if (!challenge || !players.p1 || !players.p2 || !currentUserId) return false;
     
     const isPlayer1 = currentUserId === players.p1.id;
     const isPlayer2 = currentUserId === players.p2.id;
@@ -412,11 +424,11 @@ const ChallengeDetails = () => {
     // Can start if in start window and hasn't started yet
     return challengeState === CHALLENGE_STATES.START_WINDOW_ACTIVE && 
            !(isPlayer1 ? challenge.p1_started_at : challenge.p2_started_at);
-  }, [challenge, players, challengeState]);
+  }, [challenge, players, challengeState, currentUserId]);
 
   // Check for forfeit scenarios (when only one player reports and time expires)
   const checkForfeitScenario = useMemo(() => {
-    if (!challenge || challengeState !== CHALLENGE_STATES.EXPIRED) return null;
+    if (!challenge || challengeState !== CHALLENGE_STATES.EXPIRED || !currentUserId) return null;
     
     // Check if only one player has reported results
     const reportedMatches = matches.filter(m => m.status === 'completed');
@@ -426,14 +438,13 @@ const ChallengeDetails = () => {
     if (reportedMatches.length > 0 && reportedMatches.length < 3 && disputedMatches.length === 0) {
       // Determine who reported and who didn't
       // This is a simplified check - in reality you'd want to track who reported what
-      const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
       if (currentUserId === players.p1?.id || currentUserId === players.p2?.id) {
         return { winner: currentUserId, type: 'forfeit' };
       }
     }
     
     return null;
-  }, [challenge, challengeState, matches, players]);
+  }, [challenge, challengeState, matches, players, currentUserId]);
 
   // Enhanced canCashOut that includes forfeit scenarios
   const canCashOut = useMemo(() => {
@@ -441,7 +452,6 @@ const ChallengeDetails = () => {
       return false;
     }
     
-    const currentUserId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
     if (!currentUserId) {
       console.log('🚫 canCashOut: false - no current user ID');
       return false;
@@ -472,7 +482,7 @@ const ChallengeDetails = () => {
     }
     
     return canCash;
-  }, [challenge, players, challengeState, checkForfeitScenario]);
+  }, [challenge, players, challengeState, checkForfeitScenario, currentUserId]);
 
   // Calculate cash out amounts
   const getCashOutAmounts = () => {
@@ -495,7 +505,10 @@ const ChallengeDetails = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include"
+        credentials: "include",
+        body: JSON.stringify({
+          user_id: currentUserId
+        })
       });
       
       if (response.ok) {
@@ -554,6 +567,7 @@ const ChallengeDetails = () => {
         },
         credentials: "include",
         body: JSON.stringify({
+          user_id: currentUserId,
           type: cashOutType,
           amount: cashOutAmount
         })
@@ -727,7 +741,7 @@ const ChallengeDetails = () => {
                 <strong>All Matches Complete:</strong> {seriesScore.allMatchesComplete ? 'Yes' : 'No'}<br/>
                 <strong>Challenge Status:</strong> {challenge?.status}<br/>
                 <strong>Completed Matches:</strong> {matches.filter(m => m.status === 'completed').length} / {matches.length}<br/>
-                <strong>Current User:</strong> {localStorage.getItem('userId') || sessionStorage.getItem('userId')}
+                <strong>Current User:</strong> {currentUserId || 'Not logged in'}
               </div>
             </Card.Body>
           </Card>
@@ -876,7 +890,7 @@ const ChallengeDetails = () => {
                 ) : null
               ) : challengeState === CHALLENGE_STATES.EXPIRED ? (
                 // Challenge expired
-                checkForfeitScenario && checkForfeitScenario.winner === (localStorage.getItem('userId') || sessionStorage.getItem('userId')) ? (
+                checkForfeitScenario && checkForfeitScenario.winner === currentUserId ? (
                   // Won by forfeit
                   <>
                     <CongratulationsText type="forfeit" message="You Won by Default!" />
