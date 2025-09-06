@@ -934,7 +934,7 @@ const handleJoinChallenge = async (challenge) => {
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Trophy size={16} className="me-2 text-warning" />
-                              <span className="fw-bold">{tournament.prize_pool} Tokens Prize Pool</span>
+                              <span className="fw-bold">{tournament.prize} Tokens Prize Pool</span>
                             </div>
                             <div className="d-flex align-items-center mb-2">
                               <Calendar size={16} className="me-2 text-info" />
@@ -942,19 +942,10 @@ const handleJoinChallenge = async (challenge) => {
                             </div>
                             <div className="d-flex align-items-center">
                               <Users size={16} className="me-2 text-primary" />
-                              <span>{tournament.seats_taken || 0}/{tournament.max_participants} Participants</span>
+                              <span>{tournament.seats_taken || 0}/{tournament.seats} Participants</span>
                             </div>
                           </div>
-                          
-                          <div className="mb-3">
-                            <h6>Description:</h6>
-                            <p className="text-muted small">
-                              {tournament.description?.length > 100 
-                                ? `${tournament.description.substring(0, 100)}...` 
-                                : tournament.description}
-                            </p>
-                          </div>
-                          
+ 
                           <div className="d-flex justify-content-between align-items-center">
                             <Button
                               variant="outline-primary"
