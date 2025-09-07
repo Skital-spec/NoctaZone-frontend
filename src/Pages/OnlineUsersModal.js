@@ -93,10 +93,19 @@ const OnlineUsersModal = ({ show, onClose }) => {
       }
 
       // Combine profiles with presence data
-      const usersWithPresence = profilesData.map(profile => ({
-        ...profile,
-        presence: presenceMap[profile.id] || { is_online: false, last_seen: null }
-      }));
+      const usersWithPresence = profilesData.map(profile => {
+        const presence = presenceMap[profile.id];
+        return {
+          ...profile,
+          presence: presence ? {
+            is_online: Boolean(presence.is_online),
+            last_seen: presence.last_seen
+          } : {
+            is_online: false,
+            last_seen: null
+          }
+        };
+      });
 
       // Sort: online users first, then by username
       usersWithPresence.sort((a, b) => {
@@ -121,12 +130,14 @@ const OnlineUsersModal = ({ show, onClose }) => {
   const updateUserPresence = async () => {
     if (!currentUserId) return;
 
+    const currentTime = new Date().toISOString();
+    
     const { error } = await supabase
       .from('user_presence')
       .upsert({
         user_id: currentUserId,
         is_online: true,
-        last_seen: new Date().toISOString(),
+        last_seen: currentTime,
       }, {
         onConflict: 'user_id'
       });
@@ -139,12 +150,14 @@ const OnlineUsersModal = ({ show, onClose }) => {
   const setUserOffline = async () => {
     if (!currentUserId) return;
 
+    const currentTime = new Date().toISOString();
+    
     await supabase
       .from('user_presence')
       .upsert({
         user_id: currentUserId,
         is_online: false,
-        last_seen: new Date().toISOString(),
+        last_seen: currentTime,
       }, {
         onConflict: 'user_id'
       });
@@ -155,11 +168,18 @@ const OnlineUsersModal = ({ show, onClose }) => {
     onClose();
   };
 
-  const getLastSeenText = (lastSeen) => {
+  const getLastSeenText = (lastSeen, isOnline) => {
+    // If user is currently online, don't show last seen
+    if (isOnline) return null;
+    
     if (!lastSeen) return 'Never seen';
     
     const now = new Date();
     const lastSeenDate = new Date(lastSeen);
+    
+    // Check if the date is valid
+    if (isNaN(lastSeenDate.getTime())) return 'Never seen';
+    
     const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
     
     if (diffMinutes < 1) return 'Just now';
@@ -244,7 +264,7 @@ const OnlineUsersModal = ({ show, onClose }) => {
                       ) : (
                         <span className="text-muted">
                           <span className="me-1">⚪</span>
-                          Last seen {getLastSeenText(user.presence.last_seen)}
+                          Last seen {getLastSeenText(user.presence.last_seen, user.presence.is_online)}
                         </span>
                       )}
                     </small>
