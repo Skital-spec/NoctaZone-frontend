@@ -110,7 +110,8 @@ const OnlineUsersModal = ({ show, onClose }) => {
           console.log(`👤 Processing presence for user ${presence.user_id}:`, {
             is_online: presence.is_online,
             last_seen: presence.last_seen,
-            last_seen_type: typeof presence.last_seen
+            last_seen_type: typeof presence.last_seen,
+            raw_presence: presence
           });
           presenceMap[presence.user_id] = presence;
         });
@@ -121,6 +122,11 @@ const OnlineUsersModal = ({ show, onClose }) => {
       // Combine profiles with presence data
       const usersWithPresence = profilesData.map(profile => {
         const presence = presenceMap[profile.id];
+        
+        if (!presence) {
+          console.log(`⚠️ No presence record found for user: ${profile.username} (${profile.id})`);
+        }
+        
         const result = {
           ...profile,
           presence: presence ? {
@@ -135,7 +141,8 @@ const OnlineUsersModal = ({ show, onClose }) => {
         console.log(`🔄 Combined data for ${profile.username}:`, {
           id: profile.id,
           username: profile.username,
-          presence: result.presence
+          presence: result.presence,
+          hasPresenceRecord: !!presence
         });
         
         return result;
