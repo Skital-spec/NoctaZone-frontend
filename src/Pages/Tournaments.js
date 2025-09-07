@@ -167,10 +167,11 @@ useEffect(() => {
     const participation = getUserParticipation(t.id);
     const seatsTaken = calculateSeatsTaken(t.id);
     const isFull = seatsTaken >= (t.seats || 0);
+    const isClosedOrExpired = t.status === "closed" || t.status === "expired";
 
     if (activeTab === "available") {
-      // Show upcoming tournaments that are not full
-      return t.status === "upcoming" && !isFull;
+      // Show upcoming tournaments that are not full and not closed/expired
+      return t.status === "upcoming" && !isFull && !isClosedOrExpired;
     }
     if (activeTab === "my") return isParticipant;
     if (activeTab === "history") {
@@ -210,6 +211,7 @@ const getButtonProps = (tournament) => {
   const participation = getUserParticipation(tournament.id);
   const seatsTaken = calculateSeatsTaken(tournament.id);
   const isFull = seatsTaken >= (tournament.seats || 0);
+  const isClosedOrExpired = tournament.status === "closed" || tournament.status === "expired";
   
   if (activeTab === "history") {
     return {
@@ -240,6 +242,16 @@ const getButtonProps = (tournament) => {
         showButton: true
       };
     }
+  }
+  
+  // For non-participants, check if tournament is closed/expired
+  if (isClosedOrExpired) {
+    return {
+      text: tournament.status === "closed" ? "CLOSED" : "EXPIRED",
+      onClick: null,
+      showButton: false,
+      isClosed: true
+    };
   }
   
   // For non-participants, check if tournament is full
@@ -505,6 +517,24 @@ const getButtonProps = (tournament) => {
           }}
         >
           FULL
+        </span>
+      );
+    }
+    
+    if (buttonProps.isClosed) {
+      // Show CLOSED/EXPIRED badge instead of button
+      return (
+        <span
+          className="badge"
+          style={{
+            backgroundColor: buttonProps.text === "CLOSED" ? "#dc3545" : "#6c757d", // Red for closed, gray for expired
+            color: "#fff",
+            fontWeight: 600,
+            padding: "0.5rem 1rem",
+            fontSize: "0.8rem"
+          }}
+        >
+          {buttonProps.text}
         </span>
       );
     }

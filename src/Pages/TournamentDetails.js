@@ -162,6 +162,12 @@ const handleConfirmJoin = async () => {
         return;
       }
       
+      if (result.error === "Tournament is no longer accepting participants") {
+        alert(`❌ ${result.message || 'This tournament is no longer accepting new participants.'}`);
+        setConfirmModalOpen(false);
+        return;
+      }
+      
       if (result.error === "Tournament is full") {
         alert("❌ Tournament is full! No seats available.");
         setConfirmModalOpen(false);
@@ -260,6 +266,24 @@ const handleConfirmJoin = async () => {
           <Trophy size={40} className="privacy-icon" />
           <h1>{tournament.name}</h1>
           <p className="sub-heading text-xl font-bold text-[#00ffcc] fs-30">{tournament.game_name}</p>
+          
+          {/* Tournament Status Badge */}
+          {(tournament.status === "closed" || tournament.status === "expired") && (
+            <div className="mt-3">
+              <span 
+                className="badge px-4 py-2 text-white font-semibold rounded"
+                style={{
+                  backgroundColor: tournament.status === "closed" ? "#dc3545" : "#6c757d",
+                  fontSize: "1rem"
+                }}
+              >
+                {tournament.status === "closed" ? 
+                  "🔒 CLOSED - No longer accepting participants" : 
+                  "⏰ EXPIRED - Tournament expired"
+                }
+              </span>
+            </div>
+          )}
         </div>
 
         {/* ✅ Display current balance */}
@@ -330,12 +354,34 @@ const handleConfirmJoin = async () => {
           </button>
         </div>
 
-        <button style={{background: '#00ffcc', border:'none' , padding:'7px 27px' , borderRadius:'10px', marginTop:'10px'}}
-          onClick={handleJoinClick}
+        <button style={{
+          background: (tournament.status === "closed" || tournament.status === "expired") 
+            ? '#6c757d' : '#00ffcc', 
+          border:'none', 
+          padding:'7px 27px', 
+          borderRadius:'10px', 
+          marginTop:'10px',
+          cursor: (tournament.status === "closed" || tournament.status === "expired") 
+            ? 'not-allowed' : 'pointer',
+          opacity: (tournament.status === "closed" || tournament.status === "expired") 
+            ? 0.6 : 1
+        }}
+          onClick={(tournament.status === "closed" || tournament.status === "expired") 
+            ? () => {}
+            : handleJoinClick
+          }
+          disabled={tournament.status === "closed" || tournament.status === "expired"}
           className="w-full  text-black font-bold py-3 rounded hover:bg-[#00e6b8] transition-all shadow-[0_0_12px_#00ffccaa] flex items-center justify-center space-x-2"
         >
           <CreditCard size={18} />
-          <span> Join Tournament Now</span>
+          <span>
+            {tournament.status === "closed" 
+              ? "🔒 Tournament Closed" 
+              : tournament.status === "expired" 
+              ? "⏰ Tournament Expired" 
+              : "Join Tournament Now"
+            }
+          </span>
         </button>
 
         {/* Rules Modal */}
