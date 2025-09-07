@@ -273,7 +273,7 @@ const OnlineUsersModal = ({ show, onClose }) => {
                       ) : (
                         <span className="text-muted">
                           <span className="me-1">⚪</span>
-                          Last seen {getLastSeenText(user.presence.last_seen, user.presence.is_online)}
+                          Offline
                         </span>
                       )}
                     </small>
