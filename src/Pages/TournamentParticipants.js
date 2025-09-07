@@ -384,7 +384,7 @@ const TournamentParticipants = () => {
               </div>
             </div>
 
-            {/* Matches by Round */}
+            {/* Matches Table */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold mb-4 text-[#00ffcc]">
                 Tournament Matches
@@ -404,109 +404,118 @@ const TournamentParticipants = () => {
                         Round {round}
                       </h3>
                       
-                      <div className="bg-[#1a1a2e] rounded-lg overflow-hidden">
-                        <div className="grid gap-3 p-4">
-                          {roundMatches.map((match) => (
-                            <div
-                              key={match.id}
-                              className="bg-[#2a2a3e] rounded-lg p-4 border border-[#3a3a4e] hover:border-[#00ffcc] transition-colors"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4 flex-1">
-                                  <div className="text-sm font-bold text-[#00ffcc]">
-                                    Match {match.matchNumber}
-                                  </div>
-                                  
-                                  <div className="flex items-center space-x-2 flex-1">
-                                    <span className="font-semibold text-white">
-                                      {match.player1?.username || match.player1?.name}
-                                    </span>
-                                    <span className="text-[#00ffcc] font-bold px-2">
+                      <div className="bg-[#1a1a2e] rounded-lg overflow-hidden overflow-x-auto">
+                        <table className="w-full text-left min-w-[1000px]">
+                          <thead className="bg-[#1f1f2e] text-[#00ffcc]">
+                            <tr>
+                              <th className="p-2">Match No.</th>
+                              <th className="p-2">Player 1</th>
+                              <th className="p-2">Score</th>
+                              <th className="p-2">Player 2</th>
+                              <th className="p-2">Winner</th>
+                              <th className="p-2">Status</th>
+                              <th className="p-2">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {roundMatches.length === 0 ? (
+                              <tr>
+                                <td colSpan={7} className="p-2 text-center text-gray-400">
+                                  No matches for this round
+                                </td>
+                              </tr>
+                            ) : (
+                              roundMatches.map((match) => (
+                                <tr
+                                  key={match.id}
+                                  className="border-t border-[#2a2a3e] hover:bg-[#2a2a3e] transition-colors"
+                                >
+                                  <td className="p-2 font-bold">Match {match.matchNumber}</td>
+                                  <td className="p-2">{match.player1?.username || match.player1?.name}</td>
+                                  <td className="p-2 text-center">
+                                    <span className="font-bold" style={{ color: "#00ffcc" }}>
                                       {match.player1Points} - {match.player2Points}
                                     </span>
-                                    <span className="font-semibold text-white">
-                                      {match.player2?.username || match.player2?.name}
-                                    </span>
-                                  </div>
-                                  
-                                  <div className="text-sm">
+                                  </td>
+                                  <td className="p-2">{match.player2?.username || match.player2?.name}</td>
+                                  <td className="p-2">
                                     {match.winner === "draw" ? (
                                       <span className="text-gray-400 font-bold">DRAW</span>
                                     ) : match.winner ? (
                                       <span className="text-green-400 font-bold">
-                                        Winner: {match.winner === match.player1?.id
+                                        {match.winner === match.player1?.id
                                           ? match.player1?.username || match.player1?.name
                                           : match.player2?.username || match.player2?.name}
                                       </span>
                                     ) : (
                                       <span className="text-gray-500">TBD</span>
                                     )}
-                                  </div>
-                                  
-                                  <div>
+                                  </td>
+                                  <td className="p-2">
                                     <span
-                                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                      className={`px-2 py-0.5 rounded text-white font-bold ${
                                         match.status === "completed"
                                           ? "bg-green-600 text-white"
                                           : match.status === "disputed"
                                           ? "bg-red-600 text-white"
                                           : "bg-yellow-600 text-black"
-                                      }`}
+                                      }`} 
                                     >
                                       {match.status.toUpperCase()}
                                     </span>
-                                  </div>
-                                </div>
-                                
-                                <div className="ml-4">
-                                  {match.status === "completed" ? (
-                                    <span className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold">
-                                      COMPLETED
-                                    </span>
-                                  ) : isUserParticipatingInMatch(match) ? (
-                                    <button
-                                      onClick={() => handleReportResults(match.id)}
-                                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-                                    >
-                                      Report Results
-                                    </button>
-                                  ) : null}
-                                  {isAdmin && (
-                                    <button
-                                      onClick={() => {
-                                        const p1Points = prompt(
-                                          `Player 1 (${match.player1?.username}) Points:`,
-                                          match.player1Points
-                                        );
-                                        const p2Points = prompt(
-                                          `Player 2 (${match.player2?.username}) Points:`,
-                                          match.player2Points
-                                        );
-                                        if (p1Points !== null && p2Points !== null) {
-                                          const winner =
-                                            p1Points > p2Points
-                                              ? match.player1?.id
-                                              : p2Points > p1Points
-                                              ? match.player2?.id
-                                              : "draw";
-                                          handleUpdateMatch(
-                                            match.id,
-                                            parseInt(p1Points),
-                                            parseInt(p2Points),
-                                            winner
-                                          );
-                                        }
-                                      }}
-                                      className="px-3 py-1 bg-orange-600 text-white rounded text-xs ml-2 hover:bg-orange-700 transition-colors"
-                                    >
-                                      Admin Edit
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                                  </td>
+                                  <td className="p-2">
+                                    <div className="flex gap-2">
+                                      {match.status === "completed" ? (
+                                        <span className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold">
+                                          COMPLETED
+                                        </span>
+                                      ) : isUserParticipatingInMatch(match) ? (
+                                        <button
+                                          onClick={() => handleReportResults(match.id)}
+                                          className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                                        >
+                                          Report Results
+                                        </button>
+                                      ) : null}
+                                      {isAdmin && (
+                                        <button
+                                          onClick={() => {
+                                            const p1Points = prompt(
+                                              `Player 1 (${match.player1?.username}) Points:`,
+                                              match.player1Points
+                                            );
+                                            const p2Points = prompt(
+                                              `Player 2 (${match.player2?.username}) Points:`,
+                                              match.player2Points
+                                            );
+                                            if (p1Points !== null && p2Points !== null) {
+                                              const winner =
+                                                p1Points > p2Points
+                                                  ? match.player1?.id
+                                                  : p2Points > p1Points
+                                                  ? match.player2?.id
+                                                  : "draw";
+                                              handleUpdateMatch(
+                                                match.id,
+                                                parseInt(p1Points),
+                                                parseInt(p2Points),
+                                                winner
+                                              );
+                                            }
+                                          }}
+                                          className="px-2 py-1 bg-orange-600 text-white rounded text-xs ml-2 hover:bg-orange-700 transition-colors"
+                                        >
+                                          Admin Edit
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   );
