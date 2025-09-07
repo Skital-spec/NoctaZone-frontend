@@ -11,7 +11,24 @@ const TournamentParticipants = () => {
   const [currentRound, setCurrentRound] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false); // You'll need to implement admin check
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState(null);
+
+  // Get current user ID
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        if (user) {
+          setCurrentUserId(user.id);
+        }
+      } catch (err) {
+        console.error("Failed to get current user:", err);
+      }
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     // Fetch participants and matches from your backend API
@@ -35,9 +52,9 @@ const TournamentParticipants = () => {
         const participantsData = await participantsRes.json();
         const matchesData = await matchesRes.json();
         
-          // Add console logs here
-      console.log("Fetched participants:", participantsData);
-      console.log("Fetched matches:", matchesData);
+        // Add console logs here
+        console.log("Fetched participants:", participantsData);
+        console.log("Fetched matches:", matchesData);
 
         setParticipants(participantsData.participants || []);
         setMatches(matchesData.matches || []);
@@ -217,12 +234,41 @@ const TournamentParticipants = () => {
     }
   };
 
+  // Helper function to check if current user is participating in a match
+  const isUserParticipatingInMatch = (match) => {
+    if (!currentUserId || !match) return false;
+    return match.player1?.id === currentUserId || match.player2?.id === currentUserId ||
+           match.player1_id === currentUserId || match.player2_id === currentUserId;
+  };
+
   const currentRoundMatches = matches.filter(match => match.round === currentRound);
-  const availableRounds = [...new Set(matches.map(match => match.round))].sort();
+  const availableRounds = [...new Set(matches.map(match => match.round))].sort((a, b) => a - b);
+
+  // If no matches from API, use generated matches from participants
+  const displayMatches = matches.length > 0 ? currentRoundMatches : 
+    generateMatches.filter(match => match.round === currentRound);
+  const displayAvailableRounds = matches.length > 0 ? availableRounds : 
+    [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
+
+  // Set currentRound to first available round when matches/participants change
+  useEffect(() => {
+    const rounds = matches.length > 0 ? 
+      [...new Set(matches.map(match => match.round))].sort((a, b) => a - b) :
+      [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
+    
+    if (rounds.length > 0 && !rounds.includes(currentRound)) {
+      setCurrentRound(rounds[0]);
+    }
+  }, [matches, generateMatches, currentRound]);
 
   // Add a log before rendering matches
-console.log("Rendering matches:", matches);
-console.log("Current round matches:", currentRoundMatches);
+  console.log("Rendering matches:", matches);
+  console.log("Generated matches:", generateMatches);
+  console.log("Display matches:", displayMatches);
+  console.log("Current round matches:", displayMatches);
+  console.log("Available rounds:", displayAvailableRounds);
+  console.log("Current user ID:", currentUserId);
+
   return (
     <MainLayout>
       <div className="privacy-policy-container">
@@ -275,11 +321,11 @@ console.log("Current round matches:", currentRoundMatches);
             </div>
 
             {/* Round Navigation */}
-            {availableRounds.length > 1 && (
+            {displayAvailableRounds.length > 1 && (
               <div className="mb-6">
                 <h3 className="text-xl font-bold mb-3">Select Round:</h3>
                 <div className="flex gap-2 flex-wrap">
-                  {availableRounds.map(round => (
+                  {displayAvailableRounds.map(round => (
                     <button
                       key={round}
                       onClick={() => setCurrentRound(round)}
@@ -315,14 +361,14 @@ console.log("Current round matches:", currentRoundMatches);
     </tr>
   </thead>
   <tbody>
-    {currentRoundMatches.length === 0 ? (
+    {displayMatches.length === 0 ? (
       <tr>
         <td colSpan={7} className="p-2 text-center text-gray-400">
           No matches for this round
         </td>
       </tr>
     ) : (
-      currentRoundMatches.map((match) => (
+      displayMatches.map((match) => (
         <tr
           key={match.id}
           className="border-t border-[#2a2a3e] hover:bg-[#2a2a3e] transition-colors"
@@ -363,13 +409,15 @@ console.log("Current round matches:", currentRoundMatches);
           </td>
           <td className="p-2">
             <div className="flex gap-2">
-              <button
-                onClick={() => handleReportResults(match.id)}
-                className="px-2 py-1 rounded text-sm transition-colors"
-                style={{ backgroundColor: "blue", border: "none", color: "white" }}
-              >
-                Report Results
-              </button>
+              {isUserParticipatingInMatch(match) && (
+                <button
+                  onClick={() => handleReportResults(match.id)}
+                  className="px-2 py-1 rounded text-sm transition-colors"
+                  style={{ backgroundColor: "blue", border: "none", color: "white" }}
+                >
+                  Report Results
+                </button>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => {
@@ -424,7 +472,7 @@ console.log("Current round matches:", currentRoundMatches);
                 </div>
                 <div>
                   <span className="text-gray-400">Total Rounds:</span>
-                  <span className="ml-2 font-bold">{availableRounds.length}</span>
+                  <span className="ml-2 font-bold">{displayAvailableRounds.length}</span>
                 </div>
                 <div>
                   <span className="text-gray-400">Current Round:</span>
