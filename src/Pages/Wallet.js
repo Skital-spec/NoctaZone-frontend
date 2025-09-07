@@ -451,7 +451,7 @@ const WalletPage = () => {
                     }}
                     title="Admin: View withdrawal requests"
                   >
-                    💰 Withdrawals
+                    💰 Withdrawals Requests
                   </button>
                 )}
               </h2>
