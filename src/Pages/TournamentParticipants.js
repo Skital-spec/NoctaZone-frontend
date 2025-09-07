@@ -122,7 +122,11 @@ const TournamentParticipants = () => {
   
   // Generate round-robin matches based on participant count
   const generateMatches = useMemo(() => {
-    if (participants.length < 4) return [];
+    console.log("🔄 Generate matches called with participants:", participants.length);
+    if (participants.length < 4) {
+      console.log("❌ Not enough participants for matches (need 4+):", participants.length);
+      return [];
+    }
     
     const numParticipants = participants.length;
     const totalRounds = numParticipants - 1;
@@ -175,6 +179,7 @@ const TournamentParticipants = () => {
       playerList[totalPlayers - 1] = temp;
     }
     
+    console.log("✅ Generated", allMatches.length, "total matches across", totalRounds, "rounds");
     return allMatches;
   }, [participants]);
 
@@ -278,15 +283,14 @@ const TournamentParticipants = () => {
 
   // Always prioritize database matches over generated ones
   // Display ALL matches regardless of round, sorted by round then match number
-  const displayMatches = matches.length > 0 ? 
-    [...matches].sort((a, b) => {
-      if (a.round !== b.round) return a.round - b.round;
-      return (a.matchNumber || 0) - (b.matchNumber || 0);
-    }) : 
+  console.log("🔍 Checking match sources - DB matches:", matches.length, "Generated:", generateMatches.length);
+  // FORCE USING GENERATED MATCHES FOR DEBUGGING
+  const displayMatches = generateMatches.length > 0 ? 
     [...generateMatches].sort((a, b) => {
       if (a.round !== b.round) return a.round - b.round;
       return (a.matchNumber || 0) - (b.matchNumber || 0);
-    });
+    }) : [];
+  console.log("🎯 FORCED generated matches - final count:", displayMatches.length);
   const displayAvailableRounds = matches.length > 0 ? availableRounds : 
     [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
   
@@ -309,6 +313,8 @@ const TournamentParticipants = () => {
 
   // Add a log before rendering matches
   console.log("=== TOURNAMENT PARTICIPANTS DEBUG ===");
+  console.log("Participants count:", participants.length);
+  console.log("Participants:", participants);
   console.log("Database matches:", matches);
   console.log("Generated matches (fallback):", generateMatches);
   console.log("Using database matches:", matches.length > 0);
