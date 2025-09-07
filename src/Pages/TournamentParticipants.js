@@ -232,10 +232,13 @@ const TournamentParticipants = () => {
       // Database match - proceed normally
       navigate(`/tournament/${id}/report-match/${matchId}`);
     } else {
-      // Generated match - show message that matches need to be created in database
-      alert("Matches are being generated in the database. Please refresh the page in a moment.");
-      // Trigger a refresh of tournament data
-      window.location.reload();
+      // Generated match - need to create matches in database first
+      alert("Tournament matches are being set up in the database. Please wait a moment and refresh the page.");
+      // Trigger match creation by calling the backend
+      ensureMatchesInDatabase().then(() => {
+        // Refresh the page to get the database matches
+        window.location.reload();
+      });
     }
   };
 
@@ -284,13 +287,17 @@ const TournamentParticipants = () => {
   // Always prioritize database matches over generated ones
   // Display ALL matches regardless of round, sorted by round then match number
   console.log("🔍 Checking match sources - DB matches:", matches.length, "Generated:", generateMatches.length);
-  // FORCE USING GENERATED MATCHES FOR DEBUGGING
-  const displayMatches = generateMatches.length > 0 ? 
+  // Use database matches if available, otherwise use generated matches
+  const displayMatches = matches.length > 0 ? 
+    [...matches].sort((a, b) => {
+      if (a.round !== b.round) return a.round - b.round;
+      return (a.matchNumber || 0) - (b.matchNumber || 0);
+    }) : 
     [...generateMatches].sort((a, b) => {
       if (a.round !== b.round) return a.round - b.round;
       return (a.matchNumber || 0) - (b.matchNumber || 0);
-    }) : [];
-  console.log("🎯 FORCED generated matches - final count:", displayMatches.length);
+    });
+  console.log("🎯 Selected match source - using database:", matches.length > 0, "final count:", displayMatches.length);
   const displayAvailableRounds = matches.length > 0 ? availableRounds : 
     [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
   
@@ -377,148 +384,130 @@ const TournamentParticipants = () => {
               </div>
             </div>
 
-            {/* Round Navigation */}
-            {displayAvailableRounds.length > 1 && (
-              <div className="mb-6">
-                <h3 className="text-xl font-bold mb-3">Select Round:</h3>
-                <div className="flex gap-2 flex-wrap">
-                  {displayAvailableRounds.map(round => (
-                    <button
-                      key={round}
-                      onClick={() => setCurrentRound(round)}
-                      className={`px-4 py-2 rounded-lg transition-colors ${
-                        currentRound === round
-                          ? 'bg-[#00ffcc] text-[#1a1a2e] font-bold'
-                          : 'bg-[#2a2a3e] text-white hover:bg-[#3a3a4e]'
-                      }`}
-                    >
-                      Round {round}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Matches Table */}
+            {/* Matches by Round */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold mb-4 text-[#00ffcc]">
-                All Tournament Matches
+                Tournament Matches
               </h2>
-              <div className="bg-[#1a1a2e] rounded-lg overflow-hidden overflow-x-auto">
-                <table className="w-full text-left min-w-[1000px]">
-  <thead className="bg-[#1f1f2e] text-[#00ffcc]">
-    <tr>
-      <th className="p-2">Round</th>
-      <th className="p-2">Match No.</th>
-      <th className="p-2">Player 1</th>
-      <th className="p-2">Score</th>
-      <th className="p-2">Player 2</th>
-      <th className="p-2">Winner</th>
-      <th className="p-2">Status</th>
-      <th className="p-2">Actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    {displayMatches.length === 0 ? (
-      <tr>
-        <td colSpan={8} className="p-2 text-center text-gray-400">
-          No matches available
-        </td>
-      </tr>
-    ) : (
-      displayMatches.map((match) => (
-        <tr
-          key={match.id}
-          className="border-t border-[#2a2a3e] hover:bg-[#2a2a3e] transition-colors"
-        >
-          <td className="p-2 font-bold text-[#00ffcc]">Round {match.round}</td>
-          <td className="p-2 font-bold">Match {match.matchNumber}</td>
-          <td className="p-2">{match.player1?.username || match.player1?.name}</td>
-          <td className="p-2 text-center">
-            <span className="font-bold" style={{ color: "#00ffcc" }}>
-              {match.player1Points} - {match.player2Points}
-            </span>
-          </td>
-          <td className="p-2">{match.player2?.username || match.player2?.name}</td>
-          <td className="p-2">
-            {match.winner === "draw" ? (
-              <span className="text-gray-400 font-bold">DRAW</span>
-            ) : match.winner ? (
-              <span className="text-green-400 font-bold">
-                {match.winner === match.player1?.id
-                  ? match.player1?.username || match.player1?.name
-                  : match.player2?.username || match.player2?.name}
-              </span>
-            ) : (
-              <span className="text-gray-500">TBD</span>
-            )}
-          </td>
-          <td className="p-2">
-            <span
-              className={`px-2 py-0.5 rounded text-white font-bold ${
-                match.status === "completed"
-                  ? "bg-green-600 text-white"
-                  : match.status === "disputed"
-                  ? "bg-red-600 text-white"
-                  : "bg-yellow-600 text-black"
-              }`} 
-            >
-              {match.status.toUpperCase()}
-            </span>
-          </td>
-          <td className="p-2">
-            <div className="flex gap-2">
-              {isUserParticipatingInMatch(match) && (
-                <button
-                  onClick={() => handleReportResults(match.id)}
-                  className="px-2 py-1 rounded text-sm transition-colors"
-                  style={{ backgroundColor: "blue", border: "none", color: "white" }}
-                >
-                  Report Results
-                </button>
+              
+              {displayAvailableRounds.length === 0 ? (
+                <div className="text-center text-gray-400 p-8">
+                  No matches available
+                </div>
+              ) : (
+                displayAvailableRounds.map(round => {
+                  const roundMatches = displayMatches.filter(match => match.round === round);
+                  
+                  return (
+                    <div key={round} className="mb-6">
+                      <h3 className="text-xl font-bold mb-3 text-[#00ffcc] border-b border-[#00ffcc] pb-2">
+                        Round {round}
+                      </h3>
+                      
+                      <div className="bg-[#1a1a2e] rounded-lg overflow-hidden">
+                        <div className="grid gap-3 p-4">
+                          {roundMatches.map((match) => (
+                            <div
+                              key={match.id}
+                              className="bg-[#2a2a3e] rounded-lg p-4 border border-[#3a3a4e] hover:border-[#00ffcc] transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-4 flex-1">
+                                  <div className="text-sm font-bold text-[#00ffcc]">
+                                    Match {match.matchNumber}
+                                  </div>
+                                  
+                                  <div className="flex items-center space-x-2 flex-1">
+                                    <span className="font-semibold text-white">
+                                      {match.player1?.username || match.player1?.name}
+                                    </span>
+                                    <span className="text-[#00ffcc] font-bold px-2">
+                                      {match.player1Points} - {match.player2Points}
+                                    </span>
+                                    <span className="font-semibold text-white">
+                                      {match.player2?.username || match.player2?.name}
+                                    </span>
+                                  </div>
+                                  
+                                  <div className="text-sm">
+                                    {match.winner === "draw" ? (
+                                      <span className="text-gray-400 font-bold">DRAW</span>
+                                    ) : match.winner ? (
+                                      <span className="text-green-400 font-bold">
+                                        Winner: {match.winner === match.player1?.id
+                                          ? match.player1?.username || match.player1?.name
+                                          : match.player2?.username || match.player2?.name}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-500">TBD</span>
+                                    )}
+                                  </div>
+                                  
+                                  <div>
+                                    <span
+                                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                        match.status === "completed"
+                                          ? "bg-green-600 text-white"
+                                          : match.status === "disputed"
+                                          ? "bg-red-600 text-white"
+                                          : "bg-yellow-600 text-black"
+                                      }`}
+                                    >
+                                      {match.status.toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="ml-4">
+                                  {isUserParticipatingInMatch(match) && (
+                                    <button
+                                      onClick={() => handleReportResults(match.id)}
+                                      className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+                                    >
+                                      Report Results
+                                    </button>
+                                  )}
+                                  {isAdmin && (
+                                    <button
+                                      onClick={() => {
+                                        const p1Points = prompt(
+                                          `Player 1 (${match.player1?.username}) Points:`,
+                                          match.player1Points
+                                        );
+                                        const p2Points = prompt(
+                                          `Player 2 (${match.player2?.username}) Points:`,
+                                          match.player2Points
+                                        );
+                                        if (p1Points !== null && p2Points !== null) {
+                                          const winner =
+                                            p1Points > p2Points
+                                              ? match.player1?.id
+                                              : p2Points > p1Points
+                                              ? match.player2?.id
+                                              : "draw";
+                                          handleUpdateMatch(
+                                            match.id,
+                                            parseInt(p1Points),
+                                            parseInt(p2Points),
+                                            winner
+                                          );
+                                        }
+                                      }}
+                                      className="px-3 py-1 bg-orange-600 text-white rounded text-xs ml-2 hover:bg-orange-700 transition-colors"
+                                    >
+                                      Admin Edit
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
               )}
-              {isAdmin && (
-                <button
-                  onClick={() => {
-                    const p1Points = prompt(
-                      `Player 1 (${match.player1?.username}) Points:`,
-                      match.player1Points
-                    );
-                    const p2Points = prompt(
-                      `Player 2 (${match.player2?.username}) Points:`,
-                      match.player2Points
-                    );
-                    if (p1Points !== null && p2Points !== null) {
-                      const winner =
-                        p1Points > p2Points
-                          ? match.player1?.id
-                          : p2Points > p1Points
-                          ? match.player2?.id
-                          : "draw";
-                      handleUpdateMatch(
-                        match.id,
-                        parseInt(p1Points),
-                        parseInt(p2Points),
-                        winner
-                      );
-                    }
-                  }}
-                  className="px-2 py-1 rounded"
-                  style={{ backgroundColor: "#00ffcc", border: "none" }}
-                >
-                  Edit
-                </button>
-
-                
-              )}
-            </div>
-          </td>
-        </tr>
-      ))
-    )}
-  </tbody>
-</table>
-              </div>
             </div>
 
             {/* Tournament Info */}
