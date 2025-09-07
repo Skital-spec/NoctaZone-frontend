@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import MainLayout from "../Components/MainLayout";
 import { supabase } from "../supabaseClient";
+import { Trophy, DollarSign } from "lucide-react";
 
 const TournamentParticipants = () => {
   const { id } = useParams();
@@ -13,6 +14,10 @@ const TournamentParticipants = () => {
   const [error, setError] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [tournamentWinner, setTournamentWinner] = useState(null);
+  const [tournamentCompleted, setTournamentCompleted] = useState(false);
+  const [cashOutCompleted, setCashOutCompleted] = useState(false);
+  const [tournament, setTournament] = useState(null);
 
   // Get current user ID
   useEffect(() => {
@@ -58,19 +63,25 @@ const TournamentParticipants = () => {
       setLoading(true);
       setError(null);
       try {
-        const [participantsRes] = await Promise.all([
+        const [participantsRes, tournamentRes] = await Promise.all([
           fetch(`https://safcom-payment.onrender.com/api/tournaments/${id}/participants`, {
+            credentials: "include",
+          }),
+          fetch(`https://safcom-payment.onrender.com/api/tournaments/${id}`, {
             credentials: "include",
           })
         ]);
 
-        if (!participantsRes.ok) {
+        if (!participantsRes.ok || !tournamentRes.ok) {
           throw new Error("Failed to fetch tournament data");
         }
 
         const participantsData = await participantsRes.json();
+        const tournamentData = await tournamentRes.json();
         console.log("Fetched participants:", participantsData);
+        console.log("Fetched tournament:", tournamentData);
         setParticipants(participantsData.participants || []);
+        setTournament(tournamentData.tournament || tournamentData);
         
         // After participants are loaded, ensure matches are created in database
         if (participantsData.participants && participantsData.participants.length >= 2) {
@@ -184,17 +195,25 @@ const TournamentParticipants = () => {
   }, [participants]);
 
   
-  // Calculate leaderboard
+  // Calculate leaderboard with total scores
   const leaderboard = useMemo(() => {
     const stats = participants.map(participant => {
       const playerMatches = matches.filter(match => 
         match.player1?.id === participant.id || match.player2?.id === participant.id
       );
       
-      let wins = 0, losses = 0, draws = 0, points = 0;
+      let wins = 0, losses = 0, draws = 0, points = 0, totalScores = 0;
       
       playerMatches.forEach(match => {
         if (match.status === 'completed') {
+          // Calculate total scores for this player
+          if (match.player1?.id === participant.id) {
+            totalScores += match.player1Points || 0;
+          } else if (match.player2?.id === participant.id) {
+            totalScores += match.player2Points || 0;
+          }
+          
+          // Calculate wins/losses/draws and points
           if (match.winner === participant.id) {
             wins++;
             points += 3; // 3 points for win
@@ -214,17 +233,103 @@ const TournamentParticipants = () => {
         losses,
         draws,
         points,
+        totalScores,
         matchesPlayed: wins + losses + draws
       };
     });
     
-    // Sort by points (descending), then by wins, then by join order
+    // Sort by points (descending), then by total scores (descending), then by wins, then by join order
     return stats.sort((a, b) => {
       if (b.points !== a.points) return b.points - a.points;
+      if (b.totalScores !== a.totalScores) return b.totalScores - a.totalScores;
       if (b.wins !== a.wins) return b.wins - a.wins;
       return new Date(a.joinedAt) - new Date(b.joinedAt);
     });
   }, [participants, matches]);
+
+  // Check if tournament is completed and determine winner
+  const checkTournamentCompletion = useMemo(() => {
+    if (matches.length === 0 || participants.length === 0) return { completed: false, winner: null };
+    
+    // Check if all matches are completed
+    const allMatchesCompleted = matches.every(match => match.status === 'completed');
+    
+    if (!allMatchesCompleted) {
+      return { completed: false, winner: null };
+    }
+    
+    // Tournament is completed, determine winner
+    if (leaderboard.length === 0) {
+      return { completed: true, winner: null };
+    }
+    
+    const topPlayer = leaderboard[0];
+    const secondPlayer = leaderboard[1];
+    
+    // Check for ties in points
+    const topPlayersWithSamePoints = leaderboard.filter(player => player.points === topPlayer.points);
+    
+    if (topPlayersWithSamePoints.length === 1) {
+      // Clear winner
+      return { completed: true, winner: topPlayer };
+    }
+    
+    // Tie in points, check total scores among tied players
+    const highestScores = Math.max(...topPlayersWithSamePoints.map(p => p.totalScores));
+    const winnersWithHighestScores = topPlayersWithSamePoints.filter(p => p.totalScores === highestScores);
+    
+    if (winnersWithHighestScores.length === 1) {
+      // Winner determined by total scores
+      return { completed: true, winner: winnersWithHighestScores[0] };
+    }
+    
+    // Still tied, take the first one (earliest joiner)
+    return { completed: true, winner: winnersWithHighestScores[0] };
+  }, [matches, participants, leaderboard]);
+
+  // Update tournament completion state
+  useEffect(() => {
+    if (checkTournamentCompletion.completed) {
+      setTournamentCompleted(true);
+      setTournamentWinner(checkTournamentCompletion.winner);
+    }
+  }, [checkTournamentCompletion]);
+
+  // Check cash-out status when tournament is completed and user is winner
+  useEffect(() => {
+    const checkCashOutStatus = async () => {
+      if (!currentUserId || !tournamentCompleted || !tournamentWinner || tournamentWinner.id !== currentUserId) {
+        return;
+      }
+      
+      try {
+        console.log('🔍 Checking tournament cash-out status for user:', currentUserId, 'tournament:', id);
+        
+        // Check if user has already cashed out from this tournament
+        const { data: existingCashOut, error: cashOutError } = await supabase
+          .from("tournament_cash_outs")
+          .select("id, amount, type, created_at")
+          .eq("tournament_id", id)
+          .eq("user_id", currentUserId)
+          .maybeSingle();
+        
+        console.log('💰 Tournament cash-out check result:', { existingCashOut, cashOutError });
+        
+        if (!cashOutError && existingCashOut) {
+          console.log('✅ User has already cashed out:', existingCashOut);
+          setCashOutCompleted(true);
+        } else {
+          console.log('❌ User has NOT cashed out yet');
+          setCashOutCompleted(false);
+        }
+      } catch (error) {
+        console.error('⚠️ Error checking tournament cash-out status:', error);
+        setCashOutCompleted(false);
+      }
+    };
+    
+    checkCashOutStatus();
+  }, [tournamentCompleted, tournamentWinner, currentUserId, id]);
 
   const handleReportResults = (matchId) => {
     // Check if this is a database match or generated match
@@ -273,6 +378,106 @@ const TournamentParticipants = () => {
       setError(err.message);
     }
   };
+
+  // Animated congratulations component
+  const CongratulationsText = ({ type, winner, message }) => {
+    const [isVisible, setIsVisible] = useState(false);
+    
+    useEffect(() => {
+      const timer = setTimeout(() => setIsVisible(true), 500);
+      return () => clearTimeout(timer);
+    }, []);
+    
+    return (
+      <div className={`text-center mb-4 ${isVisible ? 'animate__animated animate__bounceIn' : 'opacity-0'}`}>
+        <div className="display-4 mb-3">
+          {type === 'win' ? '🎉' : '🏆'}
+        </div>
+        <h2 className={`fw-bold ${
+          type === 'win' ? 'text-success' : 'text-primary'
+        }`}>
+          {message || (
+            type === 'win' ? `Congratulations ${winner?.username || winner?.name || `User ${winner?.id}`}! You've Won the Tournament!` :
+            "Congratulations!"
+          )}
+        </h2>
+        <p className="text-muted">
+          {type === 'win' ? "You've emerged victorious in this tournament!" :
+           "Great performance in this tournament!"}
+        </p>
+      </div>
+    );
+  };
+
+  // Calculate tournament prize
+  const getTournamentPrize = () => {
+    if (!participants.length || !tournament) return 0;
+    
+    // Get entry fee from tournament data
+    const entryFeePerParticipant = tournament.entry_fee || 0;
+    const totalPrizePool = participants.length * entryFeePerParticipant;
+    const winnerPrize = totalPrizePool * 0.85; // 85% goes to winner, 15% platform fee
+    
+    return Math.floor(winnerPrize);
+  };
+
+  // Handle cash out
+  const handleCashOut = async () => {
+    if (!currentUserId || !tournamentWinner || tournamentWinner.id !== currentUserId) {
+      alert('You are not eligible to cash out.');
+      return;
+    }
+    
+    if (cashOutCompleted) {
+      alert('You have already cashed out from this tournament.');
+      return;
+    }
+    
+    try {
+      const prizeAmount = getTournamentPrize();
+      
+      if (prizeAmount <= 0) {
+        alert('Unable to calculate prize amount.');
+        return;
+      }
+      
+      // Call tournament cash-out API (similar to challenge cash-out)
+      const response = await fetch(`https://safcom-payment.onrender.com/api/tournaments/${id}/cash-out`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          user_id: currentUserId,
+          amount: prizeAmount,
+          type: 'tournament_win'
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success) {
+        setCashOutCompleted(true);
+        alert(`✅ Prize cashed out successfully! ${prizeAmount} tokens added to your wallet.`);
+      } else {
+        const errorMessage = result.error || 'Unknown error';
+        console.error('Cash out failed:', errorMessage);
+        alert(`❌ Cash out failed: ${errorMessage}`);
+      }
+    } catch (error) {
+      console.error('Cash out error:', error);
+      alert(`❌ Cash out failed: ${error.message || 'Network error'}`);
+    }
+  };
+
+  // Check if user can cash out
+  const canCashOut = useMemo(() => {
+    return tournamentCompleted && 
+           tournamentWinner && 
+           tournamentWinner.id === currentUserId && 
+           !cashOutCompleted;
+  }, [tournamentCompleted, tournamentWinner, currentUserId, cashOutCompleted]);
 
   // Helper function to check if current user is participating in a match
   const isUserParticipatingInMatch = (match) => {
@@ -361,6 +566,7 @@ const TournamentParticipants = () => {
                       <th className="p-2">Rank</th>
                       <th className="p-2">Player</th>
                       <th className="p-2">Points</th>
+                      <th className="p-2">Total Scores</th>
                       <th className="p-2">Wins</th>
                       <th className="p-2">Draws</th>
                       <th className="p-2">Losses</th>
@@ -373,6 +579,7 @@ const TournamentParticipants = () => {
                         <td className="p-2 font-bold text-[#00ffcc]">#{index + 1}</td>
                         <td className="p-2">{player.username || player.name}</td>
                         <td className="p-2 font-bold text-yellow-400">{player.points}</td>
+                        <td className="p-2 font-bold text-blue-400">{player.totalScores}</td>
                         <td className="p-2 text-green-400">{player.wins}</td>
                         <td className="p-2 text-gray-400">{player.draws}</td>
                         <td className="p-2 text-red-400">{player.losses}</td>
@@ -383,6 +590,51 @@ const TournamentParticipants = () => {
                 </table>
               </div>
             </div>
+
+            {/* Tournament Winner Congratulations and Cash Out Section */}
+            {tournamentCompleted && tournamentWinner && (
+              <div className="mb-8">
+                <div className="bg-[#1a1a2e] rounded-lg p-6 border-2 border-[#00ffcc]">
+                  {tournamentWinner.id === currentUserId ? (
+                    // Current user is the winner
+                    <>
+                      <CongratulationsText type="win" winner={tournamentWinner} />
+                      {canCashOut ? (
+                        <div className="text-center">
+                          <button
+                            onClick={handleCashOut}
+                            className="bg-[#00ffcc] hover:bg-[#00e6b8] text-black font-bold py-3 px-8 rounded-lg transition-all shadow-lg flex items-center justify-center mx-auto"
+                          >
+                            <Trophy size={20} className="mr-2" />
+                            Cash Out Prize ({getTournamentPrize()} Tokens)
+                          </button>
+                        </div>
+                      ) : cashOutCompleted ? (
+                        <div className="text-center">
+                          <div className="text-green-400 font-bold text-lg">
+                            ✅ Prize Already Claimed!
+                          </div>
+                          <p className="text-gray-400 mt-2">
+                            You have successfully cashed out your tournament winnings.
+                          </p>
+                        </div>
+                      ) : null}
+                    </>
+                  ) : (
+                    // Someone else won
+                    <div className="text-center">
+                      <div className="display-4 mb-3">🏆</div>
+                      <h2 className="text-2xl font-bold text-[#00ffcc] mb-2">
+                        Tournament Winner: {tournamentWinner.username || tournamentWinner.name}
+                      </h2>
+                      <p className="text-gray-400">
+                        Congratulations to the champion! Better luck next time.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Matches Table */}
             <div className="mb-8">
