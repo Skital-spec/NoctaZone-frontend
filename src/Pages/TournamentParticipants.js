@@ -474,7 +474,7 @@ const TournamentParticipants = () => {
                                         <button
                                           onClick={() => handleReportResults(match.id)}
                                           className="px-2 py-1 rounded text-sm "
-                                          style={{backgroundColor: '#00ffcc', color: '#fff' }}
+                                          style={{backgroundColor: '#00ffcc', color: '#fff' , border:'none' }}
                                         >
                                           Report Results
                                         </button>
