@@ -203,7 +203,7 @@ const handleConfirmJoin = async () => {
     setConfirmModalOpen(false);
     
     // Show enhanced success message with updated balance
-    alert(`✅ Successfully joined ${result.name || 'tournament'}! ${fee} tokens deducted. New balance: ${newBalance || balance - fee} tokens.`);
+    alert(`✅ Successfully joined ${result.name || 'tournament'}! ${fee} tokens deducted. New balance: ${(newBalance || balance - fee).toFixed(2)} tokens.`);
     
     // Navigate to participants page
     navigate(`/tournament/${id}/participants`);
@@ -265,7 +265,7 @@ const handleConfirmJoin = async () => {
         {/* ✅ Display current balance */}
         <div className="text-center mb-4">
           <p className="text-lg text-[#00ffcc]">
-            Your Balance: <span className="font-bold">{balance} Tokens</span>
+            Your Balance: <span className="font-bold">{balance.toFixed(2)} Tokens</span>
             <button 
               onClick={refreshBalance} 
               style={{ 
@@ -436,7 +436,7 @@ const handleConfirmJoin = async () => {
                 </p>
                 <p className="text-sm text-gray-400 mt-2">Your Balance:</p>
                 <p className="text-lg font-semibold text-red-400">
-                  {balance} Tokens
+                  {balance.toFixed(2)} Tokens
                 </p>
               </div>
             </div>
