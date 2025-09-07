@@ -467,7 +467,9 @@ const TournamentParticipants = () => {
                                   <td className="p-2">
                                     <div className="flex gap-2">
                                       {match.status === "completed" ? (
-                                        <span className="px-3 py-1 bg-green-600 text-white rounded text-sm font-semibold">
+                                        <span className="px-3 py-1 rounded text-sm font-semibold" style={{
+                                          color:'#00ffcc', fontWeight:'bold' 
+                                        }}>
                                           COMPLETED
                                         </span>
                                       ) : isUserParticipatingInMatch(match) ? (
