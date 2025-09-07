@@ -459,14 +459,18 @@ const TournamentParticipants = () => {
                                 </div>
                                 
                                 <div className="ml-4">
-                                  {isUserParticipatingInMatch(match) && (
+                                  {match.status === "completed" ? (
+                                    <span className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold">
+                                      COMPLETED
+                                    </span>
+                                  ) : isUserParticipatingInMatch(match) ? (
                                     <button
                                       onClick={() => handleReportResults(match.id)}
                                       className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
                                     >
                                       Report Results
                                     </button>
-                                  )}
+                                  ) : null}
                                   {isAdmin && (
                                     <button
                                       onClick={() => {
