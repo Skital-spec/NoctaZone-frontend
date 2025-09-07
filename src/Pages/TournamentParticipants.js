@@ -473,7 +473,8 @@ const TournamentParticipants = () => {
                                       ) : isUserParticipatingInMatch(match) ? (
                                         <button
                                           onClick={() => handleReportResults(match.id)}
-                                          className="px-2 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                                          className="px-2 py-1 rounded text-sm "
+                                          style={{backgroundColor: '#00ffcc', color: '#fff' }}
                                         >
                                           Report Results
                                         </button>
