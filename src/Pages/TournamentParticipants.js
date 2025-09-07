@@ -30,34 +30,57 @@ const TournamentParticipants = () => {
     getCurrentUser();
   }, []);
 
+  // Function to ensure matches are created in database
+  const ensureMatchesInDatabase = async () => {
+    try {
+      console.log("🔄 Ensuring matches are created in database...");
+      // Force the backend to generate and save matches if they don't exist
+      const response = await fetch(`https://safcom-payment.onrender.com/api/tournaments/${id}/matches`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log("✅ Matches ensured in database:", data.matches);
+      return data.matches || [];
+    } catch (err) {
+      console.error("❌ Failed to ensure matches in database:", err);
+      return [];
+    }
+  };
+
   useEffect(() => {
     // Fetch participants and matches from your backend API
     const fetchTournamentData = async () => {
       setLoading(true);
       setError(null);
       try {
-        const [participantsRes, matchesRes] = await Promise.all([
+        const [participantsRes] = await Promise.all([
           fetch(`https://safcom-payment.onrender.com/api/tournaments/${id}/participants`, {
-            credentials: "include",
-          }),
-          fetch(`https://safcom-payment.onrender.com/api/tournaments/${id}/matches`, {
             credentials: "include",
           })
         ]);
 
-        if (!participantsRes.ok || !matchesRes.ok) {
+        if (!participantsRes.ok) {
           throw new Error("Failed to fetch tournament data");
         }
 
         const participantsData = await participantsRes.json();
-        const matchesData = await matchesRes.json();
-        
-        // Add console logs here
         console.log("Fetched participants:", participantsData);
-        console.log("Fetched matches:", matchesData);
-
         setParticipants(participantsData.participants || []);
-        setMatches(matchesData.matches || []);
+        
+        // After participants are loaded, ensure matches are created in database
+        if (participantsData.participants && participantsData.participants.length >= 2) {
+          const databaseMatches = await ensureMatchesInDatabase();
+          setMatches(databaseMatches);
+          console.log("Database matches set:", databaseMatches);
+        } else {
+          console.log("Not enough participants for matches yet");
+          setMatches([]);
+        }
         
         // Check if user is admin
         await checkUserAdminStatus();
@@ -199,7 +222,16 @@ const TournamentParticipants = () => {
   }, [participants, matches]);
 
   const handleReportResults = (matchId) => {
-    navigate(`/tournament/${id}/report-match/${matchId}`);
+    // Check if this is a database match or generated match
+    if (matches.length > 0) {
+      // Database match - proceed normally
+      navigate(`/tournament/${id}/report-match/${matchId}`);
+    } else {
+      // Generated match - show message that matches need to be created in database
+      alert("Matches are being generated in the database. Please refresh the page in a moment.");
+      // Trigger a refresh of tournament data
+      window.location.reload();
+    }
   };
 
   
@@ -244,29 +276,24 @@ const TournamentParticipants = () => {
   const currentRoundMatches = matches.filter(match => match.round === currentRound);
   const availableRounds = [...new Set(matches.map(match => match.round))].sort((a, b) => a - b);
 
-  // Determine which matches to use - prefer generated matches if they have more rounds
-  const generatedRounds = [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
-  const apiRounds = availableRounds;
+  // Always prioritize database matches over generated ones
+  // Only use generated matches for display if no database matches exist
+  const displayMatches = matches.length > 0 ? currentRoundMatches : 
+    generateMatches.filter(match => match.round === currentRound);
+  const displayAvailableRounds = matches.length > 0 ? availableRounds : 
+    [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
   
-  // Use generated matches if they provide more comprehensive tournament structure
-  const shouldUseGeneratedMatches = generatedRounds.length > apiRounds.length || matches.length === 0;
-  
-  const displayMatches = shouldUseGeneratedMatches ? 
-    generateMatches.filter(match => match.round === currentRound) : 
-    currentRoundMatches;
-  const displayAvailableRounds = shouldUseGeneratedMatches ? generatedRounds : apiRounds;
-  
-  console.log("Should use generated matches:", shouldUseGeneratedMatches);
-  console.log("Generated rounds count:", generatedRounds.length, "API rounds count:", apiRounds.length);
+  console.log("Using database matches:", matches.length > 0);
+  console.log("Database matches count:", matches.length);
+  console.log("Generated matches count:", generateMatches.length);
+  console.log("Display matches count:", displayMatches.length);
+  console.log("Available rounds:", displayAvailableRounds);
 
   // Set currentRound to first available round when matches/participants change
   useEffect(() => {
-    const generatedRounds = [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
-    const apiRounds = [...new Set(matches.map(match => match.round))].sort((a, b) => a - b);
-    
-    // Use generated matches if they provide more comprehensive tournament structure
-    const shouldUseGeneratedMatches = generatedRounds.length > apiRounds.length || matches.length === 0;
-    const rounds = shouldUseGeneratedMatches ? generatedRounds : apiRounds;
+    const rounds = matches.length > 0 ? 
+      [...new Set(matches.map(match => match.round))].sort((a, b) => a - b) :
+      [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
     
     if (rounds.length > 0 && !rounds.includes(currentRound)) {
       setCurrentRound(rounds[0]);
@@ -274,14 +301,17 @@ const TournamentParticipants = () => {
   }, [matches, generateMatches, currentRound]);
 
   // Add a log before rendering matches
-  console.log("Rendering matches:", matches);
-  console.log("Generated matches:", generateMatches);
-  console.log("Should use generated matches:", shouldUseGeneratedMatches);
-  console.log("Generated rounds count:", generatedRounds.length, "API rounds count:", apiRounds.length);
-  console.log("Display matches:", displayMatches);
+  console.log("=== TOURNAMENT PARTICIPANTS DEBUG ===");
+  console.log("Database matches:", matches);
+  console.log("Generated matches (fallback):", generateMatches);
+  console.log("Using database matches:", matches.length > 0);
+  console.log("Database matches count:", matches.length);
+  console.log("Generated matches count:", generateMatches.length);
+  console.log("Display matches count:", displayMatches.length);
   console.log("Available rounds:", displayAvailableRounds);
   console.log("Current round:", currentRound);
   console.log("Current user ID:", currentUserId);
+  console.log("=======================================");
 
   return (
     <MainLayout>
