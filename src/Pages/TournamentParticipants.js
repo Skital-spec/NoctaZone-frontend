@@ -277,16 +277,23 @@ const TournamentParticipants = () => {
   const availableRounds = [...new Set(matches.map(match => match.round))].sort((a, b) => a - b);
 
   // Always prioritize database matches over generated ones
-  // Only use generated matches for display if no database matches exist
-  const displayMatches = matches.length > 0 ? currentRoundMatches : 
-    generateMatches.filter(match => match.round === currentRound);
+  // Display ALL matches regardless of round, sorted by round then match number
+  const displayMatches = matches.length > 0 ? 
+    [...matches].sort((a, b) => {
+      if (a.round !== b.round) return a.round - b.round;
+      return (a.matchNumber || 0) - (b.matchNumber || 0);
+    }) : 
+    [...generateMatches].sort((a, b) => {
+      if (a.round !== b.round) return a.round - b.round;
+      return (a.matchNumber || 0) - (b.matchNumber || 0);
+    });
   const displayAvailableRounds = matches.length > 0 ? availableRounds : 
     [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
   
   console.log("Using database matches:", matches.length > 0);
   console.log("Database matches count:", matches.length);
   console.log("Generated matches count:", generateMatches.length);
-  console.log("Display matches count:", displayMatches.length);
+  console.log("Display matches count (ALL ROUNDS):", displayMatches.length);
   console.log("Available rounds:", displayAvailableRounds);
 
   // Set currentRound to first available round when matches/participants change
@@ -389,12 +396,13 @@ const TournamentParticipants = () => {
             {/* Matches Table */}
             <div className="mb-8">
               <h2 className="text-2xl font-bold mb-4 text-[#00ffcc]">
-                Round {currentRound} Matches
+                All Tournament Matches
               </h2>
               <div className="bg-[#1a1a2e] rounded-lg overflow-hidden overflow-x-auto">
-                <table className="w-full text-left min-w-[900px]">
+                <table className="w-full text-left min-w-[1000px]">
   <thead className="bg-[#1f1f2e] text-[#00ffcc]">
     <tr>
+      <th className="p-2">Round</th>
       <th className="p-2">Match No.</th>
       <th className="p-2">Player 1</th>
       <th className="p-2">Score</th>
@@ -407,8 +415,8 @@ const TournamentParticipants = () => {
   <tbody>
     {displayMatches.length === 0 ? (
       <tr>
-        <td colSpan={7} className="p-2 text-center text-gray-400">
-          No matches for this round
+        <td colSpan={8} className="p-2 text-center text-gray-400">
+          No matches available
         </td>
       </tr>
     ) : (
@@ -417,6 +425,7 @@ const TournamentParticipants = () => {
           key={match.id}
           className="border-t border-[#2a2a3e] hover:bg-[#2a2a3e] transition-colors"
         >
+          <td className="p-2 font-bold text-[#00ffcc]">Round {match.round}</td>
           <td className="p-2 font-bold">Match {match.matchNumber}</td>
           <td className="p-2">{match.player1?.username || match.player1?.name}</td>
           <td className="p-2 text-center">
