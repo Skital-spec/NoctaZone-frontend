@@ -674,8 +674,8 @@ const ChallengeDetails = () => {
     
     // Win amount: exactly what the database expects (totalStake * 0.85)
     const winAmount = totalStake * 0.85; // Keep as float, don't floor yet
-    const drawAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
-    const refundAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
+    const drawAmount = Math.floor(entryFee * 90); // 4% less than individual stake
+    const refundAmount = Math.floor(entryFee * 0.98); // 2% less than individual stake
     
     console.log('💰 Cash out amounts calculated:', {
       entryFee,
