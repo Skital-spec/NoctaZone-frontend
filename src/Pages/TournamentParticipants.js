@@ -244,17 +244,29 @@ const TournamentParticipants = () => {
   const currentRoundMatches = matches.filter(match => match.round === currentRound);
   const availableRounds = [...new Set(matches.map(match => match.round))].sort((a, b) => a - b);
 
-  // If no matches from API, use generated matches from participants
-  const displayMatches = matches.length > 0 ? currentRoundMatches : 
-    generateMatches.filter(match => match.round === currentRound);
-  const displayAvailableRounds = matches.length > 0 ? availableRounds : 
-    [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
+  // Determine which matches to use - prefer generated matches if they have more rounds
+  const generatedRounds = [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
+  const apiRounds = availableRounds;
+  
+  // Use generated matches if they provide more comprehensive tournament structure
+  const shouldUseGeneratedMatches = generatedRounds.length > apiRounds.length || matches.length === 0;
+  
+  const displayMatches = shouldUseGeneratedMatches ? 
+    generateMatches.filter(match => match.round === currentRound) : 
+    currentRoundMatches;
+  const displayAvailableRounds = shouldUseGeneratedMatches ? generatedRounds : apiRounds;
+  
+  console.log("Should use generated matches:", shouldUseGeneratedMatches);
+  console.log("Generated rounds count:", generatedRounds.length, "API rounds count:", apiRounds.length);
 
   // Set currentRound to first available round when matches/participants change
   useEffect(() => {
-    const rounds = matches.length > 0 ? 
-      [...new Set(matches.map(match => match.round))].sort((a, b) => a - b) :
-      [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
+    const generatedRounds = [...new Set(generateMatches.map(match => match.round))].sort((a, b) => a - b);
+    const apiRounds = [...new Set(matches.map(match => match.round))].sort((a, b) => a - b);
+    
+    // Use generated matches if they provide more comprehensive tournament structure
+    const shouldUseGeneratedMatches = generatedRounds.length > apiRounds.length || matches.length === 0;
+    const rounds = shouldUseGeneratedMatches ? generatedRounds : apiRounds;
     
     if (rounds.length > 0 && !rounds.includes(currentRound)) {
       setCurrentRound(rounds[0]);
@@ -264,9 +276,11 @@ const TournamentParticipants = () => {
   // Add a log before rendering matches
   console.log("Rendering matches:", matches);
   console.log("Generated matches:", generateMatches);
+  console.log("Should use generated matches:", shouldUseGeneratedMatches);
+  console.log("Generated rounds count:", generatedRounds.length, "API rounds count:", apiRounds.length);
   console.log("Display matches:", displayMatches);
-  console.log("Current round matches:", displayMatches);
   console.log("Available rounds:", displayAvailableRounds);
+  console.log("Current round:", currentRound);
   console.log("Current user ID:", currentUserId);
 
   return (
