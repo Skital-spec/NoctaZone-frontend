@@ -76,64 +76,15 @@ const HowItWorks = () => {
       ),
     },
     {
-      id: "team-matches",
-      title: "Team Matches",
-      content: (
-        <>
-          Join forces with teammates for squad-based battles. Whether it’s 2v2,
-          3v3, or 5v5, strategy and coordination are the keys to victory.
-          <br />
-          <br />
-          <strong>Steps:</strong>
-          <br />• Create or join a team.
-          <br />• Challenge another team or enter a team event.
-          <br />• Share lobby/match codes with your teammates and opponents.
-          <br />• Play fairly and report results together.
-        </>
-      ),
-    },
-    {
-      id: "1-day-tournaments",
-      title: "1-Day Tournaments",
-      content: (
-        <>
-          Short, high-intensity competitions designed to be finished in just one
-          day. Perfect for gamers who want action without long waiting times.
-          <br />
-          <br />
-          <strong>Format:</strong>
-          <br />• All matches are played within the same day.
-          <br />• Brackets move quickly, round by round.
-          <br />• At the end of the day, one champion emerges.
-        </>
-      ),
-    },
-    {
       id: "leaderboard",
       title: "Leaderboard",
       content: (
         <>
           Track your performance across all matches and tournaments. The
           leaderboard shows:
-          <br />• Wins, losses, and streaks.
-          <br />• Rankings by game mode.
           <br />• Top players in the NoctaZone community.
           <br />
           Climb higher to prove yourself among the best.
-        </>
-      ),
-    },
-    {
-      id: "1-day-explanation",
-      title: "1-Day Tournaments: How They Work",
-      content: (
-        <>
-          Players join at the start of the day, and matches run back-to-back in
-          quick rounds. By the end of the day, the last player standing is
-          declared the champion. This format is:
-          <br />• Fast – no dragging over multiple days.
-          <br />• Fair – all players start fresh together.
-          <br />• Thrilling – constant action until the finale.
         </>
       ),
     },
