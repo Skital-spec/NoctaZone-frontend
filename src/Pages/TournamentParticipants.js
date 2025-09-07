@@ -538,10 +538,6 @@ const TournamentParticipants = () => {
                   <span className="text-gray-400">Total Rounds:</span>
                   <span className="ml-2 font-bold">{displayAvailableRounds.length}</span>
                 </div>
-                <div>
-                  <span className="text-gray-400">Current Round:</span>
-                  <span className="ml-2 font-bold">{currentRound}</span>
-                </div>
               </div>
             </div>
           </>
