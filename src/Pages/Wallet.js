@@ -3,10 +3,12 @@ import MainLayout from "../Components/MainLayout";
 import PaystackPop from "@paystack/inline-js";
 import { createClient } from "@supabase/supabase-js";
 import { config } from "../config";
+import { useNavigate } from "react-router-dom";
 
 const supabase = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
 
 const WalletPage = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("wallet");
   const [balance, setBalance] = useState(0);
   const [amount, setAmount] = useState("");
@@ -19,6 +21,7 @@ const WalletPage = () => {
   const [mode, setMode] = useState(""); // "deposit" | "withdraw"
   const [phone, setPhone] = useState("");
   const [phone2, setPhone2] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [transactions, setTransactions] = useState([]);
   const [transactionLoading, setTransactionLoading] = useState(false);
@@ -37,18 +40,20 @@ const WalletPage = () => {
         try {
           const { data, error } = await supabase
             .from("profiles")
-            .select("email")
+            .select("email, role")
             .eq("id", user.id)
             .maybeSingle(); // Use maybeSingle() to handle no results gracefully
 
           if (data && !error) {
             setUserEmail(data.email);
+            setIsAdmin(data.role === "admin");
           } else {
             console.warn("Profile email fetch error:", error);
             // Fallback to user.email if profile fetch fails
             if (user.email) {
               setUserEmail(user.email);
             }
+            setIsAdmin(false);
           }
         } catch (profileErr) {
           console.error("Profile fetch failed completely:", profileErr);
@@ -56,6 +61,7 @@ const WalletPage = () => {
           if (user.email) {
             setUserEmail(user.email);
           }
+          setIsAdmin(false);
         }
 
         fetchBalance(user.id);
@@ -419,7 +425,36 @@ const WalletPage = () => {
         <div className="wallet-container">
           {activeTab === "wallet" && (
             <>
-              <h2 className="wallet-title">My Wallet</h2>
+              <h2 className="wallet-title" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>My Wallet
+                {isAdmin && (
+                  <button
+                    onClick={() => navigate("/withdrawalrequests")}
+                    style={{
+                      background: '#ffc107',
+                      color: '#000',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 2px 4px rgba(255, 193, 7, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = '#e0a800';
+                      e.target.style.transform = 'translateY(-1px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = '#ffc107';
+                      e.target.style.transform = 'translateY(0)';
+                    }}
+                    title="Admin: View withdrawal requests"
+                  >
+                    💰 Withdrawals
+                  </button>
+                )}
+              </h2>
               <p className="wallet-balance">
                 Balance: <span>{parseFloat(balance || 0).toFixed(2)} Tokens</span>
                 <button onClick={refreshBalance} style={{ marginLeft: '10px', padding: '5px 10px', fontSize: '12px', background: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
