@@ -12,9 +12,21 @@ const OnlineUsersModal = ({ show, onClose }) => {
   // Get current user ID
   useEffect(() => {
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
-        setCurrentUserId(user.id);
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.error('Session error:', sessionError);
+          return;
+        }
+        
+        if (session?.user?.id) {
+          console.log('👤 Current user ID:', session.user.id);
+          setCurrentUserId(session.user.id);
+        } else {
+          console.log('⚠️ No active session found');
+        }
+      } catch (error) {
+        console.error('Error getting current user:', error);
       }
     };
     getCurrentUser();
@@ -64,6 +76,8 @@ const OnlineUsersModal = ({ show, onClose }) => {
     setError(null);
 
     try {
+      console.log('🔍 Fetching users and presence data...');
+      
       // Get all profiles
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -71,9 +85,12 @@ const OnlineUsersModal = ({ show, onClose }) => {
         .order('username', { ascending: true });
 
       if (profilesError) throw profilesError;
+      console.log('👥 Profiles data:', profilesData);
 
       // Get presence data for all users
       const userIds = profilesData.map(profile => profile.id);
+      console.log('🔍 Fetching presence for user IDs:', userIds);
+      
       const { data: presenceData, error: presenceError } = await supabase
         .from('user_presence')
         .select('*')
@@ -83,19 +100,28 @@ const OnlineUsersModal = ({ show, onClose }) => {
         console.error('Error fetching presence:', presenceError);
         // Continue without presence data
       }
+      
+      console.log('🟢 Raw presence data from DB:', presenceData);
 
       // Create presence map
       const presenceMap = {};
       if (presenceData) {
         presenceData.forEach(presence => {
+          console.log(`👤 Processing presence for user ${presence.user_id}:`, {
+            is_online: presence.is_online,
+            last_seen: presence.last_seen,
+            last_seen_type: typeof presence.last_seen
+          });
           presenceMap[presence.user_id] = presence;
         });
       }
+      
+      console.log('🗺️ Presence map:', presenceMap);
 
       // Combine profiles with presence data
       const usersWithPresence = profilesData.map(profile => {
         const presence = presenceMap[profile.id];
-        return {
+        const result = {
           ...profile,
           presence: presence ? {
             is_online: Boolean(presence.is_online),
@@ -105,6 +131,14 @@ const OnlineUsersModal = ({ show, onClose }) => {
             last_seen: null
           }
         };
+        
+        console.log(`🔄 Combined data for ${profile.username}:`, {
+          id: profile.id,
+          username: profile.username,
+          presence: result.presence
+        });
+        
+        return result;
       });
 
       // Sort: online users first, then by username
@@ -118,6 +152,7 @@ const OnlineUsersModal = ({ show, onClose }) => {
         return usernameA.localeCompare(usernameB);
       });
 
+      console.log('✅ Final users with presence:', usersWithPresence);
       setUsers(usersWithPresence);
     } catch (err) {
       console.error('Error fetching users:', err);
@@ -172,15 +207,31 @@ const OnlineUsersModal = ({ show, onClose }) => {
     // If user is currently online, don't show last seen
     if (isOnline) return null;
     
-    if (!lastSeen) return 'Never seen';
+    console.log('⏰ Processing last seen:', { lastSeen, type: typeof lastSeen, isOnline });
+    
+    if (!lastSeen) {
+      console.log('❌ No last seen timestamp');
+      return 'Never seen';
+    }
     
     const now = new Date();
     const lastSeenDate = new Date(lastSeen);
     
+    console.log('📅 Date processing:', {
+      now: now.toISOString(),
+      lastSeen: lastSeen,
+      lastSeenDate: lastSeenDate.toISOString(),
+      isValid: !isNaN(lastSeenDate.getTime())
+    });
+    
     // Check if the date is valid
-    if (isNaN(lastSeenDate.getTime())) return 'Never seen';
+    if (isNaN(lastSeenDate.getTime())) {
+      console.log('❌ Invalid date');
+      return 'Never seen';
+    }
     
     const diffMinutes = Math.floor((now - lastSeenDate) / (1000 * 60));
+    console.log('⏱️ Time difference:', { diffMinutes });
     
     if (diffMinutes < 1) return 'Just now';
     if (diffMinutes < 60) return `${diffMinutes}m ago`;
