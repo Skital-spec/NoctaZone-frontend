@@ -507,8 +507,8 @@ const TournamentParticipants = () => {
                                               );
                                             }
                                           }}
-                                          className="px-2 py-1 bg-orange-600 text-white rounded text-xs ml-2 hover:bg-orange-700 transition-colors"
-                                        >
+                                          className="px-2 py-1 rounded text-xs ml-2 "
+                                         style={{color: '#46923c' , border:'none'}}>
                                           Admin Edit
                                         </button>
                                       )}
