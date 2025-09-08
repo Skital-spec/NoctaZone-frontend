@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react'
-import { config } from '../config'
+import React, { useEffect, useState } from 'react';
+import { config } from '../config';
+import ErrorModal from '../Components/ErrorModal';
 
 function Withdrawalrequests() {
-  const [loading, setLoading] = useState(false)
-  const [requests, setRequests] = useState([])
-  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false);
+  const [requests, setRequests] = useState([]);
+  const [error, setError] = useState('');
+  const [payingRequestId, setPayingRequestId] = useState(null);
 
   const fetchRequests = async () => {
     setLoading(true)
@@ -48,15 +50,47 @@ function Withdrawalrequests() {
 
   useEffect(() => {
     fetchRequests()
-  }, [])
+  }, []);
+
+  const handlePay = async (requestId, amount, username) => {
+    if (!window.confirm(`Are you sure you want to pay KES ${amount} to ${username}?`)) {
+      return;
+    }
+
+    setPayingRequestId(requestId);
+    setError('');
+
+    try {
+      const apiUrl = `${config.API_BASE_URL}/api/admin/withdrawal-requests/${requestId}/pay`;
+      const res = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to process payment');
+      }
+
+      // Refresh the list to show the updated status
+      fetchRequests();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPayingRequestId(null);
+    }
+  };
 
   return (
     <div style={{ padding: 20 }}>
+      <ErrorModal message={error} onClose={() => setError('')} />
       <h2>Withdrawal Requests</h2>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 10 }}>
         <button onClick={fetchRequests} disabled={loading}>Refresh</button>
         {loading && <span>Loading...</span>}
-        {error && <div style={{ color: 'red', marginTop: 10 }}>Error: {error}</div>}
       </div>
 
       {!loading && !error && requests.length === 0 ? (
@@ -83,6 +117,24 @@ function Withdrawalrequests() {
                 color: r.status === 'pending' ? 'orange' : r.status === 'completed' ? 'green' : 'red',
                 fontWeight: 'bold'
               }}>{r.status.toUpperCase()}</span></div>
+              {r.status === 'pending' && (
+                <div style={{ marginTop: 10 }}>
+                  <button 
+                    onClick={() => handlePay(r.id, r.amount, r.username)} 
+                    disabled={payingRequestId === r.id}
+                    style={{ 
+                      backgroundColor: '#28a745', 
+                      color: 'white', 
+                      padding: '8px 12px', 
+                      border: 'none', 
+                      borderRadius: '4px', 
+                      cursor: 'pointer' 
+                    }}
+                  >
+                    {payingRequestId === r.id ? 'Processing...' : 'Pay'}
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
