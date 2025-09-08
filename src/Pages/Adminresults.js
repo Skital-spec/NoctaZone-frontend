@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import MainLayout from "../Components/MainLayout";
 import { supabase } from "../supabaseClient";
 
 const PAGE_SIZE = 20;
 
 const Adminresults = () => {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -204,7 +202,6 @@ const Adminresults = () => {
                         <th className="p-3">Evidence</th>
                         <th className="p-3">Status</th>
                         <th className="p-3">Submitted</th>
-                        <th className="p-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -240,15 +237,6 @@ const Adminresults = () => {
                           </td>
                           <td className="p-3 text-sm">{statusBadge(s.match?.status)}</td>
                           <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>{new Date(s.created_at).toLocaleString()}</td>
-                          <td className="p-3 text-sm">
-                            <button
-                              onClick={() => navigate(`/tournament/${s.match?.tournament_id}/report-match/${s.match?.id}`)}
-                              className="px-3 py-1 rounded text-xs font-bold transition-colors hover:opacity-80"
-                              style={{ backgroundColor: "#00ffcc", color: "#1a1a2e" }}
-                            >
-                              Edit
-                            </button>
-                          </td>
                         </tr>
                       ))}
                     </tbody>

@@ -734,35 +734,13 @@ const TournamentParticipants = () => {
                                         </button>
                                       ) : null}
                                       {isAdmin && (
-                                        <button
-                                          onClick={() => {
-                                            const p1Points = prompt(
-                                              `Player 1 (${match.player1?.username}) Points:`,
-                                              match.player1Points
-                                            );
-                                            const p2Points = prompt(
-                                              `Player 2 (${match.player2?.username}) Points:`,
-                                              match.player2Points
-                                            );
-                                            if (p1Points !== null && p2Points !== null) {
-                                              const winner =
-                                                p1Points > p2Points
-                                                  ? match.player1?.id
-                                                  : p2Points > p1Points
-                                                  ? match.player2?.id
-                                                  : "draw";
-                                              handleUpdateMatch(
-                                                match.id,
-                                                parseInt(p1Points),
-                                                parseInt(p2Points),
-                                                winner
-                                              );
-                                            }
-                                          }}
-                                          className="px-2 py-1 rounded text-xs ml-2 "
-                                         style={{color: '#46923c' , border:'none'}}>
-                                          Admin Edit
-                                        </button>
+                                        <Link to={`/report-results/${match.id}`}>
+                                          <button
+                                            className="px-2 py-1 rounded text-xs ml-2 "
+                                           style={{color: '#46923c' , border:'none'}}>
+                                            Admin Edit
+                                          </button>
+                                        </Link>
                                       )}
                                     </div>
                                   </td>
