@@ -856,7 +856,7 @@ const ChallengeDetails = () => {
     switch (status) {
       case "pending":
         return "warning";
-      case "ongoing":
+      case "active":
         return "info";
       case "completed":
         return "success";
@@ -1349,7 +1349,7 @@ const ChallengeDetails = () => {
                           ? "success"
                           : m.status === "disputed"
                           ? "danger"
-                          : m.status === "ongoing"
+                          : m.status === "pending"
                           ? "info"
                           : "secondary";
                       

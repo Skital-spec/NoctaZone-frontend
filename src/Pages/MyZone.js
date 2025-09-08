@@ -92,7 +92,7 @@ const MyZone = () => {
       const { data: allChallenges, error: challengesError } = await supabase
         .from("challenges")
         .select("*")
-        .in("status", ["pending", "ongoing", "active"]);
+        .in("status", ["pending", "active"]);
 
       if (challengesError) {
         console.error("❌ Error fetching challenges:", challengesError);
@@ -117,7 +117,7 @@ const MyZone = () => {
       // Combine both created and joined challenges
       const activeUserChallenges = allChallenges?.filter(challenge => 
         (userChallengeIds.includes(challenge.id) || challenge.creator_id === currentUserId) &&
-        ["pending", "ongoing", "active"].includes(challenge.status)
+        ["pending", "active"].includes(challenge.status)
       ) || [];
 
       // Add participation info
@@ -545,7 +545,7 @@ const handleJoinChallenge = async (challenge) => {
                               <Badge bg={match.participation_type === "created" ? "primary" : "success"} className="me-2">
                                 {match.participation_type === "created" ? "Created" : "Joined"}
                               </Badge>
-                              <Badge bg={match.status === "ongoing" ? "warning" : match.status === "active" ? "info" : "secondary"}>
+                              <Badge bg={match.status === "pending" ? "warning" : match.status === "active" ? "info" : "secondary"}>
                                 {match.status?.toUpperCase()}
                               </Badge>
                             </div>

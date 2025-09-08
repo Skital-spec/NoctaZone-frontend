@@ -197,7 +197,7 @@ useEffect(() => {
   // Helper to choose status color
   const statusColor = (status) => {
     if (!status) return "#6c757d";
-    if (status === "ongoing") return "#28a745";
+    if (status === "active") return "#28a745";
     if (status === "upcoming") return "#ffc107";
     if (status === "completed") return "#6c757d";
     return "#6c757d";
@@ -223,7 +223,7 @@ const getButtonProps = (tournament) => {
   
   if (hasJoined) {
     // Different text based on tournament status
-    if (tournament.status === "ongoing") {
+    if (tournament.status === "active") {
       return {
         text: "View Live",
         onClick: () => navigate(`/tournament/${tournament.id}/participants`),
