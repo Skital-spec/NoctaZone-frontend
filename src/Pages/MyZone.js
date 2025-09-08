@@ -153,26 +153,41 @@ const MyZone = () => {
     setError(null);
     
     try {
+      console.log("🔍 MyZone: Starting fetchPublicChallenges for user:", currentUserId);
+      
       // Use backend API to fetch public challenges
-      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public?user_id=${currentUserId}`);
+      const url = `https://safcom-payment.onrender.com/api/challenges/public?user_id=${currentUserId}`;
+      console.log("🌐 MyZone: Fetching from URL:", url);
+      
+      const response = await fetch(url);
+      console.log("📡 MyZone: Response status:", response.status, response.statusText);
+      
       const result = await response.json();
+      console.log("📦 MyZone: API Response:", result);
 
       if (!response.ok) {
-        console.error("Error fetching challenges:", result.error);
+        console.error("❌ MyZone: Error fetching challenges:", result.error);
         setError(result.error || "Failed to load challenges. Please try again.");
         return;
       }
 
+      console.log("✅ MyZone: Response OK, checking challenges...");
+      console.log("🎯 MyZone: result.challenges exists:", !!result.challenges);
+      console.log("📊 MyZone: result.challenges length:", result.challenges?.length || 0);
+      
       if (result.challenges) {
+        console.log("🎮 MyZone: Setting public challenges:", result.challenges);
         setPublicChallenges(result.challenges);
       } else {
+        console.log("⚠️ MyZone: No challenges found, setting empty array");
         setPublicChallenges([]);
       }
     } catch (err) {
-      console.error("Error in fetchPublicChallenges:", err);
+      console.error("🔥 MyZone: Error in fetchPublicChallenges:", err);
       setError("Failed to load challenges.");
     } finally {
       setChallengesLoading(false);
+      console.log("🏁 MyZone: fetchPublicChallenges completed");
     }
   };
 
@@ -181,8 +196,12 @@ const filteredChallenges = publicChallenges.filter((challenge) => {
   const createdAt = new Date(challenge.created_at);
   const now = new Date();
   const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
+  console.log(`⏰ MyZone: Challenge ${challenge.id} - Created: ${createdAt}, Hours old: ${hoursDiff.toFixed(1)}, Within 72h: ${hoursDiff <= 72}`);
   return hoursDiff <= 72;
 });
+
+console.log("🔍 MyZone: Total public challenges:", publicChallenges.length);
+console.log("📅 MyZone: Filtered challenges (within 72h):", filteredChallenges.length);
 
   const fetchMatchHistory = async () => {
     setHistoryLoading(true);
