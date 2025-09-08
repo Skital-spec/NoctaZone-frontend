@@ -153,9 +153,12 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
         console.log("🔍 Public challenges API response:", result);
     
         if (result.success && result.data) {
-          // Filter challenges to only show those with space for participants (less than total_participants)
+          // Filter challenges to only show those with space for participants
+          // and exclude challenges created by the current user
           const availableChallenges = result.data.filter(challenge => 
-            challenge.participants < challenge.total_participants && challenge.status === "pending"
+            challenge.creator_id !== currentUserId &&
+            (!challenge.player1_id || !challenge.player2_id) &&
+            challenge.status === "pending"
           );
           
           // Check if current user has already joined any challenges
