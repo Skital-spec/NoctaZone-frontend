@@ -55,52 +55,45 @@ const MyZone = () => {
     }
   }, [currentUserId, activeTab]);
 
-  // Fetch active user challenges
+  // Fetch user challenges for "My Challenges" tab
   const fetchActiveMatches = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      // Fetch both active challenges and user created challenges in parallel
-      const [activeChallengesResponse, createdChallengesResponse] = await Promise.all([
-        fetch(`https://safcom-payment.onrender.com/api/challenges/user/${currentUserId}`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          credentials: "include"
-        }),
-        fetch(`https://safcom-payment.onrender.com/api/challenges/my-created?user_id=${currentUserId}`, {
-          method: "GET",
-          headers: { 
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-          },
-          credentials: "include"
-        })
-      ]);
+      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/user/${currentUserId}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include"
+      });
 
-      if (!activeChallengesResponse.ok) {
-        throw new Error(`HTTP error! status: ${activeChallengesResponse.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const activeResult = await activeChallengesResponse.json();
-      console.log("Active challenges response:", activeResult);
+      const result = await response.json();
+      console.log("User challenges response:", result);
 
-      let activeChallenges = [];
-      if (activeResult.success && activeResult.data) {
-        activeChallenges = activeResult.data;
+      // Filter challenges that are not yet completed where user is a participant
+      let filteredChallenges = [];
+      if (result.success && result.data) {
+        filteredChallenges = result.data.filter(challenge => 
+          challenge.status !== "completed" && challenge.status !== "expired" &&
+          (challenge.creator_id === currentUserId || 
+           challenge.player1_id === currentUserId || 
+           challenge.player2_id === currentUserId)
+        );
       } else {
-        console.log("No active challenges found or API returned unsuccessful response");
+        console.log("No user challenges found or API returned unsuccessful response");
       }
 
-      // Combine active challenges with created challenges
-      const allActiveMatches = [...activeChallenges, ...myCreatedChallenges];
-      setActiveMatches(allActiveMatches);
+      setActiveMatches(filteredChallenges);
       
     } catch (err) {
       console.error("Error in fetchActiveMatches:", err);
-      setError(`Failed to load active matches: ${err.message}`);
+      setError(`Failed to load my challenges: ${err.message}`);
       setActiveMatches([]);
     } finally {
       setLoading(false);
@@ -140,7 +133,7 @@ const MyZone = () => {
     }
   };
 
-  // Fetch public challenges
+  // Fetch public challenges with only one participant
   const fetchPublicChallenges = async () => {
     setPublicLoading(true);
     setError(null);
@@ -154,8 +147,7 @@ const MyZone = () => {
   
       console.log("🔍 Fetching public challenges for user:", currentUserId);
       
-      // Add user_id as query parameter to filter out user's own challenges
-      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public?user_id=${currentUserId}`, {
+      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public`, {
         method: "GET",
         headers: { 
           "Content-Type": "application/json",
@@ -173,8 +165,11 @@ const MyZone = () => {
   
       if (result.success && result.data) {
         // Filter challenges to only show those with exactly 1 participant (creator only)
+        // and exclude challenges created by the current user
         const availableChallenges = result.data.filter(challenge => 
-          challenge.participants === 1 && challenge.status === "pending"
+          challenge.creator_id !== currentUserId &&
+          (!challenge.player1_id || !challenge.player2_id) &&
+          challenge.status === "pending"
         );
         
         console.log(`🔍 Filtered ${availableChallenges.length} available challenges from ${result.data.length} total`);
@@ -192,7 +187,7 @@ const MyZone = () => {
     }
   };
 
-  // Fetch match history
+  // Fetch completed challenges where user participated
   const fetchMatchHistory = async () => {
     setHistoryLoading(true);
     setError(null);
@@ -204,7 +199,7 @@ const MyZone = () => {
         return;
       }
 
-      console.log("🔍 Fetching match history for user:", currentUserId);
+      console.log("🔍 Fetching completed challenges for user:", currentUserId);
       
       const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/history/${currentUserId}`, {
         method: "GET",
@@ -220,24 +215,26 @@ const MyZone = () => {
       }
 
       const result = await response.json();
-      console.log("🔍 Match history API response:", result);
+      console.log("🔍 Completed challenges API response:", result);
 
+      let completedChallenges = [];
       if (result.success && result.data) {
-        setMatchHistory(result.data);
+        completedChallenges = result.data;
       } else {
-        console.log("No match history found or API returned unsuccessful response");
-        setMatchHistory([]);
+        console.log("No completed challenges found or API returned unsuccessful response");
       }
+
+      setMatchHistory(completedChallenges);
       
     } catch (err) {
       console.error("Error in fetchMatchHistory:", err);
-      setError("Failed to load match history");
+      setError("Failed to load completed challenges");
     } finally {
       setHistoryLoading(false);
     }
   };
 
-  // Fetch user tournaments
+  // Fetch tournaments where user is participating
   const fetchUserTournaments = async () => {
     setTournamentsLoading(true);
     setError(null);
@@ -249,7 +246,7 @@ const MyZone = () => {
         return;
       }
 
-      console.log("🔍 Fetching user tournaments for user:", currentUserId);
+      console.log("🔍 Fetching participating tournaments for user:", currentUserId);
       
       const response = await fetch(`https://safcom-payment.onrender.com/api/tournaments/user/${currentUserId}`, {
         method: "GET",
@@ -265,18 +262,20 @@ const MyZone = () => {
       }
 
       const result = await response.json();
-      console.log("🔍 User tournaments API response:", result);
+      console.log("🔍 Participating tournaments API response:", result);
 
+      let participatingTournaments = [];
       if (result.success && result.data) {
-        setUserTournaments(result.data);
+        participatingTournaments = result.data;
       } else {
-        console.log("No tournaments found or API returned unsuccessful response");
-        setUserTournaments([]);
+        console.log("No participating tournaments found or API returned unsuccessful response");
       }
+
+      setUserTournaments(participatingTournaments);
       
     } catch (err) {
       console.error("Error in fetchUserTournaments:", err);
-      setError("Failed to load tournaments");
+      setError("Failed to load participating tournaments");
     } finally {
       setTournamentsLoading(false);
     }
@@ -345,9 +344,8 @@ const MyZone = () => {
     }
 
     const hasActiveMatches = activeMatches.length > 0;
-    const hasCreatedChallenges = myCreatedChallenges.length > 0;
 
-    if (!hasActiveMatches && !hasCreatedChallenges) {
+    if (!hasActiveMatches) {
       return (
         <div className="text-center py-4">
           <p>No active challenges found.</p>
@@ -359,89 +357,48 @@ const MyZone = () => {
     }
 
     return (
-      <div>
-        {/* User's Created Challenges Section */}
-        {hasCreatedChallenges && (
-          <div className="mb-4">
-            <h5 className="mb-3">🎯 Your Created Challenges</h5>
-            <Row>
-              {myCreatedChallenges.map((challenge) => (
-                <Col md={6} lg={4} key={`created-${challenge.id}`} className="mb-3">
-                  <Card className="challenge-card h-100 border-primary">
-                    <Card.Body>
-                      <div className="d-flex align-items-center mb-2">
-                        {challenge.creator_avatar && (
-                          <img 
-                            src={challenge.creator_avatar} 
-                            alt={challenge.creator_username}
-                            className="rounded-circle me-2"
-                            style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                          />
-                        )}
-                        <div>
-                          <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
-                          <small className="text-muted">by {challenge.creator_username}</small>
-                        </div>
-                      </div>
-                      <Card.Text>
-                        <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
-                        <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
-                        <strong>Players:</strong> {challenge.participants}/2<br/>
-                        <strong>Play Time:</strong> {challenge.play_time}<br/>
-                        <strong>Status:</strong> <span className="badge bg-warning">Waiting for opponent</span><br/>
-                        <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
-                      </Card.Text>
-                      <Button 
-                        variant="outline-primary" 
-                        size="sm"
-                        onClick={() => {
-                          console.log('Navigating to challenge details page with ID:', challenge.id);
-                          navigate(`/challenge/${challenge.id}`);
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </div>
-        )}
-
-        {/* Active Matches Section */}
-        {hasActiveMatches && (
-          <div>
-            <h5 className="mb-3">⚡ Active Matches</h5>
-            <Row>
-              {activeMatches.map((challenge) => (
-                <Col md={6} lg={4} key={`active-${challenge.id}`} className="mb-3">
-                  <Card className="challenge-card h-100">
-                    <Card.Body>
-                      <Card.Title>{challenge.game_name}</Card.Title>
-                      <Card.Text>
-                        <strong>Type:</strong> {challenge.challenge_type}<br/>
-                        <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
-                        <strong>Status:</strong> {challenge.status}<br/>
-                        <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
-                      </Card.Text>
-                      <Button 
-                        variant="primary" 
-                        onClick={() => {
-                          console.log('Navigating to challenge details page with ID:', challenge.id);
-                          navigate(`/challenge/${challenge.id}`);
-                        }}
-                      >
-                        View Details
-                      </Button>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          </div>
-        )}
-      </div>
+      <Row>
+        {activeMatches.map((challenge) => (
+          <Col md={6} lg={4} key={`active-${challenge.id}`} className="mb-3">
+            <Card className="challenge-card h-100 border-primary">
+              <Card.Body>
+                <div className="d-flex align-items-center mb-2">
+                  {challenge.creator?.avatar_url && (
+                    <img 
+                      src={challenge.creator.avatar_url} 
+                      alt={challenge.creator.username}
+                      className="rounded-circle me-2"
+                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                    />
+                  )}
+                  <div>
+                    <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
+                    <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
+                  </div>
+                </div>
+                <Card.Text>
+                  <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
+                  <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
+                  <strong>Players:</strong> {challenge.player1_id && challenge.player2_id ? '2/2' : '1/2' }<br/>
+                  <strong>Play Time:</strong> {challenge.play_time}<br/>
+                  <strong>Status:</strong> <span className="badge bg-warning">{challenge.status}</span><br/>
+                  <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
+                </Card.Text>
+                <Button 
+                  variant="outline-primary" 
+                  size="sm"
+                  onClick={() => {
+                    console.log('Navigating to challenge details page with ID:', challenge.id);
+                    navigate(`/challenge/${challenge.id}`);
+                  }}
+                >
+                  View Details
+                </Button>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
+      </Row>
     );
   };
 
@@ -471,18 +428,33 @@ const MyZone = () => {
       <Row>
         {publicChallenges.map((challenge) => (
           <Col md={6} lg={4} key={challenge.id} className="mb-3">
-            <Card className="challenge-card h-100">
+            <Card className="challenge-card h-100 border-primary">
               <Card.Body>
-                <Card.Title>{challenge.game_type}</Card.Title>
+                <div className="d-flex align-items-center mb-2">
+                  {challenge.creator?.avatar_url && (
+                    <img 
+                      src={challenge.creator.avatar_url} 
+                      alt={challenge.creator.username}
+                      className="rounded-circle me-2"
+                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                    />
+                  )}
+                  <div>
+                    <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
+                    <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
+                  </div>
+                </div>
                 <Card.Text>
                   <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
                   <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
-                  <strong>Creator:</strong> {challenge.creator_username}<br/>
-                  <strong>Participants:</strong> {challenge.participants}/2<br/>
+                  <strong>Players:</strong> 1/2<br/>
+                  <strong>Play Time:</strong> {challenge.play_time}<br/>
+                  <strong>Status:</strong> <span className="badge bg-warning">Waiting for opponent</span><br/>
                   <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
                 </Card.Text>
                 <Button 
-                  variant="success" 
+                  variant="outline-primary" 
+                  size="sm"
                   onClick={() => {
                     setSelectedChallenge(challenge);
                     setShowJoinModal(true);
@@ -512,27 +484,43 @@ const MyZone = () => {
     if (matchHistory.length === 0) {
       return (
         <div className="text-center py-4">
-          <p>No match history found.</p>
+          <p>No completed challenges found.</p>
         </div>
       );
     }
 
     return (
       <Row>
-        {matchHistory.map((match) => (
-          <Col md={6} lg={4} key={match.id} className="mb-3">
-            <Card className="challenge-card h-100">
+        {matchHistory.map((challenge) => (
+          <Col md={6} lg={4} key={challenge.id} className="mb-3">
+            <Card className="challenge-card h-100 border-primary">
               <Card.Body>
-                <Card.Title>{match.game_name}</Card.Title>
+                <div className="d-flex align-items-center mb-2">
+                  {challenge.creator?.avatar_url && (
+                    <img 
+                      src={challenge.creator.avatar_url} 
+                      alt={challenge.creator.username}
+                      className="rounded-circle me-2"
+                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                    />
+                  )}
+                  <div>
+                    <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
+                    <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
+                  </div>
+                </div>
                 <Card.Text>
-                  <strong>Entry Fee:</strong> ${match.entry_fee}<br/>
-                  <strong>Status:</strong> {match.status}<br/>
-                  <strong>Result:</strong> {match.result || 'Pending'}<br/>
-                  <strong>Date:</strong> {new Date(match.created_at).toLocaleDateString()}
+                  <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
+                  <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
+                  <strong>Players:</strong> {challenge.player1_id && challenge.player2_id ? '2/2' : '1/2' }<br/>
+                  <strong>Play Time:</strong> {challenge.play_time}<br/>
+                  <strong>Status:</strong> <span className="badge bg-success">{challenge.status}</span><br/>
+                  <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
                 </Card.Text>
                 <Button 
                   variant="outline-primary" 
-                  onClick={() => navigate(`/challenge/${match.id}`)}
+                  size="sm"
+                  onClick={() => navigate(`/challenge/${challenge.id}`)}
                 >
                   View Details
                 </Button>
@@ -558,7 +546,7 @@ const MyZone = () => {
     if (userTournaments.length === 0) {
       return (
         <div className="text-center py-4">
-          <p>No tournaments found.</p>
+          <p>No participating tournaments found.</p>
         </div>
       );
     }
@@ -567,17 +555,19 @@ const MyZone = () => {
       <Row>
         {userTournaments.map((tournament) => (
           <Col md={6} lg={4} key={tournament.id} className="mb-3">
-            <Card className="challenge-card h-100">
+            <Card className="challenge-card h-100 border-primary">
               <Card.Body>
                 <Card.Title>{tournament.name}</Card.Title>
                 <Card.Text>
                   <strong>Entry Fee:</strong> ${tournament.entry_fee}<br/>
-                  <strong>Status:</strong> {tournament.status}<br/>
+                  <strong>Prize Pool:</strong> ${tournament.prize_amount}<br/>
                   <strong>Participants:</strong> {tournament.current_participants}/{tournament.max_participants}<br/>
+                  <strong>Status:</strong> <span className="badge bg-info">{tournament.status}</span><br/>
                   <strong>Start Date:</strong> {new Date(tournament.start_date).toLocaleDateString()}
                 </Card.Text>
                 <Button 
-                  variant="primary" 
+                  variant="outline-primary" 
+                  size="sm"
                   onClick={() => navigate(`/tournament/${tournament.id}`)}
                 >
                   View Tournament
@@ -689,9 +679,7 @@ const MyZone = () => {
             }
             
             .myzone-tab:hover {
-              background: rgba(0, 255, 204, 0.1);
               color: #00ffcc;
-              text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
             }
             
             .myzone-tab:hover::before {
@@ -699,9 +687,7 @@ const MyZone = () => {
             }
             
             .myzone-tab.active {
-              background: linear-gradient(135deg, rgba(0, 255, 204, 0.2) 0%, rgba(0, 255, 204, 0.1) 100%);
               color: #00ffcc;
-              text-shadow: 0 0 12px rgba(0, 255, 204, 0.8);
               box-shadow: inset 0 0 20px rgba(0, 255, 204, 0.1);
             }
             
@@ -742,7 +728,7 @@ const MyZone = () => {
                 className={`myzone-tab ${activeTab === "active" ? "active" : ""}`}
                 onClick={() => setActiveTab("active")}
               >
-                Active Challenges
+                My Challenges
               </button>
               <button
                 className={`myzone-tab ${activeTab === "public" ? "active" : ""}`}
@@ -754,13 +740,13 @@ const MyZone = () => {
                 className={`myzone-tab ${activeTab === "history" ? "active" : ""}`}
                 onClick={() => setActiveTab("history")}
               >
-                Match History
+                My History
               </button>
               <button
                 className={`myzone-tab ${activeTab === "tournaments" ? "active" : ""}`}
                 onClick={() => setActiveTab("tournaments")}
               >
-                Tournaments
+                My Tournaments
               </button>
             </div>
 
