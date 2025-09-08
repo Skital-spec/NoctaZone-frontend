@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import MainLayout from "../Components/MainLayout";
 import { supabase } from "../supabaseClient";
 import { Trophy, DollarSign } from "lucide-react";
