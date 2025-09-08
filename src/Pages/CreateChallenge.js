@@ -225,65 +225,8 @@ const CreateChallenge = () => {
     }
   };
 
-  // ✅ Enhanced function to send challenge message to chat
-  const sendChallengeMessage = async (challengeId) => {
-    try {
-      console.log(`📨 Sending challenge message to user: ${selectedUser.username}`);
-      
-      const prize = calculatePrize();
-      const entryFee = parseFloat(formData.entryFee);
-      
-      // Insert challenge message into Supabase private_messages table
-      const { data, error } = await supabase
-        .from('private_messages')
-        .insert({
-          sender_id: userId,
-          receiver_id: selectedUser.id,
-          message_type: 'challenge',
-          content: `🎮 Challenge: ${gameTypes.find(g => g.value === formData.gameType)?.label} match for ${entryFee} tokens`,
-          challenge_data: {
-            challenge_id: challengeId,
-            game_type: formData.gameType,
-            entry_fee: entryFee,
-            prize: prize,
-            rules: formData.rules,
-            play_time: formData.playTime,
-            sender_username: currentUser?.username,
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours from now
-          },
-          created_at: new Date().toISOString()
-        })
-        .select();
-
-      if (error) {
-        console.error("❌ Failed to send challenge to chat:", error);
-        throw new Error(error.message);
-      }
-
-      console.log("✅ Challenge message sent to chat successfully:", data);
-      
-      // Optional: Send real-time notification if you have Socket.IO or similar
-      try {
-        // Emit socket event to notify the receiver in real-time
-        if (window.socket) {
-          window.socket.emit('challenge_received', {
-            receiver_id: selectedUser.id,
-            sender_id: userId,
-            challenge_id: challengeId,
-            message: `New challenge from @${currentUser?.username}: ${formData.gameType} for ${entryFee} tokens`
-          });
-        }
-      } catch (socketError) {
-        console.log("📡 Socket notification failed:", socketError);
-        // This is not critical, so we don't show error to user
-      }
-      
-      return true;
-    } catch (error) {
-      console.error("🔥 Error sending challenge to chat:", error);
-      throw error;
-    }
-  };
+  // ✅ Function removed - server now handles sending private challenge messages
+  // This prevents duplicate messages from being sent
 
   // ✅ New function to post public challenge to public chat
   const postPublicChallenge = async (challengeId) => {
@@ -433,25 +376,14 @@ const CreateChallenge = () => {
         message: `✅ Challenge created successfully and ${challengeTypeText}! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens.` 
       });
 
-      // ✅ If it's a specific user challenge, send message to that user's chat
+      // ✅ If it's a specific user challenge, the server already sends the message
+      // We don't need to send another duplicate message from the frontend
       if (formData.challengeType === "challenge" && selectedUser && result.challenge_id) {
-        try {
-          await sendChallengeMessage(result.challenge_id);
-          
-          // Update success message to include chat notification
-          setAlert({ 
-            type: "success", 
-            message: `✅ Challenge created and sent to @${selectedUser.username}! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens. 📨 Chat message sent!` 
-          });
-          
-        } catch (chatError) {
-          console.error("🔥 Error sending challenge to chat:", chatError);
-          // Don't fail the entire operation, just show warning
-          setAlert({ 
-            type: "warning", 
-            message: `⚠️ Challenge created successfully but couldn't send chat message: ${chatError.message}. The challenge is still active!` 
-          });
-        }
+        // Server already handles sending the message, so we just update the success message
+        setAlert({ 
+          type: "success", 
+          message: `✅ Challenge created and sent to @${selectedUser.username}! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens.` 
+        });
       }
       
       // ✅ If it's a public challenge, post to public chat
@@ -462,7 +394,7 @@ const CreateChallenge = () => {
           // Update success message to include public chat notification
           setAlert({ 
             type: "success", 
-            message: `✅ Public challenge created and posted to public chat! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens. 📢 Public announcement sent!` 
+            message: `✅ Public challenge created and posted to public chat! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens.` 
           });
           
         } catch (chatError) {
