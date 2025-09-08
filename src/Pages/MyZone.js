@@ -86,16 +86,18 @@ const MyZone = () => {
         return;
       }
 
-      console.log("🔍 Fetching active matches for user:", currentUserId);
+      console.log("🔍 MyZone: Fetching active matches for user:", currentUserId);
       
-      // Get all challenges
+      // Get all challenges including open/public challenges
       const { data: allChallenges, error: challengesError } = await supabase
         .from("challenges")
         .select("*")
         .in("status", ["pending", "active"]);
 
+      console.log("📊 MyZone: All challenges fetched:", allChallenges?.length || 0);
+
       if (challengesError) {
-        console.error("❌ Error fetching challenges:", challengesError);
+        console.error("❌ MyZone: Error fetching challenges:", challengesError);
         throw new Error("Failed to fetch challenges");
       }
 
@@ -105,8 +107,11 @@ const MyZone = () => {
         .select("*")
         .eq("user_id", currentUserId);
 
+      console.log("🎯 MyZone: User participations:", userParticipations?.length || 0);
+      console.log("📝 MyZone: Participation details:", userParticipations);
+
       if (participationsError) {
-        console.error("❌ Error fetching participations:", participationsError);
+        console.error("❌ MyZone: Error fetching participations:", participationsError);
         throw new Error("Failed to fetch participations");
       }
 
@@ -114,11 +119,21 @@ const MyZone = () => {
       const userChallengeIds = userParticipations?.map(p => p.challenge_id) || [];
       const userCreatedChallenges = allChallenges?.filter(c => c.creator_id === currentUserId) || [];
       
+      console.log("🔗 MyZone: User challenge IDs from participations:", userChallengeIds);
+      console.log("👤 MyZone: User created challenges:", userCreatedChallenges.length);
+      
       // Combine both created and joined challenges
-      const activeUserChallenges = allChallenges?.filter(challenge => 
-        (userChallengeIds.includes(challenge.id) || challenge.creator_id === currentUserId) &&
-        ["pending", "active"].includes(challenge.status)
-      ) || [];
+      const activeUserChallenges = allChallenges?.filter(challenge => {
+        const isParticipant = userChallengeIds.includes(challenge.id);
+        const isCreator = challenge.creator_id === currentUserId;
+        const isActiveStatus = ["pending", "active"].includes(challenge.status);
+        
+        console.log(`🎮 MyZone: Challenge ${challenge.id} - Participant: ${isParticipant}, Creator: ${isCreator}, Active: ${isActiveStatus}, Type: ${challenge.challenge_type}`);
+        
+        return (isParticipant || isCreator) && isActiveStatus;
+      }) || [];
+      
+      console.log("✅ MyZone: Active user challenges found:", activeUserChallenges.length);
 
       // Add participation info
       const formattedMatches = activeUserChallenges.map(challenge => {
