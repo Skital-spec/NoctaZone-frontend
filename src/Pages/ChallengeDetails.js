@@ -196,7 +196,12 @@ const ChallengeDetails = () => {
 
   // Enhanced series score calculation with match 3 logic
   const seriesScore = useMemo(() => {
-    if (!players.p1 || !players.p2 || matches.length === 0) {
+    // Add a fallback for when players or matches are not yet loaded
+    if (!players || !players.p1 || !players.p2 || !matches) {
+      return { p1Wins: 0, p2Wins: 0, seriesWinner: null, isDraw: false, match3Needed: true, allMatchesComplete: false };
+    }
+    
+    if (matches.length === 0) {
       return { p1Wins: 0, p2Wins: 0, seriesWinner: null, isDraw: false, match3Needed: true, allMatchesComplete: false };
     }
     
@@ -217,7 +222,6 @@ const ChallengeDetails = () => {
       
       if (match1 && match2 && match1.winner_user_id === match2.winner_user_id && match1.winner_user_id !== 'draw') {
         match3Needed = false;
-        console.log('🎆 Series ended early - same winner in matches 1 & 2:', match1.winner_user_id);
       }
     }
     
@@ -244,17 +248,6 @@ const ChallengeDetails = () => {
     }
     
     const result = { p1Wins, p2Wins, seriesWinner, isDraw, match3Needed, allMatchesComplete };
-    
-    // Only log when there's a significant state change
-    if (allMatchesComplete || seriesWinner || isDraw) {
-      console.log('🏆 Series Complete:', {
-        ...result,
-        seriesWinnerName: seriesWinner?.username,
-        requiredMatches,
-        completedCount: completedMatches.length
-      });
-    }
-    
     return result;
   }, [players, matches]);
 
@@ -373,8 +366,6 @@ const ChallengeDetails = () => {
       
       // 2) Check if current user has already cashed out using server-side check
       if (currentUserId) {
-        console.log('🔍 Checking cash-out status for user:', currentUserId, 'challenge:', id);
-        
         try {
           // Use server-side endpoint that has the same access as the cash-out validation
           const cashOutCheckResponse = await fetch(
@@ -390,20 +381,15 @@ const ChallengeDetails = () => {
           
           if (cashOutCheckResponse.ok) {
             const cashOutStatus = await cashOutCheckResponse.json();
-            console.log('💰 Server cash-out status check:', cashOutStatus);
             
             if (cashOutStatus.hasCashedOut) {
-              console.log('✅ User has already cashed out:', cashOutStatus.cashOut);
               setCashOutCompleted(true);
               setCashOutAmount(cashOutStatus.cashOut.amount);
               setCashOutType(cashOutStatus.cashOut.type);
             } else {
-              console.log('❌ User has NOT cashed out yet');
               setCashOutCompleted(false);
             }
           } else {
-            console.warn('⚠️ Failed to check cash-out status from server, falling back to client check');
-            
             // Fallback to direct Supabase query
             const { data: existingCashOut, error: cashOutError } = await supabase
               .from("challenge_cash_outs")
@@ -412,24 +398,18 @@ const ChallengeDetails = () => {
               .eq("user_id", currentUserId)
               .maybeSingle();
             
-            console.log('💰 Fallback cash-out check result:', { existingCashOut, cashOutError });
-            
             if (!cashOutError && existingCashOut) {
-              console.log('✅ User has already cashed out (fallback):', existingCashOut);
               setCashOutCompleted(true);
               setCashOutAmount(existingCashOut.amount);
               setCashOutType(existingCashOut.type);
             } else {
-              console.log('❌ User has NOT cashed out yet (fallback)');
               setCashOutCompleted(false);
             }
           }
         } catch (error) {
-          console.error('⚠️ Error checking cash-out status:', error);
           setCashOutCompleted(false); // Default to not completed on error
         }
       } else {
-        console.log('⚠️ No currentUserId available during cash-out check');
         setCashOutCompleted(false);
       }
       
@@ -468,14 +448,21 @@ const ChallengeDetails = () => {
 
       // 4) Ensure matches (only if two players present)
       if (playersData?.p1?.id && playersData?.p2?.id) {
-        const ensureRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/ensure-matches`, {
-          method: "POST",
-          credentials: "include"
-        });
-        if (ensureRes.ok) {
-          const ensureJson = await ensureRes.json();
-          setMatches(ensureJson.matches || []);
-        } else {
+        try {
+          const ensureRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/ensure-matches`, {
+            method: "POST",
+            credentials: "include"
+          });
+          if (ensureRes.ok) {
+            const ensureJson = await ensureRes.json();
+            setMatches(ensureJson.matches || []);
+          } else {
+            // fallback: fetch matches even if ensure failed
+            const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
+            const mJson = await mRes.json();
+            setMatches(mJson.matches || []);
+          }
+        } catch (ensureError) {
           // fallback: fetch matches even if ensure failed
           const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
           const mJson = await mRes.json();
@@ -542,7 +529,12 @@ const ChallengeDetails = () => {
 
   // Determine challenge state
   const challengeState = useMemo(() => {
-    if (!challenge) return CHALLENGE_STATES.WAITING_FOR_START;
+    console.log('🔍 Determining challenge state with:', { challenge, seriesScore });
+    
+    if (!challenge) {
+      console.log('🔍 Challenge state: No challenge data - returning WAITING_FOR_START');
+      return CHALLENGE_STATES.WAITING_FOR_START;
+    }
 
     const now = new Date().getTime();
     
@@ -558,24 +550,29 @@ const ChallengeDetails = () => {
     
     // Check if challenge is expired
     if (challenge.challenge_ends_at && new Date(challenge.challenge_ends_at).getTime() < now) {
+      console.log('⏰ Challenge EXPIRED');
       return CHALLENGE_STATES.EXPIRED;
     }
     
     // Check if start window expired
     if (challenge.start_window_end && new Date(challenge.start_window_end).getTime() < now && !challenge.challenge_started_at) {
+      console.log('🚪 Start window EXPIRED');
       return CHALLENGE_STATES.START_WINDOW_EXPIRED;
     }
     
     // Check if challenge is active
     if (challenge.challenge_started_at) {
+      console.log('▶️ Challenge ACTIVE');
       return CHALLENGE_STATES.ACTIVE;
     }
     
     // Check if start window is active
     if (challenge.start_window_end && new Date(challenge.start_window_end).getTime() > now) {
+      console.log('⏳ Start window ACTIVE');
       return CHALLENGE_STATES.START_WINDOW_ACTIVE;
     }
     
+    console.log('⏸️ Challenge WAITING_FOR_START');
     return CHALLENGE_STATES.WAITING_FOR_START;
   }, [challenge, seriesScore]);
 
@@ -978,6 +975,18 @@ const ChallengeDetails = () => {
     );
   }
 
+  // Add a debug section to help identify issues
+  console.log('🔍 Challenge Details Debug Info:', {
+    challenge,
+    players,
+    matches,
+    loading,
+    error,
+    currentUserId,
+    challengeState,
+    seriesScore
+  });
+
   return (
       <Container className="py-4">
         <div className="d-flex align-items-center mb-4">
@@ -990,29 +999,6 @@ const ChallengeDetails = () => {
           </Button>
           <h2 className="mb-0">Challenge Details</h2>
         </div>
-
-        {/* Debug Information - Remove this in production */}
-        {process.env.NODE_ENV === 'development' && (
-          <Card className="mb-4 border-info">
-            <Card.Header className="bg-info text-white">
-              <h6 className="mb-0">Debug Info (Development Only)</h6>
-            </Card.Header>
-            <Card.Body>
-              <div className="small">
-                <strong>Challenge State:</strong> {challengeState}<br/>
-                <strong>Can Cash Out:</strong> {canCashOut ? 'Yes' : 'No'}<br/>
-                <strong>Cash Out Completed:</strong> {cashOutCompleted ? 'Yes' : 'No'}<br/>
-                <strong>Current User ID:</strong> {currentUserId || 'Not logged in'}<br/>
-                <strong>Button Should Show:</strong> {(canCashOut && !cashOutCompleted && currentUserId) ? 'Yes' : 'No'}<br/>
-                <strong>Series Winner:</strong> {seriesScore.seriesWinner?.username || 'None'}<br/>
-                <strong>Is Draw:</strong> {seriesScore.isDraw ? 'Yes' : 'No'}<br/>
-                <strong>All Matches Complete:</strong> {seriesScore.allMatchesComplete ? 'Yes' : 'No'}<br/>
-                <strong>Challenge Status:</strong> {challenge?.status}<br/>
-                <strong>Completed Matches:</strong> {matches.filter(m => m.status === 'completed').length} / {matches.length}<br/>
-              </div>
-            </Card.Body>
-          </Card>
-        )}
 
         {/* Challenge Start Section */}
         {challengeState === CHALLENGE_STATES.START_WINDOW_ACTIVE && (
@@ -1125,15 +1111,6 @@ const ChallengeDetails = () => {
         {/* Congratulations and Cash Out Section */}
         {(() => {
           const shouldShow = canCashOut && !cashOutCompleted && currentUserId;
-          console.log('💱 Cash-out button render check:', {
-            canCashOut,
-            cashOutCompleted,
-            currentUserId: !!currentUserId,
-            shouldShow,
-            challengeState,
-            seriesWinner: seriesScore.seriesWinner?.username,
-            isDraw: seriesScore.isDraw
-          });
           return shouldShow;
         })() && (
           <Card className="mb-4 border-0 shadow">
@@ -1246,10 +1223,10 @@ const ChallengeDetails = () => {
                 <div className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0 d-flex align-items-center">
                     <Trophy size={20} className="me-2" />
-                    {challenge.game_type || "1v1 Match"}
+                    {challenge?.game_type || "1v1 Match"}
                   </h5>
-                  <Badge bg={getStatusVariant(challenge.status)} className="text-capitalize">
-                    {challenge.status}
+                  <Badge bg={getStatusVariant(challenge?.status)} className="text-capitalize">
+                    {challenge?.status || "unknown"}
                   </Badge>
                 </div>
               </Card.Header>
@@ -1262,7 +1239,7 @@ const ChallengeDetails = () => {
                     </div>
                     <div className="ms-4">
                       <span className="h6">
-                        {challenge.participants || 0} / {challenge.total_participants || 2}
+                        {challenge?.participants || 0} / {challenge?.total_participants || 2}
                       </span>
                     </div>
                   </Col>
@@ -1271,19 +1248,19 @@ const ChallengeDetails = () => {
                       <Calendar size={18} className="me-2 text-warning" />
                       <span className="fw-bold">Scheduled Time</span>
                     </div>
-                    <div className="ms-4">{formatDateTime(challenge.play_time)}</div>
+                    <div className="ms-4">{formatDateTime(challenge?.play_time)}</div>
                   </Col>
                 </Row>
 
                 <Row className="mb-4">
                   <Col md={6} className="mb-3">
                     <div className="fw-bold">Entry Fee</div>
-                    <div className="h5 text-success">{challenge.entry_fee} Tokens</div>
+                    <div className="h5 text-success">{challenge?.entry_fee || 0} Tokens</div>
                   </Col>
                   <Col md={6} className="mb-3">
                     <div className="fw-bold">Prize Pool</div>
                     <div className="h5 text-success">
-                      {(challenge.prize_amount || (challenge.entry_fee || 0) * 2)} Tokens
+                      {(challenge?.prize_amount || (challenge?.entry_fee || 0) * 2)} Tokens
                     </div>
                   </Col>
                 </Row>
@@ -1401,7 +1378,7 @@ const ChallengeDetails = () => {
                               <Badge bg={statusVariant}>{(m.status || "pending").toUpperCase()}</Badge>
                               {/* Only show Report Results button if individual match is not completed AND challenge is not completed */}
                               {m.status !== 'completed' && 
-                               challenge.status !== 'completed' && 
+                               challenge?.status !== 'completed' && 
                                challengeState !== CHALLENGE_STATES.COMPLETED && (
                                 <Button
                                   variant="outline-primary"
@@ -1418,7 +1395,7 @@ const ChallengeDetails = () => {
                                 </Badge>
                               )}
                               {/* Show challenge completion status for completed challenges */}
-                              {(challenge.status === 'completed' || challengeState === CHALLENGE_STATES.COMPLETED) && (
+                              {(challenge?.status === 'completed' || challengeState === CHALLENGE_STATES.COMPLETED) && (
                                 <Badge bg="info" className="px-2 py-1">
                                   Challenge Complete
                                 </Badge>
@@ -1506,19 +1483,19 @@ const ChallengeDetails = () => {
               <Card.Body>
                 <div className="mb-2">
                   <span className="fw-bold me-2">Type:</span>
-                  <span className="text-capitalize">{challenge.challenge_type}</span>
+                  <span className="text-capitalize">{challenge?.challenge_type || "unknown"}</span>
                 </div>
                 <div className="mb-2">
                   <span className="fw-bold me-2">Created:</span>
-                  <span>{formatDateTime(challenge.created_at)}</span>
+                  <span>{formatDateTime(challenge?.created_at)}</span>
                 </div>
-                {challenge.challenge_started_at && (
+                {challenge?.challenge_started_at && (
                   <div className="mb-2">
                     <span className="fw-bold me-2">Started:</span>
                     <span>{formatDateTime(challenge.challenge_started_at)}</span>
                   </div>
                 )}
-                {challenge.challenge_ends_at && (
+                {challenge?.challenge_ends_at && (
                   <div className="mb-2">
                     <span className="fw-bold me-2">Ends:</span>
                     <span>{formatDateTime(challenge.challenge_ends_at)}</span>
@@ -1543,7 +1520,8 @@ const ChallengeDetails = () => {
                 {cashOutType === 'win' ? '🏆' : 
                  cashOutType === 'draw' ? '🤝' :
                  cashOutType === 'expired' ? '⏰' :
-                 cashOutType === 'forfeit' ? '🏆' : '🎊'}
+                 cashOutType === 'forfeit' ? '🏆' :
+                 '🎊'}
               </div>
               <h4>
                 {cashOutType === 'win' ? 'Claim Your Prize!' : 

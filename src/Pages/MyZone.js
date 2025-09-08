@@ -322,7 +322,10 @@ const MyZone = () => {
                 </Card.Text>
                 <Button 
                   variant="primary" 
-                  onClick={() => navigate(`/challenge/${challenge.id}`)}
+                  onClick={() => {
+                    console.log('Navigating to challenge details page with ID:', challenge.id);
+                    navigate(`/challenge/${challenge.id}`);
+                  }}
                 >
                   View Details
                 </Button>

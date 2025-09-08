@@ -57,7 +57,6 @@ function App() {
             <Route path='/tournament/:id/participants' element={<TournamentParticipants/>}/>
             <Route path='/tournament/:id/report-match/:matchId' element={<ReportResults/>}/>
             <Route path='/wallet' element={<Wallet/>}/>
-            <Route path='/challengedetails' element={<ChallengeDetails/>}/>
             <Route path='/challenge/:id' element={<ChallengeDetails/>}/>
             <Route path='/paymentconfirmationmodal' element={<PaymentConfirmationModal/>}/>
             <Route path='/userselectionmodal' element={<UserSelectionModal/>}/>
@@ -76,7 +75,6 @@ function App() {
             <Route path='/addtournamentpage' element={<AddTournamentPage/>}/>
             <Route path='/account' element={<Account/>}/>
             <Route path='/topnavbar' element={<TopNavbar/>}/>
-            <Route path='/sidenavbar' element={<SideNavbar/>}/>
             <Route path="/tournaments" element={<Tournaments />} />
             <Route path='/mainlayout' element={<MainLayout/>}/>
             <Route path='/howitworks' element={<HowItWorks/>}/>
