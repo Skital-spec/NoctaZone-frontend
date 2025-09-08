@@ -177,7 +177,8 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
               game_type: challenge.game_type,
               entry_fee: challenge.entry_fee,
               creator: { 
-                username: challenge.creator_username || "Unknown"
+                username: challenge.creator_username || "Unknown",
+                avatar_url: challenge.creator_avatar
               },
               current_participants: challenge.participants,
               total_participants: 2 // Public challenges are 1v1
@@ -191,7 +192,8 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
               game_type: challenge.game_type,
               entry_fee: challenge.entry_fee,
               creator: { 
-                username: challenge.creator_username || "Unknown"
+                username: challenge.creator_username || "Unknown",
+                avatar_url: challenge.creator_avatar
               },
               current_participants: challenge.participants,
               total_participants: 2 // Public challenges are 1v1
@@ -590,19 +592,39 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
     <div className="challenges-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
       {challenges.map((challenge) => (
         <Card key={challenge.id} className="mb-2">
-          <Card.Body className="p-2">
-            <div className="d-flex justify-content-between align-items-center">
-              <div>
-                <h6 className="mb-0">{challenge.game_type} Challenge</h6>
-                <small className="text-muted">
-                  By: {challenge.creator?.username || challenge.creator_username || "Unknown"} • 
-                  Entry: {challenge.entry_fee} tokens • 
-                  Prize: {challenge.prize_amount} tokens • 
-                  Players: {challenge.current_participants || challenge.participants}/2
-                </small>
+          <Card.Body className="p-3">
+            <div className="d-flex justify-content-between align-items-start">
+              <div className="flex-grow-1">
+                <div className="d-flex align-items-center mb-2">
+                  {challenge.creator?.avatar_url && (
+                    <img 
+                      src={challenge.creator.avatar_url} 
+                      alt={challenge.creator?.username || challenge.creator_username}
+                      className="rounded-circle me-2"
+                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                    />
+                  )}
+                  <div>
+                    <h6 className="mb-0">{challenge.game_type} Challenge</h6>
+                    <small className="text-muted">by {challenge.creator?.username || challenge.creator_username || "Unknown"}</small>
+                  </div>
+                </div>
+                <div className="challenge-details">
+                  <small className="text-muted d-block">
+                    💰 Entry: <strong>{challenge.entry_fee} tokens</strong> • 
+                    🏆 Prize: <strong>{challenge.prize_amount} tokens</strong>
+                  </small>
+                  <small className="text-muted d-block">
+                    👥 Players: <strong>{challenge.current_participants || challenge.participants}/2</strong> • 
+                    ⏰ Play Time: <strong>{challenge.play_time || 'Not specified'}</strong>
+                  </small>
+                  <small className="text-muted d-block">
+                    📅 Created: <strong>{new Date(challenge.created_at).toLocaleDateString()}</strong> at <strong>{new Date(challenge.created_at).toLocaleTimeString()}</strong>
+                  </small>
+                </div>
               </div>
-              <div className="d-flex align-items-center">
-                <Badge bg={challenge.hasJoined ? "success" : "primary"} className="me-2">
+              <div className="d-flex flex-column align-items-end">
+                <Badge bg={challenge.hasJoined ? "success" : "primary"} className="mb-2">
                   {challenge.hasJoined ? "Joined" : "Available"}
                 </Badge>
                 <Button 

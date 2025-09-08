@@ -10,6 +10,7 @@ const MyZone = () => {
   const [activeTab, setActiveTab] = useState("active");
   const [activeMatches, setActiveMatches] = useState([]);
   const [publicChallenges, setPublicChallenges] = useState([]);
+  const [myCreatedChallenges, setMyCreatedChallenges] = useState([]);
   const [matchHistory, setMatchHistory] = useState([]);
   const [userTournaments, setUserTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,7 @@ const MyZone = () => {
     if (currentUserId) {
       if (activeTab === "active") {
         fetchActiveMatches();
+        fetchMyCreatedChallenges();
       } else if (activeTab === "public") {
         fetchPublicChallenges();
       } else if (activeTab === "history") {
@@ -59,19 +61,10 @@ const MyZone = () => {
     setError(null);
     
     try {
-      if (!currentUserId) {
-        console.log("⚠️ No currentUserId available, skipping active matches fetch");
-        setActiveMatches([]);
-        return;
-      }
-
-      console.log("🔍 Fetching active matches for user:", currentUserId);
-      
-      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/user/${currentUserId}`, {
+      const response = await fetch(`https://safcom-payment.onrender.com/api/user/${currentUserId}/matches`, {
         method: "GET",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
         },
         credentials: "include"
       });
@@ -81,7 +74,7 @@ const MyZone = () => {
       }
 
       const result = await response.json();
-      console.log("🔍 Active matches API response:", result);
+      console.log("Active matches response:", result);
 
       if (result.success && result.data) {
         setActiveMatches(result.data);
@@ -92,9 +85,43 @@ const MyZone = () => {
       
     } catch (err) {
       console.error("Error in fetchActiveMatches:", err);
-      setError("Failed to load active matches");
+      setError(`Failed to load active matches: ${err.message}`);
+      setActiveMatches([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMyCreatedChallenges = async () => {
+    try {
+      console.log("🔍 Fetching user's created challenges for user:", currentUserId);
+      
+      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/my-created?user_id=${currentUserId}`, {
+        method: "GET",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include"
+      });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+  
+      const result = await response.json();
+      console.log("🔍 My created challenges API response:", result);
+  
+      if (result.success && result.data) {
+        setMyCreatedChallenges(result.data);
+      } else {
+        console.log("No created challenges found or API returned unsuccessful response");
+        setMyCreatedChallenges([]);
+      }
+      
+    } catch (err) {
+      console.error("Error in fetchMyCreatedChallenges:", err);
+      setMyCreatedChallenges([]);
     }
   };
 
@@ -302,7 +329,10 @@ const MyZone = () => {
       );
     }
 
-    if (activeMatches.length === 0) {
+    const hasActiveMatches = activeMatches.length > 0;
+    const hasCreatedChallenges = myCreatedChallenges.length > 0;
+
+    if (!hasActiveMatches && !hasCreatedChallenges) {
       return (
         <div className="text-center py-4">
           <p>No active challenges found.</p>
@@ -314,32 +344,89 @@ const MyZone = () => {
     }
 
     return (
-      <Row>
-        {activeMatches.map((challenge) => (
-          <Col md={6} lg={4} key={challenge.id} className="mb-3">
-            <Card className="challenge-card h-100">
-              <Card.Body>
-                <Card.Title>{challenge.game_name}</Card.Title>
-                <Card.Text>
-                  <strong>Type:</strong> {challenge.challenge_type}<br/>
-                  <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
-                  <strong>Status:</strong> {challenge.status}<br/>
-                  <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
-                </Card.Text>
-                <Button 
-                  variant="primary" 
-                  onClick={() => {
-                    console.log('Navigating to challenge details page with ID:', challenge.id);
-                    navigate(`/challenge/${challenge.id}`);
-                  }}
-                >
-                  View Details
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+      <div>
+        {/* User's Created Challenges Section */}
+        {hasCreatedChallenges && (
+          <div className="mb-4">
+            <h5 className="mb-3">🎯 Your Created Challenges</h5>
+            <Row>
+              {myCreatedChallenges.map((challenge) => (
+                <Col md={6} lg={4} key={`created-${challenge.id}`} className="mb-3">
+                  <Card className="challenge-card h-100 border-primary">
+                    <Card.Body>
+                      <div className="d-flex align-items-center mb-2">
+                        {challenge.creator_avatar && (
+                          <img 
+                            src={challenge.creator_avatar} 
+                            alt={challenge.creator_username}
+                            className="rounded-circle me-2"
+                            style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                          />
+                        )}
+                        <div>
+                          <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
+                          <small className="text-muted">by {challenge.creator_username}</small>
+                        </div>
+                      </div>
+                      <Card.Text>
+                        <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
+                        <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
+                        <strong>Players:</strong> {challenge.participants}/2<br/>
+                        <strong>Play Time:</strong> {challenge.play_time}<br/>
+                        <strong>Status:</strong> <span className="badge bg-warning">Waiting for opponent</span><br/>
+                        <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
+                      </Card.Text>
+                      <Button 
+                        variant="outline-primary" 
+                        size="sm"
+                        onClick={() => {
+                          console.log('Navigating to challenge details page with ID:', challenge.id);
+                          navigate(`/challenge/${challenge.id}`);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
+        )}
+
+        {/* Active Matches Section */}
+        {hasActiveMatches && (
+          <div>
+            <h5 className="mb-3">⚡ Active Matches</h5>
+            <Row>
+              {activeMatches.map((challenge) => (
+                <Col md={6} lg={4} key={`active-${challenge.id}`} className="mb-3">
+                  <Card className="challenge-card h-100">
+                    <Card.Body>
+                      <Card.Title>{challenge.game_name}</Card.Title>
+                      <Card.Text>
+                        <strong>Type:</strong> {challenge.challenge_type}<br/>
+                        <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
+                        <strong>Status:</strong> {challenge.status}<br/>
+                        <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
+                      </Card.Text>
+                      <Button 
+                        variant="primary" 
+                        onClick={() => {
+                          console.log('Navigating to challenge details page with ID:', challenge.id);
+                          navigate(`/challenge/${challenge.id}`);
+                        }}
+                      >
+                        View Details
+                      </Button>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          </div>
+        )}
+      </div>
     );
   };
 
