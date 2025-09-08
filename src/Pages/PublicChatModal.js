@@ -136,15 +136,16 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       setChallengesLoading(true);
       try {
         // Get all public challenges (challenge_type = 'open')
-const { data: challengesData, error: challengesError } = await supabase
-  .from("challenges")
-  .select(`
-    *,
-    creator:profiles!challenges_user_id_fkey(username, avatar_url)
-  `)
-  .eq("challenge_type", "open")
-  .eq("status", "pending") // Only show pending challenges
-  .order("created_at", { ascending: false });
+        const { data: challengesData, error: challengesError } = await supabase
+        .from("challenges")
+        .select(`
+          *,
+          creator:profiles!creator_profile_id(username, avatar_url)
+        `)
+        .eq("challenge_type", "open")
+        .eq("status", "pending") // Only show pending challenges
+        .order("created_at", { ascending: false });
+      
 
         if (challengesError) {
           console.error("Error fetching challenges:", challengesError.message);
