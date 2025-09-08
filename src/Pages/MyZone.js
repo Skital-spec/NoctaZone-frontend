@@ -61,27 +61,42 @@ const MyZone = () => {
     setError(null);
     
     try {
-      const response = await fetch(`https://safcom-payment.onrender.com/api/user/${currentUserId}/matches`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include"
-      });
+      // Fetch both active challenges and user created challenges in parallel
+      const [activeChallengesResponse, createdChallengesResponse] = await Promise.all([
+        fetch(`https://safcom-payment.onrender.com/api/challenges/user/${currentUserId}`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include"
+        }),
+        fetch(`https://safcom-payment.onrender.com/api/challenges/my-created?user_id=${currentUserId}`, {
+          method: "GET",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          credentials: "include"
+        })
+      ]);
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!activeChallengesResponse.ok) {
+        throw new Error(`HTTP error! status: ${activeChallengesResponse.status}`);
       }
 
-      const result = await response.json();
-      console.log("Active matches response:", result);
+      const activeResult = await activeChallengesResponse.json();
+      console.log("Active challenges response:", activeResult);
 
-      if (result.success && result.data) {
-        setActiveMatches(result.data);
+      let activeChallenges = [];
+      if (activeResult.success && activeResult.data) {
+        activeChallenges = activeResult.data;
       } else {
-        console.log("No active matches found or API returned unsuccessful response");
-        setActiveMatches([]);
+        console.log("No active challenges found or API returned unsuccessful response");
       }
+
+      // Combine active challenges with created challenges
+      const allActiveMatches = [...activeChallenges, ...myCreatedChallenges];
+      setActiveMatches(allActiveMatches);
       
     } catch (err) {
       console.error("Error in fetchActiveMatches:", err);
@@ -632,7 +647,15 @@ const MyZone = () => {
               margin-bottom: 2rem;
               border-radius: 12px 12px 0 0;
               box-shadow: 0 4px 20px rgba(0, 255, 204, 0.1);
-              overflow: hidden;
+              overflow-x: auto;
+              overflow-y: hidden;
+              scrollbar-width: none; /* Firefox */
+              -ms-overflow-style: none; /* IE/Edge */
+            }
+            
+            /* Hide scrollbar for Chrome/Safari/Opera */
+            .myzone-tabs::-webkit-scrollbar {
+              display: none;
             }
             
             .myzone-tab {
@@ -649,6 +672,8 @@ const MyZone = () => {
               text-transform: uppercase;
               letter-spacing: 0.5px;
               font-size: 0.9rem;
+              min-width: 150px; /* Minimum width for better scrolling */
+              white-space: nowrap; /* Prevent text wrapping */
             }
             
             .myzone-tab::before {

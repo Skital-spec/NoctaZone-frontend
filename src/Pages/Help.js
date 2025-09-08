@@ -46,7 +46,7 @@ Should a match go unreported within 75 minutes of it being accepted, it will be 
     },
     {
       title: "General Site Rules",
-      content: `It is the responsibility of the NoctaZone.com member to read and fully understand these rules and policies before participating in any tournaments. These rules apply to all matches.
+      content: `It is the responsibility of the NoctaZone.org member to read and fully understand these rules and policies before participating in any tournaments. These rules apply to all matches.
 
 Any rule not stated in the pregame rules will be considered invalid and not an enforceable rule for the match. All agreed upon rules apply to both parties unless the agreed upon rules specifically state otherwise. Any rule that does not pertain to game play for the match that is set up is not an enforceable rule.
 
@@ -62,7 +62,7 @@ For any point spread to be valid it needs to be discussed and/or acknowledged by
     },
     {
       title: "Disputes",
-      content: `Disputes are filed under my matches on the my saloon page. Any time a rule is claimed to have been violated evidence is required to back that claim or it will be considered invalid.
+      content: `Disputes are filed under my matches on the my zone page. Any time a rule is claimed to have been violated evidence is required to back that claim or it will be considered invalid.
 
 Any rule claimed to be broken that can be viewed when the game starts, for example, amount of time per quarter or period, skill level, rosters, teams, jersey color, weather, game title, map, can be considered invalid based on amount of time played and/or score. Any claimed broken rule based on settings or functions that can be viewed pregame in a match played more than 25% through will be automatically invalid regardless of score. If you wait until your opponent has an advantage to exit and make a claim regarding a pregame setting, your claim will be considered invalid. If you do not agree with a pregame setting or the team being used, do not start the game.
 
@@ -82,11 +82,11 @@ Providing inaccurate information and/or evidence in an attempt to mislead NoctaZ
       title: "Absolutely No Cheating",
       content: `If a player proves a rule to be broken by their opponent at a point where they are winning the match, the match is tied, or within one score and the match is exited immediately, the player who broke the rule will concede the remaining time and lose the match.
 
-If the match is played past the point the rule was violated or to a point the game is in hand and the evidence is sent in the match will be considered a draw and all money will be returned to the participants less the NoctaZone.com fee unless the evidence provided shows the broken rule had a direct effect on the final score.
+If the match is played past the point the rule was violated or to a point the game is in hand and the evidence is sent in the match will be considered a draw and all money will be returned to the participants less the NoctaZone fee unless the evidence provided shows the broken rule had a direct effect on the final score.
 
 For multiplayer tournaments a violation of an in game rule will result in a forfeit.
 
-All decisions rendered by the NoctaZone.com staff are binding.`
+All decisions rendered by the NoctaZone staff are binding.`
     }
   ];
 

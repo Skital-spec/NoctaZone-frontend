@@ -471,7 +471,7 @@ const WalletPage = () => {
               <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                 <button onClick={() => setMode("deposit")} className={`deposit-btn ${mode === "deposit" ? "active" : ""}`}>Deposit</button>
                 <button onClick={() => setMode("withdraw")} className={`withdraw-btn ${mode === "withdraw" ? "active" : ""}`}>Withdraw</button>
-                <button onClick={reset} style={{ marginLeft: 'auto' }}>Clear</button>
+                <button onClick={reset} style={{ marginLeft: 'auto', border:'none' ,borderRadius:'5px',padding:'5px 10px'}}>Clear</button>
               </div>
 
               {/* Quick Amount Buttons */}
@@ -493,7 +493,7 @@ const WalletPage = () => {
 
               {/* Phone inputs based on mode */}
               {mode === "deposit" && (
-                <div style={{ marginBottom: '10px', padding: '10px', background: '#e3f2fd', borderRadius: '5px', fontSize: '14px' }}>
+                <div style={{ marginBottom: '10px', padding: '10px', background: '#e3f2fd', borderRadius: '5px', fontSize: '14px', color:'#333' }}>
                   💳 <strong>Paystack Payment:</strong> You will be redirected to a secure payment page to complete your deposit using card, bank transfer, or mobile money.
                 </div>
               )}
