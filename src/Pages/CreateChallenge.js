@@ -228,50 +228,8 @@ const CreateChallenge = () => {
   // ✅ Function removed - server now handles sending private challenge messages
   // This prevents duplicate messages from being sent
 
-  // ✅ New function to post public challenge to public chat
-  const postPublicChallenge = async (challengeId) => {
-    try {
-      console.log(`📢 Posting public challenge to public chat`);
-      
-      const prize = calculatePrize();
-      const entryFee = parseFloat(formData.entryFee);
-      const gameLabel = gameTypes.find(g => g.value === formData.gameType)?.label;
-      
-      // Insert public challenge message into Supabase public_chat table
-      const { data, error } = await supabase
-        .from('public_chat')
-        .insert({
-          user_id: userId,
-          username: currentUser?.username,
-          message_type: 'challenge',
-          message: `🎮 **NEW PUBLIC CHALLENGE** 🎮\n\n**${gameLabel}** Match\n💰 Entry Fee: **${entryFee} tokens**\n🏆 Prize Pool: **${prize} tokens**\n⏰ Play Time: **${new Date(formData.playTime).toLocaleString()}**\n📋 Rules: ${formData.rules}\n\nJoin this challenge and compete for the prize!`,
-          challenge_data: {
-            challenge_id: challengeId,
-            game_type: formData.gameType,
-            entry_fee: entryFee,
-            prize: prize,
-            rules: formData.rules,
-            play_time: formData.playTime,
-            sender_username: currentUser?.username,
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours from now
-          },
-          created_at: new Date().toISOString()
-        })
-        .select();
-
-      if (error) {
-        console.error("❌ Failed to post public challenge:", error);
-        throw new Error(error.message);
-      }
-
-      console.log("✅ Public challenge posted successfully:", data);
-      
-      return true;
-    } catch (error) {
-      console.error("🔥 Error posting public challenge:", error);
-      throw error;
-    }
-  };
+  // ✅ Function removed - server now handles sending public challenge messages
+  // This prevents duplicate messages from being sent
 
   const handleConfirmCreate = async () => {
     const entryFee = parseFloat(formData.entryFee);
@@ -386,25 +344,14 @@ const CreateChallenge = () => {
         });
       }
       
-      // ✅ If it's a public challenge, post to public chat
+      // ✅ If it's a public challenge, the server already sends the message
+      // We don't need to send another duplicate message from the frontend
       if (formData.challengeType === "open" && result.challenge_id) {
-        try {
-          await postPublicChallenge(result.challenge_id);
-          
-          // Update success message to include public chat notification
-          setAlert({ 
-            type: "success", 
-            message: `✅ Public challenge created and posted to public chat! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens.` 
-          });
-          
-        } catch (chatError) {
-          console.error("🔥 Error posting to public chat:", chatError);
-          // Don't fail the entire operation, just show warning
-          setAlert({ 
-            type: "warning", 
-            message: `⚠️ Challenge created successfully but couldn't post to public chat: ${chatError.message}. The challenge is still active!` 
-          });
-        }
+        // Server already handles sending the message, so we just update the success message
+        setAlert({ 
+          type: "success", 
+          message: `✅ Public challenge created and posted to public chat! ${entryFee} tokens deducted. Prize: ${prize} tokens. New balance: ${newBalance || balance - entryFee} tokens.` 
+        });
       }
       
       // Navigate back after 3 seconds
