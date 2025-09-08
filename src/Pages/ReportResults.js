@@ -47,30 +47,30 @@ const ReportResults = () => {
   }, []);
 
   useEffect(() => {
-    const fetchMatch = async () => {
+    const fetchChallenge = async () => {
       setLoading(true);
       setError(null);
       setSuccess(null);
       try {
-        const res = await fetch(`https://safcom-payment.onrender.com/api/matches/${matchId}`, {
+        const res = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}`, {
           credentials: "include",
         });
-        if (!res.ok) throw new Error("Failed to load match");
+        if (!res.ok) throw new Error("Failed to load challenge");
         const data = await res.json();
-        setMatch(data.match || null);
-        setSubmissions(data.submissions || []);
-        if (data.match) {
-          setPlayer1Goals(data.match.player1Points || data.match.player1_goals || 0);
-          setPlayer2Goals(data.match.player2Points || data.match.player2_goals || 0);
+        setMatch(data.challenge || null);
+        setSubmissions(data.results || []);
+        if (data.challenge) {
+          setPlayer1Goals(0);
+          setPlayer2Goals(0);
         }
       } catch (err) {
-        setError(err.message || "Failed to load match");
+        setError(err.message || "Failed to load challenge");
       } finally {
         setLoading(false);
       }
     };
-    if (matchId) fetchMatch();
-  }, [matchId]);
+    if (id) fetchChallenge();
+  }, [id]);
 
   const players = useMemo(() => {
     if (!match) return { p1: null, p2: null };
@@ -126,47 +126,33 @@ const ReportResults = () => {
         return;
       }
 
-      const form = new FormData();
-      form.append("user_id", currentUserId); // Use actual current user ID
-      form.append("player1Goals", String(parseInt(player1Goals) || 0));
-      form.append("player2Goals", String(parseInt(player2Goals) || 0));
-      form.append("player1Points", String(parseInt(player1Goals) || 0));
-      form.append("player2Points", String(parseInt(player2Goals) || 0));
-      
-      // Handle draw case: send null for declared_winner when it's a draw
-      // The backend will determine draw based on equal scores
-      if (declaredWinner === "draw") {
-        form.append("declared_winner", ""); // Send empty string instead of "draw"
-        form.append("is_draw", "true"); // Add flag to indicate this is a draw
-      } else {
-        form.append("declared_winner", declaredWinner || "");
-        form.append("is_draw", "false");
-      }
-      
-      evidenceFiles.forEach((file) => form.append("evidence_files[]", file));
+      const payload = {
+        user_id: currentUserId,
+        winner_id: declaredWinner === "draw" ? null : declaredWinner,
+        is_draw: declaredWinner === "draw",
+        evidence_urls: [] // File upload would need separate implementation
+      };
 
-      const res = await fetch(`https://safcom-payment.onrender.com/api/matches/${matchId}/submit`, {
+      const res = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/report`, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
         credentials: "include",
-        body: form
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       
       if (!res.ok) throw new Error(data?.error || "Failed to submit results");
 
-      setSuccess(
-        data.status === "completed"
-          ? "Results agreed and finalized."
-          : data.status === "disputed"
-          ? "Results submitted. A dispute has been opened."
-          : "Results submitted. Awaiting opponent."
-      );
+      setSuccess(data.message || "Results submitted successfully");
 
-      const ref = await fetch(`https://safcom-payment.onrender.com/api/matches/${matchId}`, { credentials: "include" });
+      // Refresh challenge data
+      const ref = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}`, { credentials: "include" });
       if (ref.ok) {
         const fresh = await ref.json();
-        setMatch(fresh.match || null);
-        setSubmissions(fresh.submissions || []);
+        setMatch(fresh.challenge || null);
+        setSubmissions(fresh.results || []);
       }
     } catch (err) {
       setError(err.message || "Failed to submit results");
