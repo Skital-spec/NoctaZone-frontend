@@ -153,9 +153,9 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
         console.log("🔍 Public challenges API response:", result);
     
         if (result.success && result.data) {
-          // Filter challenges to only show those with exactly 1 participant (creator only)
+          // Filter challenges to only show those with space for participants (less than total_participants)
           const availableChallenges = result.data.filter(challenge => 
-            challenge.participants === 1 && challenge.status === "pending"
+            challenge.participants < challenge.total_participants && challenge.status === "pending"
           );
           
           // Check if current user has already joined any challenges
@@ -265,7 +265,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
                   ...challenge,
                   current_participants: (challenge.current_participants || 1) + 1
                 };
-                if (updated.current_participants >= updated.participants) {
+                if (updated.current_participants >= updated.total_participants) {
                   // Challenge is now full; remove from list
                   return acc;
                 }

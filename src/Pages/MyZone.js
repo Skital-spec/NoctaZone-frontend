@@ -357,48 +357,56 @@ const MyZone = () => {
     }
 
     return (
-      <Row>
-        {activeMatches.map((challenge) => (
-          <Col md={6} lg={4} key={`active-${challenge.id}`} className="mb-3">
-            <Card className="challenge-card h-100 border-primary">
-              <Card.Body>
-                <div className="d-flex align-items-center mb-2">
-                  {challenge.creator?.avatar_url && (
-                    <img 
-                      src={challenge.creator.avatar_url} 
-                      alt={challenge.creator.username}
-                      className="rounded-circle me-2"
-                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                    />
-                  )}
-                  <div>
-                    <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
-                    <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
+      <div>
+        <div className="d-flex justify-content-between align-items-center mb-4">
+          <h5 className="mb-0">🎯 My Challenges</h5>
+          <Button variant="primary" onClick={handleCreateChallenge}>
+            Create Challenge
+          </Button>
+        </div>
+        <Row>
+          {activeMatches.map((challenge) => (
+            <Col md={6} lg={4} key={`active-${challenge.id}`} className="mb-3">
+              <Card className="challenge-card h-100 border-primary">
+                <Card.Body>
+                  <div className="d-flex align-items-center mb-2">
+                    {challenge.creator?.avatar_url && (
+                      <img 
+                        src={challenge.creator.avatar_url} 
+                        alt={challenge.creator.username}
+                        className="rounded-circle me-2"
+                        style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                      />
+                    )}
+                    <div>
+                      <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
+                      <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
+                    </div>
                   </div>
-                </div>
-                <Card.Text>
-                  <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
-                  <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
-                  <strong>Players:</strong> {challenge.player1_id && challenge.player2_id ? '2/2' : '1/2' }<br/>
-                  <strong>Play Time:</strong> {challenge.play_time}<br/>
-                  <strong>Status:</strong> <span className="badge bg-warning">{challenge.status}</span><br/>
-                  <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
-                </Card.Text>
-                <Button 
-                  variant="outline-primary" 
-                  size="sm"
-                  onClick={() => {
-                    console.log('Navigating to challenge details page with ID:', challenge.id);
-                    navigate(`/challenge/${challenge.id}`);
-                  }}
-                >
-                  View Details
-                </Button>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+                  <Card.Text>
+                    <strong>Entry Fee:</strong> {challenge.entry_fee} Tokens<br/>
+                    <strong>Prize Pool:</strong> {challenge.prize_amount} Tokens<br/>
+                    <strong>Players:</strong> {challenge.player1_id && challenge.player2_id ? '2/2' : '1/2' }<br/>
+                    <strong>Play Time:</strong> {challenge.play_time}<br/>
+                    <strong>Status:</strong> <span className="badge bg-warning">{challenge.status}</span><br/>
+                    <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
+                  </Card.Text>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm"
+                    onClick={() => {
+                      console.log('Navigating to challenge details page with ID:', challenge.id);
+                      navigate(`/challenge/${challenge.id}`);
+                    }}
+                  >
+                    View Details
+                  </Button>
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </div>
     );
   };
 
