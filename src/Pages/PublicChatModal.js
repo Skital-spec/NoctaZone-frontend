@@ -140,7 +140,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           .from("challenges")
           .select(`
             *,
-            creator:profiles!challenges_user_id_fkey(username, avatar_url)
+            profiles!challenges_user_id_fkey(username, avatar_url)
           `)
           .eq("challenge_type", "open")
           .eq("status", "pending") // Only show pending challenges
@@ -567,7 +567,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
                           <small className="text-muted">
                             By: {challenge.creator?.username || "Unknown"} • 
                             Entry: {challenge.entry_fee} tokens • 
-                            Prize: {(challenge.entry_fee * challenge.participants * 0.85).toFixed(2)} tokens
+                            Prize: {(challenge.entry_fee * challenge.total_participants * 0.85).toFixed(2)} tokens
                           </small>
                         </div>
                         <div className="d-flex align-items-center">
