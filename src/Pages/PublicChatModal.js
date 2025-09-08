@@ -135,44 +135,72 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
     const fetchChallenges = async () => {
       setChallengesLoading(true);
       try {
-        // Get all public challenges (challenge_type = 'open')
-        const { data: challengesData, error: challengesError } = await supabase
-        .from("challenges")
-        .select(`
-          *,
-          creator:profiles!creator_profile_id(username, avatar_url)
-        `)
-        .eq("challenge_type", "open")
-        .eq("status", "pending") // Only show pending challenges
-        .order("created_at", { ascending: false });
-      
-
-        if (challengesError) {
-          console.error("Error fetching challenges:", challengesError.message);
-          setError("Failed to load challenges. Please try again.");
-          return;
+        // Use the backend API instead of direct Supabase query
+        const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public?user_id=${currentUserId}`, {
+          method: "GET",
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          credentials: "include"
+        });
+    
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        // Check if current user has already joined any challenges
-        if (currentUserId && challengesData.length > 0) {
-          const challengeIds = challengesData.map(c => c.id);
+    
+        const result = await response.json();
+        console.log("🔍 Public challenges API response:", result);
+    
+        if (result.success && result.data) {
+          // Filter challenges to only show those with exactly 1 participant (creator only)
+          const availableChallenges = result.data.filter(challenge => 
+            challenge.participants === 1 && challenge.status === "pending"
+          );
           
-          const { data: participationsData } = await supabase
-            .from("challenge_participants")
-            .select("challenge_id")
-            .in("challenge_id", challengeIds)
-            .eq("user_id", currentUserId);
-          
-          // Mark challenges the user has already joined
-          const userParticipations = participationsData || [];
-          const challengesWithParticipation = challengesData.map(challenge => ({
-            ...challenge,
-            hasJoined: userParticipations.some(p => p.challenge_id === challenge.id)
-          }));
-          
-          setChallenges(challengesWithParticipation);
+          // Check if current user has already joined any challenges
+          if (currentUserId && availableChallenges.length > 0) {
+            const challengeIds = availableChallenges.map(c => c.id);
+            
+            const { data: participationsData } = await supabase
+              .from("challenge_participants")
+              .select("challenge_id")
+              .in("challenge_id", challengeIds)
+              .eq("user_id", currentUserId);
+            
+            // Mark challenges the user has already joined
+            const userParticipations = participationsData || [];
+            const challengesWithParticipation = availableChallenges.map(challenge => ({
+              ...challenge,
+              hasJoined: userParticipations.some(p => p.challenge_id === challenge.id),
+              // Map backend response to frontend expected format
+              game_type: challenge.game_type,
+              entry_fee: challenge.entry_fee,
+              creator: { 
+                username: challenge.creator_username || "Unknown"
+              },
+              current_participants: challenge.participants,
+              total_participants: 2 // Public challenges are 1v1
+            }));
+            
+            setChallenges(challengesWithParticipation);
+          } else {
+            // Map backend response to frontend expected format
+            const formattedChallenges = availableChallenges.map(challenge => ({
+              ...challenge,
+              game_type: challenge.game_type,
+              entry_fee: challenge.entry_fee,
+              creator: { 
+                username: challenge.creator_username || "Unknown"
+              },
+              current_participants: challenge.participants,
+              total_participants: 2 // Public challenges are 1v1
+            }));
+            setChallenges(formattedChallenges);
+          }
         } else {
-          setChallenges(challengesData);
+          console.log("No public challenges found or API returned unsuccessful response");
+          setChallenges([]);
         }
       } catch (err) {
         console.error("Error in fetchChallenges:", err);
@@ -546,52 +574,54 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           )}
 
           {/* Challenges Section */}
-          <div className="mb-4">
-            <h5>🎯 Open Challenges</h5>
-            {challengesLoading ? (
-              <div className="text-center my-3">
-                <Spinner animation="border" size="sm" variant="primary" />
-                <p className="mt-2 text-muted">Loading challenges...</p>
+{/* Challenges Section - Updated */}
+<div className="mb-4">
+  <h5>🎯 Available Public Challenges</h5>
+  {challengesLoading ? (
+    <div className="text-center my-3">
+      <Spinner animation="border" size="sm" variant="primary" />
+      <p className="mt-2 text-muted">Loading challenges...</p>
+    </div>
+  ) : challenges.length === 0 ? (
+    <div className="text-center text-muted my-3 p-3 border rounded">
+      <p>No available public challenges. Create one to get started! 🎮</p>
+    </div>
+  ) : (
+    <div className="challenges-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+      {challenges.map((challenge) => (
+        <Card key={challenge.id} className="mb-2">
+          <Card.Body className="p-2">
+            <div className="d-flex justify-content-between align-items-center">
+              <div>
+                <h6 className="mb-0">{challenge.game_type} Challenge</h6>
+                <small className="text-muted">
+                  By: {challenge.creator?.username || challenge.creator_username || "Unknown"} • 
+                  Entry: {challenge.entry_fee} tokens • 
+                  Prize: {challenge.prize_amount} tokens • 
+                  Players: {challenge.current_participants || challenge.participants}/2
+                </small>
               </div>
-            ) : challenges.length === 0 ? (
-              <div className="text-center text-muted my-3 p-3 border rounded">
-                <p>No open challenges available. Create one to get started! 🎮</p>
+              <div className="d-flex align-items-center">
+                <Badge bg={challenge.hasJoined ? "success" : "primary"} className="me-2">
+                  {challenge.hasJoined ? "Joined" : "Available"}
+                </Badge>
+                <Button 
+                  size="sm" 
+                  variant="outline-primary"
+                  onClick={() => viewChallengeDetails(challenge)}
+                  disabled={challenge.hasJoined}
+                >
+                  <Eye size={14} className="me-1" />
+                  {challenge.hasJoined ? "Joined" : "Join"}
+                </Button>
               </div>
-            ) : (
-              <div className="challenges-list" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                {challenges.map((challenge) => (
-                  <Card key={challenge.id} className="mb-2">
-                    <Card.Body className="p-2">
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div>
-                          <h6 className="mb-0">{challenge.game_type} Challenge</h6>
-                          <small className="text-muted">
-                            By: {challenge.creator?.username || "Unknown"} • 
-                            Entry: {challenge.entry_fee} tokens • 
-                            Prize: {(challenge.entry_fee * challenge.total_participants * 0.85).toFixed(2)} tokens
-                          </small>
-                        </div>
-                        <div className="d-flex align-items-center">
-                          <Badge bg={challenge.hasJoined ? "success" : "primary"} className="me-2">
-                            {challenge.hasJoined ? "Joined" : "Open to Join"}
-                          </Badge>
-                          <Button 
-                            size="sm" 
-                            variant="outline-primary"
-                            onClick={() => viewChallengeDetails(challenge)}
-                            disabled={challenge.hasJoined}
-                          >
-                            <Eye size={14} className="me-1" />
-                            View
-                          </Button>
-                        </div>
-                      </div>
-                    </Card.Body>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
+            </div>
+          </Card.Body>
+        </Card>
+      ))}
+    </div>
+  )}
+</div>
 
           {/* Messages Container */}
           <div

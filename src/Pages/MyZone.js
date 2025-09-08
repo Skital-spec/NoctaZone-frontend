@@ -109,10 +109,11 @@ const MyZone = () => {
         setPublicChallenges([]);
         return;
       }
-
+  
       console.log("🔍 Fetching public challenges for user:", currentUserId);
       
-      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public`, {
+      // Add user_id as query parameter to filter out user's own challenges
+      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public?user_id=${currentUserId}`, {
         method: "GET",
         headers: { 
           "Content-Type": "application/json",
@@ -120,16 +121,22 @@ const MyZone = () => {
         },
         credentials: "include"
       });
-
+  
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+  
       const result = await response.json();
       console.log("🔍 Public challenges API response:", result);
-
+  
       if (result.success && result.data) {
-        setPublicChallenges(result.data);
+        // Filter challenges to only show those with exactly 1 participant (creator only)
+        const availableChallenges = result.data.filter(challenge => 
+          challenge.participants === 1 && challenge.status === "pending"
+        );
+        
+        console.log(`🔍 Filtered ${availableChallenges.length} available challenges from ${result.data.length} total`);
+        setPublicChallenges(availableChallenges);
       } else {
         console.log("No public challenges found or API returned unsuccessful response");
         setPublicChallenges([]);
@@ -238,7 +245,7 @@ const MyZone = () => {
       setError("Please log in to join challenges.");
       return;
     }
-
+  
     setJoiningChallenge(true);
     try {
       const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/${challengeId}/join`, {
@@ -252,21 +259,20 @@ const MyZone = () => {
           user_id: currentUserId
         }),
       });
-
+  
       const result = await response.json();
-
+  
       if (!response.ok) {
         console.error("Error joining challenge:", result.error);
         setError(result.error || `Failed to join challenge: ${result.details || 'Unknown error'}`);
         return;
       }
-
+  
       if (result.success) {
         setShowJoinModal(false);
-        // Refresh the data
-        if (activeTab === "public") {
-          fetchPublicChallenges();
-        }
+        // Remove the joined challenge from public challenges list since it's now full
+        setPublicChallenges(prev => prev.filter(challenge => challenge.id !== challengeId));
+        // Refresh active matches to show the newly joined challenge
         fetchActiveMatches();
         setError(null);
       } else {
@@ -347,28 +353,30 @@ const MyZone = () => {
         </div>
       );
     }
-
+  
     if (publicChallenges.length === 0) {
       return (
         <div className="text-center py-4">
-          <p>No public challenges available.</p>
+          <p>No available challenges to join.</p>
           <Button variant="primary" onClick={handleCreateChallenge}>
             Create Challenge
           </Button>
         </div>
       );
     }
-
+  
     return (
       <Row>
         {publicChallenges.map((challenge) => (
           <Col md={6} lg={4} key={challenge.id} className="mb-3">
             <Card className="challenge-card h-100">
               <Card.Body>
-                <Card.Title>{challenge.game_name}</Card.Title>
+                <Card.Title>{challenge.game_type}</Card.Title>
                 <Card.Text>
                   <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
-                  <strong>Creator:</strong> {challenge.creator?.username || 'Anonymous'}<br/>
+                  <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
+                  <strong>Creator:</strong> {challenge.creator_username}<br/>
+                  <strong>Participants:</strong> {challenge.participants}/2<br/>
                   <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
                 </Card.Text>
                 <Button 
@@ -653,48 +661,50 @@ const MyZone = () => {
           </Col>
         </Row>
 
-        {/* Join Challenge Modal */}
-        <Modal show={showJoinModal} onHide={() => setShowJoinModal(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>Join Challenge</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {selectedChallenge && (
-              <div>
-                <p><strong>Game:</strong> {selectedChallenge.game_name}</p>
-                <p><strong>Entry Fee:</strong> ${selectedChallenge.entry_fee}</p>
-                <p><strong>Creator:</strong> {selectedChallenge.creator?.username || 'Anonymous'}</p>
-                <p>Are you sure you want to join this challenge?</p>
-              </div>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowJoinModal(false)}>
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={() => handleJoinChallenge(selectedChallenge?.id)}
-              disabled={joiningChallenge}
-            >
-              {joiningChallenge ? (
-                <>
-                  <Spinner
-                    as="span"
-                    animation="border"
-                    size="sm"
-                    role="status"
-                    aria-hidden="true"
-                    className="me-2"
-                  />
-                  Joining...
-                </>
-              ) : (
-                "Join Challenge"
-              )}
-            </Button>
-          </Modal.Footer>
-        </Modal>
+{/* Join Challenge Modal - Updated */}
+<Modal show={showJoinModal} onHide={() => setShowJoinModal(false)}>
+  <Modal.Header closeButton>
+    <Modal.Title>Join Challenge</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    {selectedChallenge && (
+      <div>
+        <p><strong>Game:</strong> {selectedChallenge.game_type}</p>
+        <p><strong>Entry Fee:</strong> ${selectedChallenge.entry_fee}</p>
+        <p><strong>Prize Pool:</strong> ${selectedChallenge.prize_amount}</p>
+        <p><strong>Creator:</strong> {selectedChallenge.creator_username}</p>
+        <p><strong>Participants:</strong> {selectedChallenge.participants}/2</p>
+        <p>Are you sure you want to join this challenge?</p>
+      </div>
+    )}
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowJoinModal(false)}>
+      Cancel
+    </Button>
+    <Button 
+      variant="primary" 
+      onClick={() => handleJoinChallenge(selectedChallenge?.id)}
+      disabled={joiningChallenge}
+    >
+      {joiningChallenge ? (
+        <>
+          <Spinner
+            as="span"
+            animation="border"
+            size="sm"
+            role="status"
+            aria-hidden="true"
+            className="me-2"
+          />
+          Joining...
+        </>
+      ) : (
+        "Join Challenge"
+      )}
+    </Button>
+  </Modal.Footer>
+</Modal>
       </Container>
     </MainLayout>
   );
