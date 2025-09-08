@@ -163,7 +163,7 @@ const MyZone = () => {
         return;
       }
 
-      if (result.success && result.challenges) {
+      if (result.challenges) {
         setPublicChallenges(result.challenges);
       } else {
         setPublicChallenges([]);
