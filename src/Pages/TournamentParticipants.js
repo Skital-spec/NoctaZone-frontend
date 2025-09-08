@@ -734,7 +734,7 @@ const TournamentParticipants = () => {
                                         </button>
                                       ) : null}
                                       {isAdmin && (
-                                        <Link to={`/report-results/${match.id}`}>
+                                        <Link to={`/tournament/${id}/report-match/${match.id}`}>
                                           <button
                                             className="px-2 py-1 rounded text-xs ml-2 "
                                            style={{color: '#46923c' , border:'none'}}>
