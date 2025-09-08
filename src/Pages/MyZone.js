@@ -112,7 +112,7 @@ const MyZone = () => {
 
       console.log("🔍 Fetching public challenges for user:", currentUserId);
       
-      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public?user_id=${currentUserId}`, {
+      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public`, {
         method: "GET",
         headers: { 
           "Content-Type": "application/json",
