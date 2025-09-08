@@ -483,50 +483,109 @@ const MyZone = () => {
         <style>
           {`
             .challenge-card {
-              transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-              border: 1px solid #e0e0e0;
+              transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+              border: 1px solid rgba(0, 255, 204, 0.2);
+              background: linear-gradient(135deg, #1e1e1e 0%, #2a2a2a 100%);
+              color: #ffffff;
             }
             
             .challenge-card:hover {
-              transform: translateY(-2px);
-              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+              transform: translateY(-4px);
+              box-shadow: 0 8px 25px rgba(0, 255, 204, 0.3);
+              border-color: #00ffcc;
             }
             
             .challenge-card .card-body {
               padding: 1.5rem;
+              background: transparent;
             }
             
             .challenge-card .card-title {
-              color: #2c3e50;
+              color: #00ffcc;
               font-weight: 600;
+              text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+            }
+            
+            .challenge-card .text-muted {
+              color: #b0b0b0 !important;
+            }
+            
+            .challenge-card .btn-primary {
+              background: linear-gradient(135deg, #00ffcc 0%, #00d4aa 100%);
+              border: none;
+              color: #000;
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              box-shadow: 0 4px 15px rgba(0, 255, 204, 0.3);
+              transition: all 0.3s ease;
+            }
+            
+            .challenge-card .btn-primary:hover {
+              background: linear-gradient(135deg, #00d4aa 0%, #00ffcc 100%);
+              box-shadow: 0 6px 20px rgba(0, 255, 204, 0.5);
+              transform: translateY(-2px);
             }
             
             .myzone-tabs {
               display: flex;
-              background: #f8f9fa;
-              border-bottom: 1px solid #dee2e6;
+              background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+              border-bottom: 2px solid #00ffcc;
               margin-bottom: 2rem;
-              border-radius: 8px 8px 0 0;
+              border-radius: 12px 12px 0 0;
+              box-shadow: 0 4px 20px rgba(0, 255, 204, 0.1);
+              overflow: hidden;
             }
             
             .myzone-tab {
               flex: 1;
-              padding: 1rem;
+              padding: 1.2rem;
               text-align: center;
               background: transparent;
               border: none;
               cursor: pointer;
-              font-weight: 500;
-              transition: all 0.2s ease;
+              font-weight: 600;
+              color: #b0b0b0;
+              transition: all 0.3s ease;
+              position: relative;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              font-size: 0.9rem;
+            }
+            
+            .myzone-tab::before {
+              content: '';
+              position: absolute;
+              bottom: 0;
+              left: 50%;
+              width: 0;
+              height: 2px;
+              background: #00ffcc;
+              transition: all 0.3s ease;
+              transform: translateX(-50%);
             }
             
             .myzone-tab:hover {
-              background: #e9ecef;
+              background: rgba(0, 255, 204, 0.1);
+              color: #00ffcc;
+              text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+            }
+            
+            .myzone-tab:hover::before {
+              width: 80%;
             }
             
             .myzone-tab.active {
-              background: #007bff;
-              color: white;
+              background: linear-gradient(135deg, rgba(0, 255, 204, 0.2) 0%, rgba(0, 255, 204, 0.1) 100%);
+              color: #00ffcc;
+              text-shadow: 0 0 12px rgba(0, 255, 204, 0.8);
+              box-shadow: inset 0 0 20px rgba(0, 255, 204, 0.1);
+            }
+            
+            .myzone-tab.active::before {
+              width: 100%;
+              height: 3px;
+              box-shadow: 0 0 10px #00ffcc;
             }
             
             .myzone-tab:first-child {
@@ -541,7 +600,13 @@ const MyZone = () => {
 
         <Row>
           <Col>
-            <h2 className="mb-4">My Zone</h2>
+            <h2 className="mb-4" style={{
+              color: '#00ffcc',
+              textShadow: '0 0 15px rgba(0, 255, 204, 0.6)',
+              fontWeight: '700',
+              textTransform: 'uppercase',
+              letterSpacing: '2px'
+            }}>My Zone</h2>
             
             {error && (
               <Alert variant="danger" dismissible onClose={() => setError(null)}>
