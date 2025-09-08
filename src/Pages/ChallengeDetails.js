@@ -247,7 +247,24 @@ const ChallengeDetails = () => {
       }
     }
     
-    const result = { p1Wins, p2Wins, seriesWinner, isDraw, match3Needed, allMatchesComplete };
+    // Ensure seriesWinner is a clean object with only necessary fields
+    if (seriesWinner && typeof seriesWinner === 'object') {
+      seriesWinner = {
+        id: typeof seriesWinner.id === 'object' ? seriesWinner.id.toString() : seriesWinner.id,
+        username: typeof seriesWinner.username === 'object' ? seriesWinner.username.toString() : seriesWinner.username
+      };
+    }
+    
+    // Ensure all values are primitives to prevent React error #31
+    const result = { 
+      p1Wins: typeof p1Wins === 'object' ? parseInt(p1Wins) : p1Wins,
+      p2Wins: typeof p2Wins === 'object' ? parseInt(p2Wins) : p2Wins,
+      seriesWinner: seriesWinner,
+      isDraw: typeof isDraw === 'object' ? Boolean(isDraw) : isDraw,
+      match3Needed: typeof match3Needed === 'object' ? Boolean(match3Needed) : match3Needed,
+      allMatchesComplete: typeof allMatchesComplete === 'object' ? Boolean(allMatchesComplete) : allMatchesComplete
+    };
+    
     return result;
   }, [players, matches]);
 
@@ -415,6 +432,47 @@ const ChallengeDetails = () => {
       
       // 3) Get detailed player information from Supabase if we have player IDs
       let playersData = chJson.players || { p1: null, p2: null };
+      
+      // Ensure playersData contains only the necessary fields to prevent React error #31
+      if (playersData.p1) {
+        // Create a clean player object with only the necessary fields
+        playersData.p1 = {
+          id: playersData.p1.id,
+          username: playersData.p1.username,
+          avatar_url: playersData.p1.avatar_url
+        };
+        
+        // If any of these fields are objects, extract just the primitive values
+        if (typeof playersData.p1.id === 'object') {
+          playersData.p1.id = playersData.p1.id.toString();
+        }
+        if (typeof playersData.p1.username === 'object') {
+          playersData.p1.username = playersData.p1.username.toString();
+        }
+        if (typeof playersData.p1.avatar_url === 'object') {
+          playersData.p1.avatar_url = playersData.p1.avatar_url.toString();
+        }
+      }
+      
+      if (playersData.p2) {
+        // Create a clean player object with only the necessary fields
+        playersData.p2 = {
+          id: playersData.p2.id,
+          username: playersData.p2.username,
+          avatar_url: playersData.p2.avatar_url
+        };
+        
+        // If any of these fields are objects, extract just the primitive values
+        if (typeof playersData.p2.id === 'object') {
+          playersData.p2.id = playersData.p2.id.toString();
+        }
+        if (typeof playersData.p2.username === 'object') {
+          playersData.p2.username = playersData.p2.username.toString();
+        }
+        if (typeof playersData.p2.avatar_url === 'object') {
+          playersData.p2.avatar_url = playersData.p2.avatar_url.toString();
+        }
+      }
       
       if (playersData.p1?.id || playersData.p2?.id) {
         const playerIds = [];
@@ -671,8 +729,8 @@ const ChallengeDetails = () => {
     
     // Win amount: exactly what the database expects (totalStake * 0.85)
     const winAmount = totalStake * 0.85; // Keep as float, don't floor yet
-    const drawAmount = Math.floor(entryFee * 90); // 4% less than individual stake
-    const refundAmount = Math.floor(entryFee * 0.98); // 2% less than individual stake
+    const drawAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
+    const refundAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
     
     console.log('💰 Cash out amounts calculated:', {
       entryFee,
@@ -683,7 +741,12 @@ const ChallengeDetails = () => {
       'winAmount (floored)': Math.floor(winAmount)
     });
     
-    return { winAmount, drawAmount, refundAmount };
+    // Ensure all values are numbers to prevent React error #31
+    return { 
+      winAmount: typeof winAmount === 'object' ? parseFloat(winAmount) : winAmount,
+      drawAmount: typeof drawAmount === 'object' ? parseInt(drawAmount) : drawAmount,
+      refundAmount: typeof refundAmount === 'object' ? parseInt(refundAmount) : refundAmount
+    };
   };
 
   const handleStartChallenge = async () => {
@@ -845,12 +908,17 @@ const ChallengeDetails = () => {
 
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";
-    const date = new Date(dateString);
+    // Ensure dateString is a string
+    const cleanDateString = typeof dateString === 'object' ? dateString.toString() : dateString;
+    const date = new Date(cleanDateString);
     return date.toLocaleString();
   };
 
   const getStatusVariant = (status) => {
-    switch (status) {
+    // Ensure status is a string
+    const cleanStatus = typeof status === 'object' ? status.toString() : status || "secondary";
+    
+    switch (cleanStatus) {
       case "pending":
         return "warning";
       case "active":
@@ -877,6 +945,12 @@ const ChallengeDetails = () => {
       return () => clearTimeout(timer);
     }, []);
     
+    // Ensure winner is a clean object if it exists
+    const cleanWinner = winner && typeof winner === 'object' ? {
+      id: typeof winner.id === 'object' ? winner.id.toString() : winner.id,
+      username: typeof winner.username === 'object' ? winner.username.toString() : winner.username
+    } : winner;
+    
     return (
       <div className={`text-center mb-4 ${isVisible ? 'animate__animated animate__bounceIn' : 'opacity-0'}`}>
         <div className="display-4 mb-3">
@@ -894,11 +968,11 @@ const ChallengeDetails = () => {
           type === 'lose' ? 'text-danger' : 'text-primary'
         }`}>
           {message || (
-            type === 'win' ? `Congratulations ${winner?.username || `User ${winner?.id}`}! You've Won!` :
+            type === 'win' ? `Congratulations ${cleanWinner?.username || `User ${cleanWinner?.id}`}! You've Won!` :
             type === 'draw' ? "Congratulations! You've Both Drawn!" :
             type === 'expired' ? "Challenge Expired - Refunds Available!" :
             type === 'forfeit' ? "You Won by Default!" :
-            type === 'lose' ? `${winner?.username || `User ${winner?.id}`} Won the Challenge!` :
+            type === 'lose' ? `${cleanWinner?.username || `User ${cleanWinner?.id}`} Won the Challenge!` :
             "Congratulations!"
           )}
         </h2>
@@ -916,7 +990,14 @@ const ChallengeDetails = () => {
 
   // Timer display component
   const TimerDisplay = ({ timeLeft, label, variant = "primary" }) => {
-    const totalSeconds = timeLeft.hours * 3600 + timeLeft.minutes * 60 + timeLeft.seconds;
+    // Ensure timeLeft values are numbers
+    const cleanTimeLeft = {
+      hours: typeof timeLeft.hours === 'object' ? parseInt(timeLeft.hours) : timeLeft.hours || 0,
+      minutes: typeof timeLeft.minutes === 'object' ? parseInt(timeLeft.minutes) : timeLeft.minutes || 0,
+      seconds: typeof timeLeft.seconds === 'object' ? parseInt(timeLeft.seconds) : timeLeft.seconds || 0
+    };
+    
+    const totalSeconds = cleanTimeLeft.hours * 3600 + cleanTimeLeft.minutes * 60 + cleanTimeLeft.seconds;
     const isLowTime = totalSeconds < 300; // Less than 5 minutes
     
     return (
@@ -927,8 +1008,8 @@ const ChallengeDetails = () => {
             <h5 className="mb-0">{label}</h5>
           </div>
           <div className={`display-6 fw-bold ${isLowTime ? 'text-warning' : `text-${variant}`}`}>
-            {timeLeft.hours > 0 && `${timeLeft.hours.toString().padStart(2, '0')}:`}
-            {timeLeft.minutes.toString().padStart(2, '0')}:{timeLeft.seconds.toString().padStart(2, '0')}
+            {cleanTimeLeft.hours > 0 && `${cleanTimeLeft.hours.toString().padStart(2, '0')}:`}
+            {cleanTimeLeft.minutes.toString().padStart(2, '0')}:{cleanTimeLeft.seconds.toString().padStart(2, '0')}
           </div>
           {isLowTime && (
             <Alert variant="warning" className="mt-2 mb-0">
@@ -1321,27 +1402,37 @@ const ChallengeDetails = () => {
                     <div className="text-muted">Matches will appear here once both players join.</div>
                   ) : (
                     matches.map((m) => {
+                      // Ensure m is a clean object and not containing complex nested objects
+                      const cleanMatch = {
+                        id: m.id,
+                        match_number: m.match_number,
+                        status: m.status,
+                        winner_user_id: m.winner_user_id,
+                        player1_id: m.player1_id,
+                        player2_id: m.player2_id
+                      };
+                      
                       const statusVariant =
-                        m.status === "completed"
+                        cleanMatch.status === "completed"
                           ? "success"
-                          : m.status === "disputed"
+                          : cleanMatch.status === "disputed"
                           ? "danger"
-                          : m.status === "pending"
+                          : cleanMatch.status === "pending"
                           ? "info"
                           : "secondary";
                       
                       // Don't show match 3 if it's not needed
-                      if (m.match_number === 3 && !seriesScore.match3Needed) {
+                      if (cleanMatch.match_number === 3 && !seriesScore.match3Needed) {
                         return null;
                       }
                       
                       return (
-                        <Card key={m.id} className={m.status === 'completed' ? 'border-success' : ''}>
+                        <Card key={cleanMatch.id} className={cleanMatch.status === 'completed' ? 'border-success' : ''}>
                           <Card.Body className="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
                             <div className="mb-2 mb-md-0">
                               <div className="fw-bold d-flex align-items-center">
-                                Match {m.match_number}
-                                {m.status === 'completed' && (
+                                Match {cleanMatch.match_number}
+                                {cleanMatch.status === 'completed' && (
                                   <CheckCircle size={16} className="ms-2 text-success" />
                                 )}
                               </div>
@@ -1350,9 +1441,9 @@ const ChallengeDetails = () => {
                                 {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}
                               </div>
                               <div className="mt-1">
-                                {m.status === "completed" && m.winner_user_id ? (
+                                {cleanMatch.status === "completed" && cleanMatch.winner_user_id ? (
                                   <div className="d-flex align-items-center">
-                                    {m.winner_user_id === 'draw' ? (
+                                    {cleanMatch.winner_user_id === 'draw' ? (
                                       <span className="text-warning fw-bold">
                                         Result: Draw
                                       </span>
@@ -1360,14 +1451,14 @@ const ChallengeDetails = () => {
                                       <>
                                         <Trophy size={16} className="me-1 text-warning" />
                                         <span className="text-success fw-bold">
-                                          Winner: {m.winner_user_id === players.p1?.id 
+                                          Winner: {cleanMatch.winner_user_id === players.p1?.id 
                                             ? (players.p1?.username || `User ${players.p1?.id}`)
                                             : (players.p2?.username || `User ${players.p2?.id}`)}
                                         </span>
                                       </>
                                     )}
                                   </div>
-                                ) : m.status === "disputed" ? (
+                                ) : cleanMatch.status === "disputed" ? (
                                   <span className="text-danger fw-bold">Disputed - Awaiting Resolution</span>
                                 ) : (
                                   <span className="text-muted">Winner: TBD</span>
@@ -1375,21 +1466,21 @@ const ChallengeDetails = () => {
                               </div>
                             </div>
                             <div className="d-flex align-items-center gap-2">
-                              <Badge bg={statusVariant}>{(m.status || "pending").toUpperCase()}</Badge>
+                              <Badge bg={statusVariant}>{(cleanMatch.status || "pending").toUpperCase()}</Badge>
                               {/* Only show Report Results button if individual match is not completed AND challenge is not completed */}
-                              {m.status !== 'completed' && 
+                              {cleanMatch.status !== 'completed' && 
                                challenge?.status !== 'completed' && 
                                challengeState !== CHALLENGE_STATES.COMPLETED && (
                                 <Button
                                   variant="outline-primary"
                                   size="sm"
-                                  onClick={() => gotoReport(m.id)}
+                                  onClick={() => gotoReport(cleanMatch.id)}
                                 >
                                   Report Results
                                 </Button>
                               )}
                               {/* Show match completion status for individual completed matches */}
-                              {m.status === 'completed' && (
+                              {cleanMatch.status === 'completed' && (
                                 <Badge bg="success" className="px-2 py-1">
                                   Match Complete
                                 </Badge>
