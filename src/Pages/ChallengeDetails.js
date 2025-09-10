@@ -967,7 +967,14 @@ const ChallengeDetails = () => {
                 <p className="mb-0">
                   📱 <strong>Text your opponent</strong> on the private chats page to share match codes and decide play time.<br/>
                   🎮 Play your matches and report results below.<br/>
-                  ⏰ You have 24 hours to complete all the three matches .
+                  Rules:<br/>
+                  ⏰ You have 24 hours to complete all the three matches .<br/>
+                  ⚠️ If no results are reported within the 24 hour time limit, both players will be refunded .<br/>
+                  ⚠️ Take screenshots of your matces incase a dispute arises .<br/>
+                  ⚠️ Participants must report their results within 6 hours of their opponent
+                  submitting their results. Failure to report within this timeframe may result in
+                  automatic acceptance of your opponent's reported outcome.<br/>
+                  <span style={{color: "green", fontWeight:'bold'}}>BEST OF LUCK IN YOUR CHALLENGE</span>
                 </p>
               </Card.Body>
             )}

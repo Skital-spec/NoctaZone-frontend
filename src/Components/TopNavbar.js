@@ -306,13 +306,13 @@ const TopNavbar = ({ onOpenPublicChat }) => {
               </Nav.Link>
               <Nav.Link
                 onClick={() => setShowOnlineUsers(true)}
-                className="text-success"
+                style={{color: '#00ffcc'}}
               >
                 👥 Online Users
               </Nav.Link>
               <Nav.Link
                 onClick={() => setSearchUsers(true)}
-                className="text-success"
+                className="text-warning"
               >
                 👥 Search Users
               </Nav.Link>

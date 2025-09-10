@@ -658,7 +658,6 @@ const MyZone = () => {
             .challenge-card .card-title {
               color: #00ffcc;
               font-weight: 600;
-              text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
             }
             
             .challenge-card .text-muted {
@@ -682,80 +681,145 @@ const MyZone = () => {
               transform: translateY(-2px);
             }
             
-            .myzone-tabs {
-              display: flex;
-              background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-              border-bottom: 2px solid #00ffcc;
-              margin-bottom: 2rem;
-              border-radius: 12px 12px 0 0;
-              box-shadow: 0 4px 20px rgba(0, 255, 204, 0.1);
-              overflow-x: auto;
-              overflow-y: hidden;
-              scrollbar-width: none; /* Firefox */
-              -ms-overflow-style: none; /* IE/Edge */
-            }
-            
-            /* Hide scrollbar for Chrome/Safari/Opera */
-            .myzone-tabs::-webkit-scrollbar {
-              display: none;
-            }
-            
-            .myzone-tab {
-              flex: 1;
-              padding: 1.2rem;
-              text-align: center;
-              background: transparent;
-              border: none;
-              cursor: pointer;
-              font-weight: 600;
-              color: #b0b0b0;
-              transition: all 0.3s ease;
-              position: relative;
-              text-transform: uppercase;
-              letter-spacing: 0.5px;
-              font-size: 0.9rem;
-              min-width: 150px; /* Minimum width for better scrolling */
-              white-space: nowrap; /* Prevent text wrapping */
-            }
-            
-            .myzone-tab::before {
-              content: '';
-              position: absolute;
-              bottom: 0;
-              left: 50%;
-              width: 0;
-              height: 2px;
-              background: #00ffcc;
-              transition: all 0.3s ease;
-              transform: translateX(-50%);
-            }
-            
-            .myzone-tab:hover {
-              color: #00ffcc;
-            }
-            
-            .myzone-tab:hover::before {
-              width: 80%;
-            }
-            
-            .myzone-tab.active {
-              color: #00ffcc;
-              box-shadow: inset 0 0 20px rgba(0, 255, 204, 0.1);
-            }
-            
-            .myzone-tab.active::before {
-              width: 100%;
-              height: 3px;
-              box-shadow: 0 0 10px #00ffcc;
-            }
-            
-            .myzone-tab:first-child {
-              border-radius: 8px 0 0 0;
-            }
-            
-            .myzone-tab:last-child {
-              border-radius: 0 8px 0 0;
-            }
+.myzone-tabs {
+  display: flex;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  border-bottom: 2px solid #00ffcc;
+  margin-bottom: 2rem;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 4px 20px rgba(0, 255, 204, 0.1);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+/* Hide scrollbar for Chrome/Safari/Opera */
+.myzone-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.myzone-tab {
+  flex: 1;
+  padding: 1.2rem;
+  text-align: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #b0b0b0;
+  transition: all 0.3s ease;
+  position: relative;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.9rem;
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.myzone-tab::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: #00ffcc;
+  transition: all 0.3s ease;
+  transform: translateX(-50%);
+}
+
+.myzone-tab:hover {
+  color: #00ffcc;
+}
+
+.myzone-tab:hover::before {
+  width: 80%;
+}
+
+.myzone-tab.active {
+  color: #00ffcc;
+  box-shadow: inset 0 0 20px rgba(0, 255, 204, 0.1);
+}
+
+.myzone-tab.active::before {
+  width: 100%;
+  height: 3px;
+  box-shadow: 0 0 10px #00ffcc;
+}
+
+.myzone-tab:first-child {
+  border-radius: 8px 0 0 0;
+}
+
+.myzone-tab:last-child {
+  border-radius: 0 8px 0 0;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .myzone-tabs {
+    margin-bottom: 1.5rem;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 2px 15px rgba(0, 255, 204, 0.1);
+  }
+  
+  .myzone-tab {
+    padding: 1rem 0.8rem;
+    font-size: 0.8rem;
+    min-width: 120px;
+    letter-spacing: 0.3px;
+    flex: 0 0 auto; /* Prevent shrinking, allow scrolling */
+  }
+  
+  .myzone-tab:first-child {
+    border-radius: 6px 0 0 0;
+  }
+  
+  .myzone-tab:last-child {
+    border-radius: 0 6px 0 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .myzone-tabs {
+    margin-bottom: 1rem;
+    border-radius: 6px 6px 0 0;
+  }
+  
+  .myzone-tab {
+    padding: 0.9rem 0.6rem;
+    font-size: 0.75rem;
+    min-width: 100px;
+    letter-spacing: 0.2px;
+    font-weight: 500;
+  }
+  
+  .myzone-tab:first-child {
+    border-radius: 4px 0 0 0;
+  }
+  
+  .myzone-tab:last-child {
+    border-radius: 0 4px 0 0;
+  }
+  
+  .myzone-tab::before {
+    height: 1.5px;
+  }
+  
+  .myzone-tab.active::before {
+    height: 2px;
+  }
+}
+
+@media (max-width: 320px) {
+  .myzone-tab {
+    padding: 0.8rem 0.4rem;
+    font-size: 0.7rem;
+    min-width: 80px;
+    letter-spacing: 0.1px;
+  }
+}
           `}
         </style>
 
@@ -763,7 +827,6 @@ const MyZone = () => {
           <Col>
             <h2 className="mb-4" style={{
               color: '#00ffcc',
-              textShadow: '0 0 15px rgba(0, 255, 204, 0.6)',
               fontWeight: '700',
               textTransform: 'uppercase',
               letterSpacing: '2px'
