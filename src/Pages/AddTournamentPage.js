@@ -7,18 +7,18 @@ const AddTournamentPage = () => {
   const [form, setForm] = useState({
     game_id: '',
     entry_fee: '',
-    seats: '',
+    max_participants: '',
     start_date: '',
     end_date: '',
     name: '',
   });
 
-const prize = form.entry_fee && form.seats
-  ? Math.floor(form.entry_fee * form.seats * 0.85)
+const prize = form.entry_fee && form.max_participants
+  ? Math.floor(form.entry_fee * form.max_participants * 0.85)
   : 0;
 
-const showBreakdown = form.seats >= 10;
-const total = form.entry_fee * form.seats;
+const showBreakdown = form.max_participants >= 10;
+const total = form.entry_fee * form.max_participants;
 const firstPrize = showBreakdown ? Math.floor(total * 0.45) : 0;
 const secondPrize = showBreakdown ? Math.floor(total * 0.25) : 0;
 const thirdPrize = showBreakdown ? Math.floor(total* 0.15) : 0;
@@ -52,22 +52,37 @@ const thirdPrize = showBreakdown ? Math.floor(total* 0.15) : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-const { error } = await supabase.from('tournaments').insert([
-  {
-    ...form,
-    entry_fee: parseInt(form.entry_fee),
-    seats: parseInt(form.seats),
-    start_date: form.start_date,
-    end_date: form.end_date,
-    name: form.name,
-    prize: prize, // ✅ use the calculated value
-    first_place_prize: firstPrize,
-    second_place_prize: secondPrize,
-    third_place_prize: thirdPrize,
-    status: "upcoming", // ✅ optional: add status if needed
-  },
-]);
-    if (!error) alert('Tournament added successfully!');
+    
+    // Get the selected game details to populate game_type
+    const selectedGame = games.find(g => g.id === form.game_id);
+    if (!selectedGame) {
+      alert('Please select a valid game');
+      return;
+    }
+
+    const { error } = await supabase.from('tournaments').insert([
+      {
+        ...form,
+        entry_fee: parseInt(form.entry_fee),
+        max_participants: parseInt(form.max_participants),
+        start_date: form.start_date,
+        end_date: form.end_date,
+        name: form.name,
+        game_type: selectedGame.game_type || selectedGame.name, // Use game_type from games table
+        prize_amount: prize,
+        first_place_prize: firstPrize,
+        second_place_prize: secondPrize,
+        third_place_prize: thirdPrize,
+        status: "upcoming",
+      },
+    ]);
+    
+    if (error) {
+      console.error('Tournament creation error:', error);
+      alert('Error creating tournament: ' + error.message);
+    } else {
+      alert('Tournament added successfully!');
+    }
   };
 
   return (
@@ -118,8 +133,8 @@ const { error } = await supabase.from('tournaments').insert([
           <label>Seats :</label>
           <input
             type="number"
-            name="seats"
-            value={form.seats}
+            name="max_participants"
+            value={form.max_participants}
             onChange={handleChange}
             required
           />
@@ -157,7 +172,7 @@ const { error } = await supabase.from('tournaments').insert([
         <div className="preview-card">
           <p><strong>Game : </strong> {games.find(g => g.id === form.game_id)?.name || '—'}</p>
           <p><strong>Entry Fee : </strong> {form.entry_fee || '—'} Ksh</p>
-          <p><strong>Seats : </strong> {form.seats || '—'}</p>
+          <p><strong>Seats : </strong> {form.max_participants || '—'}</p>
           <p><strong>Prize : </strong> {prize} Ksh</p>
           <p><strong>Dates : </strong> {form.start_date} → {form.end_date}</p>
           <p><strong>Status : </strong> Upcoming</p>

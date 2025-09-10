@@ -29,10 +29,9 @@ const Adminresults = () => {
         const submissionQuery = supabase
           .from("match_submissions")
           .select(
-            `id, match_id, user_id, player1_goals, player2_goals, declared_winner, evidence, created_at,
+            `id, match_id, challenge_id, user_id, player1_goals, player2_goals, declared_winner, evidence, created_at,
              profiles:user_id ( id, username ),
-             winner_profile:declared_winner ( id, username ),
-             match:match_id ( id, tournament_id, status, winner_user_id )`
+             winner_profile:declared_winner ( id, username )`
           )
           .order("created_at", { ascending: false })
           .range((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE - 1);
@@ -68,8 +67,8 @@ const Adminresults = () => {
               winnerUsername.toLowerCase().includes(q) ||
               String(s.user_id).toLowerCase().includes(q) ||
               String(s.declared_winner || "").toLowerCase().includes(q) ||
-              String(s.match?.id || "").toLowerCase().includes(q) ||
-              String(s.match?.tournament_id || "").toLowerCase().includes(q)
+              String(s.match_id || "").toLowerCase().includes(q) ||
+              String(s.challenge_id || "").toLowerCase().includes(q)
             );
           });
         }
@@ -79,8 +78,7 @@ const Adminresults = () => {
           .from("disputes")
           .select(
             `id, match_id, tournament_id, created_by, status, answers, evidence, created_at,
-             user:created_by ( id, username ),
-             match:match_id ( id, tournament_id, status )`
+             user:created_by ( id, username )`
           )
           .order("created_at", { ascending: false })
           .range((dispPage - 1) * PAGE_SIZE, dispPage * PAGE_SIZE - 1);
@@ -208,8 +206,10 @@ const Adminresults = () => {
                       {submissions.map((s) => (
                         <tr key={s.id} className="border-t border-[#2a2a3e]">
                           <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>
-                            <div>Match #{s.match?.id}</div>
-                            <div className="text-xs" style={{ color: "#94a3b8" }}>Tournament #{s.match?.tournament_id}</div>
+                            <div>Match #{s.match_id}</div>
+                            <div className="text-xs" style={{ color: "#94a3b8" }}>
+                              {s.challenge_id ? `Challenge #${s.challenge_id}` : 'Tournament Match'}
+                            </div>
                           </td>
                           <td className="p-3 text-sm" style={{ color: "#e5e7eb" }}>
                             <div className="font-semibold">{s.profiles?.username || `User ${s.user_id}`}</div>

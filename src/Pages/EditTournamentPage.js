@@ -26,7 +26,7 @@ const EditTournamentPage = () => {
         setForm({
           name: data.name,
           entry_fee: data.entry_fee,
-          seats: data.seats,
+          max_participants: data.seats,
           start_date: data.start_date,
           end_date: data.end_date,
           game_id: data.game_id,
@@ -56,7 +56,7 @@ const EditTournamentPage = () => {
       .update({
         name: form.name,
         entry_fee: parseInt(form.entry_fee),
-        seats: parseInt(form.seats),
+        max_participants : parseInt(form.seats),
         start_date: form.start_date,
         end_date: form.end_date,
         game_id: form.game_id,

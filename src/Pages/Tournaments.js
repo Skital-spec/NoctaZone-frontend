@@ -166,7 +166,7 @@ useEffect(() => {
     const isParticipant = hasJoinedTournament(t.id);
     const participation = getUserParticipation(t.id);
     const seatsTaken = calculateSeatsTaken(t.id);
-    const isFull = seatsTaken >= (t.seats || 0);
+    const isFull = seatsTaken >= (t.max_participants || 0);
     const isClosedOrExpired = t.status === "closed" || t.status === "expired";
 
     if (activeTab === "available") {
@@ -210,7 +210,7 @@ const getButtonProps = (tournament) => {
   const hasJoined = hasJoinedTournament(tournament.id);
   const participation = getUserParticipation(tournament.id);
   const seatsTaken = calculateSeatsTaken(tournament.id);
-  const isFull = seatsTaken >= (tournament.seats || 0);
+  const isFull = seatsTaken >= (tournament.max_participants || 0);
   const isClosedOrExpired = tournament.status === "closed" || tournament.status === "expired";
   
   if (activeTab === "history") {
@@ -436,7 +436,7 @@ const getButtonProps = (tournament) => {
                             )}
                             <p className="mb-1 small d-flex align-items-center gap-1">
                               <Users size={14} />
-                              Seats: {formatSeats(t.id, t.seats)} {/* Changed from t.seats_taken to t.id */}
+                              Seats: {formatSeats(t.id, t.max_participants)} {/* Changed from t.seats_taken to t.id */}
                             </p>
                           </div>
 

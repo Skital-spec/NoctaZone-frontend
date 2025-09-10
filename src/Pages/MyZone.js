@@ -3,6 +3,7 @@ import { Container, Row, Col, Card, Button, Modal, Spinner, Alert } from "react-
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../Components/MainLayout";
 import { supabase } from "../supabaseClient";
+import { formatDateTime } from "../utils/dateUtils";
 
 const MyZone = () => {
   const navigate = useNavigate();
@@ -79,12 +80,19 @@ const MyZone = () => {
       // Filter challenges that are not yet completed where user is a participant
       let filteredChallenges = [];
       if (result.success && result.data) {
-        filteredChallenges = result.data.filter(challenge => 
-          challenge.status !== "completed" && challenge.status !== "expired" &&
-          (challenge.creator_id === currentUserId || 
-           challenge.player1_id === currentUserId || 
-           challenge.player2_id === currentUserId)
-        );
+        filteredChallenges = result.data.filter(challenge => {
+          // Include if challenge is active and user is either creator, opponent, or target user
+          const isParticipant = 
+            challenge.creator_id === currentUserId || 
+            challenge.opponent_id === currentUserId ||
+            challenge.target_user_id === currentUserId ||
+            (challenge.participants && Array.isArray(challenge.participants) && 
+             challenge.participants.some(p => p.user_id === currentUserId));
+          
+          return challenge.status === "active" && isParticipant;
+        });
+        
+        console.log(`Found ${filteredChallenges.length} active challenges for user ${currentUserId}`);
       } else {
         console.log("No user challenges found or API returned unsuccessful response");
       }
@@ -147,7 +155,7 @@ const MyZone = () => {
   
       console.log("🔍 Fetching public challenges for user:", currentUserId);
       
-      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public`, {
+      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/public?user_id=${currentUserId}`, {
         method: "GET",
         headers: { 
           "Content-Type": "application/json",
@@ -164,12 +172,14 @@ const MyZone = () => {
       console.log("🔍 Public challenges API response:", result);
   
       if (result.success && result.data) {
-        // Filter challenges to only show those with exactly 1 participant (creator only)
-        // and exclude challenges created by the current user
+        console.log("🔍 Raw public challenges data received:", result.data);
+        
+        // Filter challenges to show available public challenges
+        // Backend already filters out user's own challenges
         const availableChallenges = result.data.filter(challenge => 
-          challenge.creator_id !== currentUserId &&
-          (!challenge.player1_id || !challenge.player2_id) &&
-          challenge.status === "pending"
+          challenge.status === "active" &&
+          challenge.participants === 1 && // Only show challenges with exactly 1 participant (available to join)
+          challenge.total_participants === 2
         );
         
         console.log(`🔍 Filtered ${availableChallenges.length} available challenges from ${result.data.length} total`);
@@ -219,7 +229,9 @@ const MyZone = () => {
 
       let completedChallenges = [];
       if (result.success && result.data) {
-        completedChallenges = result.data;
+        completedChallenges = result.data.filter(challenge => 
+          challenge.status === "completed" || challenge.status === "expired"
+        );
       } else {
         console.log("No completed challenges found or API returned unsuccessful response");
       }
@@ -289,21 +301,37 @@ const MyZone = () => {
   
     setJoiningChallenge(true);
     try {
-      const response = await fetch(`https://safcom-payment.onrender.com/api/challenges/${challengeId}/join`, {
+      // Check if user has sufficient balance
+      const entryFee = selectedChallenge.entry_fee;
+      
+      // Fetch user's wallet balance
+      const response = await fetch(
+        `https://safcom-payment.onrender.com/api/wallet/transaction?user_id=${currentUserId}`
+      );
+      const data = await response.json();
+      const balance = data.balance || 0;
+      
+      if (balance < entryFee) {
+        setError(`Insufficient balance. You need ${entryFee} tokens to join this challenge.`);
+        setShowJoinModal(false);
+        return;
+      }
+      
+      // Deduct entry fee and join challenge via backend API
+      const joinResponse = await fetch("https://safcom-payment.onrender.com/api/wallet/join-public-challenge", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
-          "Accept": "application/json"
         },
-        credentials: "include",
         body: JSON.stringify({
-          user_id: currentUserId
+          user_id: currentUserId,
+          challenge_id: challengeId
         }),
       });
+      
+      const result = await joinResponse.json();
   
-      const result = await response.json();
-  
-      if (!response.ok) {
+      if (!joinResponse.ok) {
         console.error("Error joining challenge:", result.error);
         setError(result.error || `Failed to join challenge: ${result.details || 'Unknown error'}`);
         return;
@@ -312,6 +340,7 @@ const MyZone = () => {
       if (result.success) {
         setShowJoinModal(false);
         // Remove the joined challenge from public challenges list since it's now full
+        navigate(`/challenge/${challengeId}`);
         setPublicChallenges(prev => prev.filter(challenge => challenge.id !== challengeId));
         // Refresh active matches to show the newly joined challenge
         fetchActiveMatches();
@@ -370,24 +399,29 @@ const MyZone = () => {
               <Card className="challenge-card h-100 border-primary">
                 <Card.Body>
                   <div className="d-flex align-items-center mb-2">
-                    {challenge.creator?.avatar_url && (
+                    {challenge.game_image_url ? (
                       <img 
-                        src={challenge.creator.avatar_url} 
-                        alt={challenge.creator.username}
-                        className="rounded-circle me-2"
+                        src={challenge.game_image_url} 
+                        alt={challenge.game_type}
+                        className="rounded me-2"
                         style={{ width: '32px', height: '32px', objectFit: 'cover' }}
                       />
+                    ) : (
+                      <div className="bg-secondary rounded me-2 d-flex align-items-center justify-content-center" 
+                           style={{ width: '32px', height: '32px' }}>
+                        <span className="text-white">{challenge.game_type?.charAt(0) || 'G'}</span>
+                      </div>
                     )}
                     <div>
                       <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
-                      <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
+                      <small className="text-muted">by {challenge.creator?.username || 'Anonymous'}</small>
                     </div>
                   </div>
                   <Card.Text>
                     <strong>Entry Fee:</strong> {challenge.entry_fee} Tokens<br/>
                     <strong>Prize Pool:</strong> {challenge.prize_amount} Tokens<br/>
-                    <strong>Players:</strong> {challenge.player1_id && challenge.player2_id ? '2/2' : '1/2' }<br/>
-                    <strong>Play Time:</strong> {challenge.play_time}<br/>
+                    <strong>Players:</strong> {challenge.participants} / {challenge.total_participants}<br/>
+                    <strong>Play Time:</strong> {formatDateTime(challenge.play_time)}<br/>
                     <strong>Status:</strong> <span className="badge bg-warning">{challenge.status}</span><br/>
                     <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
                   </Card.Text>
@@ -439,24 +473,29 @@ const MyZone = () => {
             <Card className="challenge-card h-100 border-primary">
               <Card.Body>
                 <div className="d-flex align-items-center mb-2">
-                  {challenge.creator?.avatar_url && (
-                    <img 
-                      src={challenge.creator.avatar_url} 
-                      alt={challenge.creator.username}
-                      className="rounded-circle me-2"
-                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                    />
-                  )}
+                {challenge.game_image_url ? (
+                      <img 
+                        src={challenge.game_image_url} 
+                        alt={challenge.game_type}
+                        className="rounded me-2"
+                        style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div className="bg-secondary rounded me-2 d-flex align-items-center justify-content-center" 
+                           style={{ width: '32px', height: '32px' }}>
+                        <span className="text-white">{challenge.game_type?.charAt(0) || 'G'}</span>
+                      </div>
+                    )}
                   <div>
                     <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
-                    <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
+                    <small className="text-muted">by {challenge.creator?.username || challenge.creator_username || "Anonymous"}</small>
                   </div>
                 </div>
                 <Card.Text>
-                  <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
-                  <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
+                  <strong>Entry Fee:</strong> {challenge.entry_fee} Tokens<br/>
+                  <strong>Prize Pool:</strong> {challenge.prize_amount} Tokens<br/>
                   <strong>Players:</strong> 1/2<br/>
-                  <strong>Play Time:</strong> {challenge.play_time}<br/>
+                  <strong>Play Time:</strong> {formatDateTime(challenge.play_time)}<br/>
                   <strong>Status:</strong> <span className="badge bg-warning">Waiting for opponent</span><br/>
                   <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
                 </Card.Text>
@@ -504,24 +543,29 @@ const MyZone = () => {
             <Card className="challenge-card h-100 border-primary">
               <Card.Body>
                 <div className="d-flex align-items-center mb-2">
-                  {challenge.creator?.avatar_url && (
-                    <img 
-                      src={challenge.creator.avatar_url} 
-                      alt={challenge.creator.username}
-                      className="rounded-circle me-2"
-                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                    />
-                  )}
+                {challenge.game_image_url ? (
+                      <img 
+                        src={challenge.game_image_url} 
+                        alt={challenge.game_type}
+                        className="rounded me-2"
+                        style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div className="bg-secondary rounded me-2 d-flex align-items-center justify-content-center" 
+                           style={{ width: '32px', height: '32px' }}>
+                        <span className="text-white">{challenge.game_type?.charAt(0) || 'G'}</span>
+                      </div>
+                    )}
                   <div>
                     <Card.Title className="mb-0 h6">{challenge.game_type}</Card.Title>
                     <small className="text-muted">by {challenge.creator?.username || 'Unknown'}</small>
                   </div>
                 </div>
                 <Card.Text>
-                  <strong>Entry Fee:</strong> ${challenge.entry_fee}<br/>
-                  <strong>Prize Pool:</strong> ${challenge.prize_amount}<br/>
-                  <strong>Players:</strong> {challenge.player1_id && challenge.player2_id ? '2/2' : '1/2' }<br/>
-                  <strong>Play Time:</strong> {challenge.play_time}<br/>
+                  <strong>Entry Fee:</strong> {challenge.entry_fee} Tokens<br/>
+                  <strong>Prize Pool:</strong> {challenge.prize_amount} Tokens<br/>
+                  <strong>Players:</strong> {challenge.participants} / {challenge.total_participants}<br/>
+                  <strong>Play Time:</strong> {formatDateTime(challenge.play_time)}<br/>
                   <strong>Status:</strong> <span className="badge bg-success">{challenge.status}</span><br/>
                   <strong>Created:</strong> {new Date(challenge.created_at).toLocaleDateString()}
                 </Card.Text>
@@ -567,8 +611,8 @@ const MyZone = () => {
               <Card.Body>
                 <Card.Title>{tournament.name}</Card.Title>
                 <Card.Text>
-                  <strong>Entry Fee:</strong> ${tournament.entry_fee}<br/>
-                  <strong>Prize Pool:</strong> ${tournament.prize_amount}<br/>
+                  <strong>Entry Fee:</strong> {tournament.entry_fee} Tokens<br/>
+                  <strong>Prize Pool:</strong> {tournament.prize_amount} Tokens<br/>
                   <strong>Participants:</strong> {tournament.current_participants}/{tournament.max_participants}<br/>
                   <strong>Status:</strong> <span className="badge bg-info">{tournament.status}</span><br/>
                   <strong>Start Date:</strong> {new Date(tournament.start_date).toLocaleDateString()}
@@ -576,7 +620,7 @@ const MyZone = () => {
                 <Button 
                   variant="outline-primary" 
                   size="sm"
-                  onClick={() => navigate(`/tournament/${tournament.id}`)}
+                  onClick={() => navigate(`/tournament/${tournament.id}/participants`)}
                 >
                   View Tournament
                 </Button>
@@ -776,8 +820,8 @@ const MyZone = () => {
     {selectedChallenge && (
       <div>
         <p><strong>Game:</strong> {selectedChallenge.game_type}</p>
-        <p><strong>Entry Fee:</strong> ${selectedChallenge.entry_fee}</p>
-        <p><strong>Prize Pool:</strong> ${selectedChallenge.prize_amount}</p>
+        <p><strong>Entry Fee:</strong> {selectedChallenge.entry_fee} Tokens</p>
+        <p><strong>Prize Pool:</strong> {selectedChallenge.prize_amount} Tokens</p>
         <p><strong>Creator:</strong> {selectedChallenge.creator_username}</p>
         <p><strong>Participants:</strong> {selectedChallenge.participants}/2</p>
         <p>Are you sure you want to join this challenge?</p>

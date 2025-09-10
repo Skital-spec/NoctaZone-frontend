@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState , useCallback} from "react";
 import {
   Container,
   Card,
@@ -26,6 +26,15 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import { useWallet } from "../context/WalletContext";
 
+// Challenge states
+const CHALLENGE_STATES = {
+  WAITING_FOR_START: 'waiting_for_start',
+  ACTIVE: 'active',
+  COMPLETED: 'completed',
+  EXPIRED: 'expired',
+  FORFEITED: 'forfeited'
+};
+
 const ChallengeDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -41,16 +50,15 @@ const ChallengeDetails = () => {
   const [players, setPlayers] = useState({ p1: null, p2: null });
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [creatingMatches, setCreatingMatches] = useState(false);
   const [error, setError] = useState(null);
   const [showCashOutModal, setShowCashOutModal] = useState(false);
-  const [cashOutType, setCashOutType] = useState(null); // 'win', 'draw', 'expired', 'forfeit'
+  const [cashOutType, setCashOutType] = useState(null); // 'winner', 'draw', 'refund', 'forfeit'
   const [cashOutAmount, setCashOutAmount] = useState(0);
   const [processingCashOut, setProcessingCashOut] = useState(false);
   const [cashOutCompleted, setCashOutCompleted] = useState(false);
   const [startingChallenge, setStartingChallenge] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const [startWindowTimeLeft, setStartWindowTimeLeft] = useState({ minutes: 0, seconds: 0 });
+  const [showInstructions, setShowInstructions] = useState(false);
 
   // Get current user ID from Supabase auth
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -97,155 +105,234 @@ const ChallengeDetails = () => {
     };
   }, []);
 
-  // Challenge states
-  const CHALLENGE_STATES = {
-    WAITING_FOR_START: 'waiting_for_start',
-    START_WINDOW_ACTIVE: 'start_window_active',
-    START_WINDOW_EXPIRED: 'start_window_expired',
-    ACTIVE: 'active',
-    COMPLETED: 'completed',
-    EXPIRED: 'expired',
-    FORFEITED: 'forfeited'
-  };
+  const loadChallenge = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // 1) Challenge + players from backend
+      const chRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}`, { credentials: "include" });
+      if (!chRes.ok) throw new Error("Failed to load challenge");
+      const chJson = await chRes.json();
+      
+      // Sanitize challenge data to ensure no complex objects are rendered
+      const sanitizedChallenge = {
+        ...chJson.challenge,
+        participants: Array.isArray(chJson.challenge?.participants) 
+          ? chJson.challenge.participants.length 
+          : (chJson.challenge?.participants || 0)
+      };
+      setChallenge(sanitizedChallenge);
+      
+      // 2) Load players - sanitize player data
+      if (chJson.players) {
+        const sanitizedPlayers = {
+          p1: chJson.players.p1 ? {
+            id: String(chJson.players.p1.id || ''),
+            username: String(chJson.players.p1.username || 'User undefined'),
+            avatar_url: chJson.players.p1.avatar_url || null
+          } : {
+            id: sanitizedChallenge.creator_id,
+            username: 'User undefined',
+            avatar_url: null
+          },
+          p2: chJson.players.p2 ? {
+            id: String(chJson.players.p2.id || ''),
+            username: String(chJson.players.p2.username || 'User undefined'),
+            avatar_url: chJson.players.p2.avatar_url || null
+          } : sanitizedChallenge.opponent_id ? {
+            id: sanitizedChallenge.opponent_id,
+            username: 'User undefined',
+            avatar_url: null
+          } : null
+        };
+        setPlayers(sanitizedPlayers);
+      } else {
+        // Fallback when no player data is returned
+        const fallbackPlayers = {
+          p1: {
+            id: sanitizedChallenge.creator_id,
+            username: 'User undefined',
+            avatar_url: null
+          },
+          p2: sanitizedChallenge.opponent_id ? {
+            id: sanitizedChallenge.opponent_id,
+            username: 'User undefined', 
+            avatar_url: null
+          } : null
+        };
+        setPlayers(fallbackPlayers);
+      }
+      
+      // 3) Ensure matches exist for challenges with 2 participants
+      if (chJson.challenge && chJson.challenge.participants >= 2) {
+        try {
+          await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/ensure-matches`, {
+            method: 'POST',
+            credentials: "include"
+          });
+        } catch (ensureError) {
+          console.warn("Failed to ensure matches:", ensureError);
+        }
+      }
+      
+      // 4) Load matches - sanitize match data
+      const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
+      const mJson = await mRes.json();
+      const sanitizedMatches = (mJson.matches || []).map(match => ({
+        id: String(match.id || ''),
+        match_number: Number(match.match_number || 0),
+        status: String(match.status || 'pending'),
+        winner_user_id: match.winner_user_id ? String(match.winner_user_id) : null,
+        player1_id: match.player1_id ? String(match.player1_id) : null,
+        player2_id: match.player2_id ? String(match.player2_id) : null,
+        is_draw: Boolean(match.is_draw) // Ensure boolean value for is_draw
+      }));
+      setMatches(sanitizedMatches);
+      
+    } catch (err) {
+      setError(err.message || "Failed to load challenge");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
     loadChallenge();
-  }, [id, currentUserId]); // Re-load when user ID changes
+  }, [loadChallenge]); // Now loadChallenge is a dependency
 
   // Separate effect to check cash-out status when currentUserId becomes available
-  useEffect(() => {
-    const checkCashOutStatus = async () => {
-      if (!currentUserId || !id) return;
+  const checkCashOutStatus = useCallback(async () => {
+    if (!currentUserId || !id) return;
+    
+    try {
+      const { data: existingCashOut, error: cashOutError } = await supabase
+        .from("challenge_cash_outs")
+        .select("id, type, amount, processed_at, challenge_id, user_id")
+        .eq("challenge_id", id)
+        .eq("user_id", currentUserId)
+        .maybeSingle();
       
-      console.log('🔍 [UseEffect] Checking cash-out status for user:', currentUserId, 'challenge:', id);
-      console.log('🔍 [UseEffect] Data types:', {
-        challengeId: id,
-        challengeIdType: typeof id,
-        currentUserId: currentUserId,
-        currentUserIdType: typeof currentUserId
-      });
-      
-      try {
-        // First, test basic table access
-        const { data: tableTest, error: tableTestError } = await supabase
-          .from("challenge_cash_outs")
-          .select("count", { count: 'exact' });
-        
-        console.log('🔧 [UseEffect] Table access test:', { tableTest, tableTestError });
-        
-        const { data: existingCashOut, error: cashOutError } = await supabase
-          .from("challenge_cash_outs")
-          .select("id, type, amount, created_at, challenge_id, user_id")
-          .eq("challenge_id", id)
-          .eq("user_id", currentUserId)
-          .maybeSingle();
-        
-        console.log('💰 [UseEffect] Cash-out check result:', { existingCashOut, cashOutError });
-        
-        // Also try different query approaches
-        const { data: testQuery1, error: testError1 } = await supabase
-          .from("challenge_cash_outs")
-          .select("*")
-          .eq("challenge_id", String(id)) // Try as string
-          .eq("user_id", currentUserId);
-        
-        console.log('🔍 [UseEffect] Query test 1 (challenge_id as string):', { testQuery1, testError1 });
-        
-        const { data: testQuery2, error: testError2 } = await supabase
-          .from("challenge_cash_outs")
-          .select("*")
-          .eq("challenge_id", parseInt(id)) // Try as number
-          .eq("user_id", currentUserId);
-        
-        console.log('🔍 [UseEffect] Query test 2 (challenge_id as number):', { testQuery2, testError2 });
-        
-        // Also try a broader search to see if any records exist for this challenge
-        const { data: allCashOuts, error: allCashOutsError } = await supabase
-          .from("challenge_cash_outs")
-          .select("*")
-          .eq("challenge_id", id);
-        
-        console.log('📋 [UseEffect] All cash-outs for challenge', id, ':', allCashOuts);
-        
-        if (!cashOutError && existingCashOut) {
-          console.log('✅ [UseEffect] User has already cashed out - hiding buttons:', existingCashOut);
-          setCashOutCompleted(true);
-          setCashOutAmount(existingCashOut.amount);
-          setCashOutType(existingCashOut.type);
-        } else {
-          console.log('❌ [UseEffect] User has NOT cashed out yet - showing buttons if eligible');
-          setCashOutCompleted(false);
-        }
-      } catch (error) {
-        console.error('⚠️ [UseEffect] Error checking cash-out status:', error);
+      if (!cashOutError && existingCashOut) {
+        setCashOutCompleted(true);
+        setCashOutAmount(existingCashOut.amount);
+        setCashOutType(existingCashOut.type);
+      } else {
         setCashOutCompleted(false);
       }
-    };
-    
-    checkCashOutStatus();
-  }, [currentUserId, id]); // Check whenever currentUserId or challenge ID changes
-
+    } catch (error) {
+      console.error('Error checking cash-out status:', error);
+      setCashOutCompleted(false);
+    }
+  }, [currentUserId, id]);
+  
   useEffect(() => {
-    if (!challenge || challenge.challenge_type !== 'open') return;
-    if (players.p2) return;
+    checkCashOutStatus();
+  }, [checkCashOutStatus]);
+
+  // Poll for updates in open challenges
+  useEffect(() => {
+    if (!challenge || challenge.challenge_type !== 'open' || players.p2) return;
+    
     const t = setInterval(() => {
       loadChallenge();
     }, 4000);
+    
     return () => clearInterval(t);
-  }, [challenge, players.p2]);
+  }, [challenge, players.p2, loadChallenge]);
 
-  // Enhanced series score calculation with match 3 logic
+  // Enhanced series score calculation with updated draw logic and timeout handling
   const seriesScore = useMemo(() => {
     // Add a fallback for when players or matches are not yet loaded
     if (!players || !players.p1 || !players.p2 || !matches) {
-      return { p1Wins: 0, p2Wins: 0, seriesWinner: null, isDraw: false, match3Needed: true, allMatchesComplete: false };
+      return { p1Wins: 0, p2Wins: 0, draws: 0, seriesWinner: null, isDraw: false, match3Needed: true, allMatchesComplete: false };
     }
     
     if (matches.length === 0) {
-      return { p1Wins: 0, p2Wins: 0, seriesWinner: null, isDraw: false, match3Needed: true, allMatchesComplete: false };
+      return { p1Wins: 0, p2Wins: 0, draws: 0, seriesWinner: null, isDraw: false, match3Needed: true, allMatchesComplete: false };
     }
     
     let p1Wins = 0;
     let p2Wins = 0;
+    let draws = 0;
     const completedMatches = matches.filter(m => m.status === "completed");
     
+    // If we have a challenge with a winner but no completed matches, it's likely a timeout
+    if (challenge?.status === 'completed' && challenge?.winner_user_id && completedMatches.length === 0) {
+      console.log('⚠️ Challenge marked as completed but no completed matches found. Checking for timeout winner...');
+      const winner = challenge.winner_user_id === players.p1.id ? players.p1 : players.p2;
+      console.log('🏆 Using challenge winner from timeout:', winner);
+      return { 
+        p1Wins: winner.id === players.p1.id ? 1 : 0, 
+        p2Wins: winner.id === players.p2.id ? 1 : 0, 
+        draws: 0, 
+        seriesWinner: winner, 
+        isDraw: false, 
+        match3Needed: false, 
+        allMatchesComplete: true 
+      };
+    }
+    
     completedMatches.forEach((m) => {
-      if (m.winner_user_id === players.p1.id) p1Wins++;
-      else if (m.winner_user_id === players.p2.id) p2Wins++;
+      if (m.is_draw) {
+        draws++;
+      } else if (m.winner_user_id === players.p1.id) {
+        p1Wins++;
+      } else if (m.winner_user_id === players.p2.id) {
+        p2Wins++;
+      }
     });
     
-    // Check if match 3 is needed (if same winner in matches 1 and 2)
+    // Check if match 3 is needed based on new logic
     let match3Needed = true;
-    if (completedMatches.length >= 2) {
+    let seriesWinner = null;
+    let isDraw = false;
+    
+    // If there's a challenge winner but no series winner yet, use that
+    if (challenge?.winner_user_id && !seriesWinner) {
+      seriesWinner = challenge.winner_user_id === players.p1.id ? players.p1 : players.p2;
+      match3Needed = false;
+      isDraw = false;
+    }
+    // If we have two matches and they're both won by the same player, no need for match 3
+    else if (completedMatches.length >= 2) {
       const match1 = completedMatches.find(m => m.match_number === 1);
       const match2 = completedMatches.find(m => m.match_number === 2);
       
-      if (match1 && match2 && match1.winner_user_id === match2.winner_user_id && match1.winner_user_id !== 'draw') {
-        match3Needed = false;
+      if (match1 && match2) {
+        // If same winner for both match 1 and 2 (and not draws), series is over
+        if (!match1.is_draw && !match2.is_draw && match1.winner_user_id === match2.winner_user_id) {
+          match3Needed = false;
+          seriesWinner = match1.winner_user_id === players.p1.id ? players.p1 : players.p2;
+        }
+        // If both match 1 and 2 are draws, match 3 is needed
+        else if (match1.is_draw && match2.is_draw) {
+          match3Needed = true;
+        }
+        // Any other combination (different winners, one draw) needs match 3
+        else {
+          match3Needed = true;
+        }
+      }
+    }
+    
+    // If all 3 matches are complete or we have a clear winner, determine final winner
+    if ((completedMatches.length >= 3 && match3Needed) || (challenge?.status === 'completed' && challenge?.winner_user_id)) {
+      if (challenge?.winner_user_id) {
+        // If challenge has a winner, use that
+        seriesWinner = challenge.winner_user_id === players.p1.id ? players.p1 : players.p2;
+      } else if (p1Wins > p2Wins) {
+        seriesWinner = players.p1;
+      } else if (p2Wins > p1Wins) {
+        seriesWinner = players.p2;
+      } else {
+        // Series is a draw (equal wins)
+        isDraw = true;
       }
     }
     
     // Determine if all required matches are complete
     const requiredMatches = match3Needed ? 3 : 2;
     const allMatchesComplete = completedMatches.length >= requiredMatches;
-    
-    // Determine series winner or draw
-    let seriesWinner = null;
-    let isDraw = false;
-    
-    if (!match3Needed && completedMatches.length >= 2) {
-      // Series ended early (same winner in matches 1 and 2)
-      seriesWinner = p1Wins > p2Wins ? players.p1 : players.p2;
-    } else if (completedMatches.length === 3) {
-      // All 3 matches completed
-      if (p1Wins > p2Wins) {
-        seriesWinner = players.p1;
-      } else if (p2Wins > p1Wins) {
-        seriesWinner = players.p2;
-      } else {
-        isDraw = true;
-      }
-    }
     
     // Ensure seriesWinner is a clean object with only necessary fields
     if (seriesWinner && typeof seriesWinner === 'object') {
@@ -259,6 +346,7 @@ const ChallengeDetails = () => {
     const result = { 
       p1Wins: typeof p1Wins === 'object' ? parseInt(p1Wins) : p1Wins,
       p2Wins: typeof p2Wins === 'object' ? parseInt(p2Wins) : p2Wins,
+      draws: typeof draws === 'object' ? parseInt(draws) : draws,
       seriesWinner: seriesWinner,
       isDraw: typeof isDraw === 'object' ? Boolean(isDraw) : isDraw,
       match3Needed: typeof match3Needed === 'object' ? Boolean(match3Needed) : match3Needed,
@@ -296,7 +384,7 @@ const ChallengeDetails = () => {
           credentials: "include",
           body: JSON.stringify({
             status: 'completed',
-            winner_id: seriesScore.seriesWinner?.id || null,
+            winner_user_id: seriesScore.seriesWinner?.id || null,
             is_draw: seriesScore.isDraw,
             user_id: currentUserId // Include user_id for authentication if needed
           })
@@ -319,41 +407,13 @@ const ChallengeDetails = () => {
     };
     
     updateChallengeStatus();
-  }, [challenge, seriesScore.allMatchesComplete, seriesScore.seriesWinner, seriesScore.isDraw, id, currentUserId]);
+  }, [challenge, seriesScore.allMatchesComplete, seriesScore.seriesWinner, seriesScore.isDraw, id, currentUserId, loadChallenge]);
 
   // Timer effect for countdowns
-  useEffect(() => {
-    let interval;
-    
-    if (challenge) {
-      interval = setInterval(() => {
-        updateTimers();
-      }, 1000);
-    }
-    
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [challenge]);
-
-  const updateTimers = () => {
+  const updateTimers = useCallback(() => {
     if (!challenge) return;
 
     const now = new Date().getTime();
-
-    // Update start window timer
-    if (challenge.start_window_end) {
-      const startWindowEnd = new Date(challenge.start_window_end).getTime();
-      const startWindowDiff = startWindowEnd - now;
-      
-      if (startWindowDiff > 0) {
-        const minutes = Math.floor(startWindowDiff / (1000 * 60));
-        const seconds = Math.floor((startWindowDiff % (1000 * 60)) / 1000);
-        setStartWindowTimeLeft({ minutes, seconds });
-      } else {
-        setStartWindowTimeLeft({ minutes: 0, seconds: 0 });
-      }
-    }
 
     // Update challenge timer
     if (challenge.challenge_ends_at) {
@@ -369,221 +429,7 @@ const ChallengeDetails = () => {
         setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
       }
     }
-  };
-
-  const loadChallenge = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      // 1) Challenge + players from backend
-      const chRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}`, { credentials: "include" });
-      if (!chRes.ok) throw new Error("Failed to load challenge");
-      const chJson = await chRes.json();
-      setChallenge(chJson.challenge);
-      
-      // 2) Check if current user has already cashed out using server-side check
-      if (currentUserId) {
-        try {
-          // Use server-side endpoint that has the same access as the cash-out validation
-          const cashOutCheckResponse = await fetch(
-            `https://safcom-payment.onrender.com/api/challenges/${id}/cash-out-status?user_id=${currentUserId}`,
-            {
-              method: 'GET',
-              headers: {
-                'Content-Type': 'application/json'
-              },
-              credentials: 'include'
-            }
-          );
-          
-          if (cashOutCheckResponse.ok) {
-            const cashOutStatus = await cashOutCheckResponse.json();
-            
-            if (cashOutStatus.hasCashedOut) {
-              setCashOutCompleted(true);
-              setCashOutAmount(cashOutStatus.cashOut.amount);
-              setCashOutType(cashOutStatus.cashOut.type);
-            } else {
-              setCashOutCompleted(false);
-            }
-          } else {
-            // Fallback to direct Supabase query
-            const { data: existingCashOut, error: cashOutError } = await supabase
-              .from("challenge_cash_outs")
-              .select("id, type, amount, created_at, challenge_id, user_id")
-              .eq("challenge_id", id)
-              .eq("user_id", currentUserId)
-              .maybeSingle();
-            
-            if (!cashOutError && existingCashOut) {
-              setCashOutCompleted(true);
-              setCashOutAmount(existingCashOut.amount);
-              setCashOutType(existingCashOut.type);
-            } else {
-              setCashOutCompleted(false);
-            }
-          }
-        } catch (error) {
-          setCashOutCompleted(false); // Default to not completed on error
-        }
-      } else {
-        setCashOutCompleted(false);
-      }
-      
-      // 3) Get detailed player information from Supabase if we have player IDs
-      let playersData = chJson.players || { p1: null, p2: null };
-      
-      // Ensure playersData contains only the necessary fields to prevent React error #31
-      if (playersData.p1) {
-        // Create a clean player object with only the necessary fields
-        playersData.p1 = {
-          id: playersData.p1.id,
-          username: playersData.p1.username,
-          avatar_url: playersData.p1.avatar_url
-        };
-        
-        // If any of these fields are objects, extract just the primitive values
-        if (typeof playersData.p1.id === 'object') {
-          playersData.p1.id = playersData.p1.id.toString();
-        }
-        if (typeof playersData.p1.username === 'object') {
-          playersData.p1.username = playersData.p1.username.toString();
-        }
-        if (typeof playersData.p1.avatar_url === 'object') {
-          playersData.p1.avatar_url = playersData.p1.avatar_url.toString();
-        }
-      }
-      
-      if (playersData.p2) {
-        // Create a clean player object with only the necessary fields
-        playersData.p2 = {
-          id: playersData.p2.id,
-          username: playersData.p2.username,
-          avatar_url: playersData.p2.avatar_url
-        };
-        
-        // If any of these fields are objects, extract just the primitive values
-        if (typeof playersData.p2.id === 'object') {
-          playersData.p2.id = playersData.p2.id.toString();
-        }
-        if (typeof playersData.p2.username === 'object') {
-          playersData.p2.username = playersData.p2.username.toString();
-        }
-        if (typeof playersData.p2.avatar_url === 'object') {
-          playersData.p2.avatar_url = playersData.p2.avatar_url.toString();
-        }
-      }
-      
-      if (playersData.p1?.id || playersData.p2?.id) {
-        const playerIds = [];
-        if (playersData.p1?.id) playerIds.push(playersData.p1.id);
-        if (playersData.p2?.id) playerIds.push(playersData.p2.id);
-        
-        // Fetch complete user profiles from Supabase
-        const { data: userProfiles, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, username, avatar_url')
-          .in('id', playerIds);
-        
-        if (!profileError && userProfiles) {
-          // Merge the complete user data
-          if (playersData.p1?.id) {
-            const p1Profile = userProfiles.find(u => u.id === playersData.p1.id);
-            if (p1Profile) {
-              playersData.p1 = { ...playersData.p1, ...p1Profile };
-            }
-          }
-          if (playersData.p2?.id) {
-            const p2Profile = userProfiles.find(u => u.id === playersData.p2.id);
-            if (p2Profile) {
-              playersData.p2 = { ...playersData.p2, ...p2Profile };
-            }
-          }
-        }
-      }
-      
-      setPlayers(playersData);
-
-      // 4) Ensure matches (only if two players present)
-      if (playersData?.p1?.id && playersData?.p2?.id) {
-        try {
-          const ensureRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/ensure-matches`, {
-            method: "POST",
-            credentials: "include"
-          });
-          if (ensureRes.ok) {
-            const ensureJson = await ensureRes.json();
-            setMatches(ensureJson.matches || []);
-          } else {
-            // fallback: fetch matches even if ensure failed
-            const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
-            const mJson = await mRes.json();
-            setMatches(mJson.matches || []);
-          }
-        } catch (ensureError) {
-          // fallback: fetch matches even if ensure failed
-          const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
-          const mJson = await mRes.json();
-          setMatches(mJson.matches || []);
-        }
-      } else {
-        // 5) Fetch existing matches (might be 0 until opponent joins)
-        const mRes = await fetch(`https://safcom-payment.onrender.com/api/challenges/${id}/matches`, { credentials: "include" });
-        const mJson = await mRes.json();
-        setMatches(mJson.matches || []);
-      }
-    } catch (err) {
-      setError(err.message || "Failed to load challenge");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMatches = async ({ ensure, p1, p2, ch }) => {
-    const { data: m } = await supabase
-      .from("tournament_matches")
-      .select("*")
-      .eq("tournament_id", id)
-      .order("match_number", { ascending: true });
-
-    let current = m || [];
-
-    // Create 3 matches if both players exist and matches missing
-    if (ensure && current.length < 3 && p1?.id && p2?.id) {
-      try {
-        setCreatingMatches(true);
-        const toCreate = [1, 2, 3]
-          .filter((n) => !current.find((x) => x.match_number === n))
-          .map((n) => ({
-            tournament_id: id,
-            round: 1,
-            match_number: n,
-            status: "pending",
-            player1_id: p1.id,
-            player2_id: p2.id,
-            created_at: new Date().toISOString()
-          }));
-
-        if (toCreate.length > 0) {
-          const { error: insErr } = await supabase
-            .from("tournament_matches")
-            .insert(toCreate);
-          if (!insErr) {
-            const { data: fresh } = await supabase
-              .from("tournament_matches")
-              .select("*")
-              .eq("tournament_id", id)
-              .order("match_number", { ascending: true });
-            current = fresh || [];
-          }
-        }
-      } finally {
-        setCreatingMatches(false);
-      }
-    }
-
-    setMatches(current);
-  };
+  }, [challenge]);
 
   // Determine challenge state
   const challengeState = useMemo(() => {
@@ -612,11 +458,6 @@ const ChallengeDetails = () => {
       return CHALLENGE_STATES.EXPIRED;
     }
     
-    // Check if start window expired
-    if (challenge.start_window_end && new Date(challenge.start_window_end).getTime() < now && !challenge.challenge_started_at) {
-      console.log('🚪 Start window EXPIRED');
-      return CHALLENGE_STATES.START_WINDOW_EXPIRED;
-    }
     
     // Check if challenge is active
     if (challenge.challenge_started_at) {
@@ -624,29 +465,33 @@ const ChallengeDetails = () => {
       return CHALLENGE_STATES.ACTIVE;
     }
     
-    // Check if start window is active
-    if (challenge.start_window_end && new Date(challenge.start_window_end).getTime() > now) {
-      console.log('⏳ Start window ACTIVE');
-      return CHALLENGE_STATES.START_WINDOW_ACTIVE;
-    }
-    
     console.log('⏸️ Challenge WAITING_FOR_START');
     return CHALLENGE_STATES.WAITING_FOR_START;
   }, [challenge, seriesScore]);
 
-  // Check if current user can start challenge
-  const canStartChallenge = useMemo(() => {
-    if (!challenge || !players.p1 || !players.p2 || !currentUserId) return false;
+  // Timer effect for countdowns
+  useEffect(() => {
+    if (!challenge) return;
     
-    const isPlayer1 = currentUserId === players.p1.id;
-    const isPlayer2 = currentUserId === players.p2.id;
+    // Stop timer if challenge is completed
+    if (challengeState === CHALLENGE_STATES.COMPLETED) {
+      setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      return;
+    }
     
-    if (!isPlayer1 && !isPlayer2) return false;
+    updateTimers(); // Run once immediately
     
-    // Can start if in start window and hasn't started yet
-    return challengeState === CHALLENGE_STATES.START_WINDOW_ACTIVE && 
-           !(isPlayer1 ? challenge.p1_started_at : challenge.p2_started_at);
-  }, [challenge, players, challengeState, currentUserId]);
+    const interval = setInterval(() => {
+      // Check if challenge became completed during timer execution
+      if (challengeState === CHALLENGE_STATES.COMPLETED) {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      updateTimers();
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [challenge, updateTimers, challengeState]);
 
   // Check for forfeit scenarios (when only one player reports and time expires)
   const checkForfeitScenario = useMemo(() => {
@@ -712,11 +557,6 @@ const ChallengeDetails = () => {
       return false;
     }
     
-    // Start window expired - refunds for all participants
-    if (challengeState === CHALLENGE_STATES.START_WINDOW_EXPIRED) {
-      return true;
-    }
-    
     return false;
   }, [challenge, players, challengeState, checkForfeitScenario, currentUserId, seriesScore]);
 
@@ -729,8 +569,9 @@ const ChallengeDetails = () => {
     
     // Win amount: exactly what the database expects (totalStake * 0.85)
     const winAmount = totalStake * 0.85; // Keep as float, don't floor yet
-    const drawAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
-    const refundAmount = Math.floor(entryFee * 0.96); // 4% less than individual stake
+    const drawAmount = Math.floor(entryFee * 0.90); // 10% deduction (matches server)
+    const refundAmount = Math.floor(entryFee * 0.98); // 2% deduction (matches server)
+    const expiredAmount = Math.floor(entryFee * 0.90); // 10% deduction (matches server)
     
     console.log('💰 Cash out amounts calculated:', {
       entryFee,
@@ -745,7 +586,8 @@ const ChallengeDetails = () => {
     return { 
       winAmount: typeof winAmount === 'object' ? parseFloat(winAmount) : winAmount,
       drawAmount: typeof drawAmount === 'object' ? parseInt(drawAmount) : drawAmount,
-      refundAmount: typeof refundAmount === 'object' ? parseInt(refundAmount) : refundAmount
+      refundAmount: typeof refundAmount === 'object' ? parseInt(refundAmount) : refundAmount,
+      expiredAmount: typeof expiredAmount === 'object' ? parseInt(expiredAmount) : expiredAmount
     };
   };
 
@@ -795,13 +637,12 @@ const ChallengeDetails = () => {
     setCashOutType(type);
     
     switch (type) {
-      case 'win':
+      case 'winner':
         setCashOutAmount(amounts.winAmount);
         break;
       case 'draw':
         setCashOutAmount(amounts.drawAmount);
         break;
-      case 'expired':
       case 'forfeit':
         setCashOutAmount(amounts.refundAmount);
         break;
@@ -811,7 +652,7 @@ const ChallengeDetails = () => {
     
     console.log('💰 Cash out initiated:', {
       type,
-      amount: type === 'win' ? amounts.winAmount :
+      amount: type === 'winner' ? amounts.winAmount :
               type === 'draw' ? amounts.drawAmount :
               amounts.refundAmount,
       isPlayer1,
@@ -880,9 +721,9 @@ const ChallengeDetails = () => {
       if (updateRes.ok) {
         // Update local wallet balance
         const refText = `Challenge ${id} - ${
-          cashOutType === 'win' ? 'Prize' : 
+          cashOutType === 'winner' ? 'Prize' : 
           cashOutType === 'draw' ? 'Cash Back' :
-          cashOutType === 'expired' ? 'Refund (Expired)' :
+          cashOutType === 'refund' ? 'Refund (Expired)' :
           'Refund (Forfeit)'
         }`;
         
@@ -954,35 +795,36 @@ const ChallengeDetails = () => {
     return (
       <div className={`text-center mb-4 ${isVisible ? 'animate__animated animate__bounceIn' : 'opacity-0'}`}>
         <div className="display-4 mb-3">
-          {type === 'win' ? '🎉' : 
+          {type === 'winner' ? '🎉' : 
            type === 'draw' ? '🤝' :
-           type === 'expired' ? '⏰' :
+           type === 'refund' ? '⏰' :
+           type === 'refund' ? '⏰' :
            type === 'forfeit' ? '🏆' :
            type === 'lose' ? '😔' : '🎊'}
         </div>
         <h2 className={`fw-bold ${
-          type === 'win' ? 'text-success' : 
+          type === 'winner' ? 'text-success' : 
           type === 'draw' ? 'text-warning' :
-          type === 'expired' ? 'text-info' :
+          type === 'refund' ? 'text-info' :
           type === 'forfeit' ? 'text-success' :
           type === 'lose' ? 'text-danger' : 'text-primary'
         }`}>
           {message || (
-            type === 'win' ? `Congratulations ${cleanWinner?.username || `User ${cleanWinner?.id}`}! You've Won!` :
+            type === 'winner' ? `Congratulations ${cleanWinner?.username || `User ${cleanWinner?.id}`}! You've Won!` :
             type === 'draw' ? "Congratulations! You've Both Drawn!" :
-            type === 'expired' ? "Challenge Expired - Refunds Available!" :
+            type === 'refund' ? "Challenge Expired - Refunds Available!" :
             type === 'forfeit' ? "You Won by Default!" :
             type === 'lose' ? `${cleanWinner?.username || `User ${cleanWinner?.id}`} Won the Challenge!` :
             "Congratulations!"
           )}
         </h2>
         <p className="text-muted">
-          {type === 'win' ? "You've emerged victorious in this challenge!" :
+          {type === 'winner' ? "You've emerged victorious in this challenge!" :
            type === 'draw' ? "It's a tie! Both players showed great skill." :
-           type === 'expired' ? "The challenge time has expired. You can claim your refund." :
+           type === 'refund' ? "The challenge time has expired. You can claim your refund." :
            type === 'forfeit' ? "Your opponent didn't report results in time!" :
            type === 'lose' ? "Better luck next time! Keep practicing to improve your skills." :
-           "Well done!"}
+           "Cool!"}
         </p>
       </div>
     );
@@ -998,7 +840,7 @@ const ChallengeDetails = () => {
     };
     
     const totalSeconds = cleanTimeLeft.hours * 3600 + cleanTimeLeft.minutes * 60 + cleanTimeLeft.seconds;
-    const isLowTime = totalSeconds < 300; // Less than 5 minutes
+    const isLowTime = totalSeconds < 3600; // Less than 5 minutes
     
     return (
       <Card className={`mb-3 ${isLowTime ? 'border-warning' : ''}`}>
@@ -1014,7 +856,7 @@ const ChallengeDetails = () => {
           {isLowTime && (
             <Alert variant="warning" className="mt-2 mb-0">
               <AlertTriangle size={16} className="me-1" />
-              Time is running low!
+              You are Running Out Of Time
             </Alert>
           )}
         </Card.Body>
@@ -1081,96 +923,17 @@ const ChallengeDetails = () => {
           <h2 className="mb-0">Challenge Details</h2>
         </div>
 
-        {/* Challenge Start Section */}
-        {challengeState === CHALLENGE_STATES.START_WINDOW_ACTIVE && (
-          <Card className="mb-4 border-primary">
-            <Card.Header className="bg-primary text-white">
-              <h5 className="mb-0 d-flex align-items-center">
-                <Play size={20} className="me-2" />
-                Start Challenge Window
-              </h5>
-            </Card.Header>
-            <Card.Body className="text-center p-4">
-              <TimerDisplay 
-                timeLeft={startWindowTimeLeft} 
-                label="Time to Start Challenge" 
-                variant="primary"
-              />
-              <p className="mb-3">
-                Both players must start the challenge within the next {startWindowTimeLeft.minutes}:{startWindowTimeLeft.seconds.toString().padStart(2, '0')} minutes.
-              </p>
-              <div className="row mb-3">
-                <div className="col-6">
-                  <div className="d-flex align-items-center justify-content-center">
-                    <div className={`rounded-circle me-2 ${challenge.p1_started_at ? 'bg-success' : 'bg-secondary'}`} style={{width: '12px', height: '12px'}}></div>
-                    <span>{players.p1?.username || 'Player 1'}</span>
-                    {challenge.p1_started_at && <CheckCircle size={16} className="ms-2 text-success" />}
-                  </div>
-                </div>
-                <div className="col-6">
-                  <div className="d-flex align-items-center justify-content-center">
-                    <div className={`rounded-circle me-2 ${challenge.p2_started_at ? 'bg-success' : 'bg-secondary'}`} style={{width: '12px', height: '12px'}}></div>
-                    <span>{players.p2?.username || 'Player 2'}</span>
-                    {challenge.p2_started_at && <CheckCircle size={16} className="ms-2 text-success" />}
-                  </div>
-                </div>
-              </div>
-              {canStartChallenge && (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  onClick={handleStartChallenge}
-                  disabled={startingChallenge}
-                  className="px-5"
-                >
-                  {startingChallenge ? (
-                    <>
-                      <Spinner size="sm" className="me-2" />
-                      Starting...
-                    </>
-                  ) : (
-                    <>
-                      <Play size={20} className="me-2" />
-                      Start Challenge
-                    </>
-                  )}
-                </Button>
-              )}
-            </Card.Body>
-          </Card>
-        )}
-
-        {/* Start Window Expired */}
-        {challengeState === CHALLENGE_STATES.START_WINDOW_EXPIRED && (
-          <Card className="mb-4 border-warning">
-            <Card.Body className="text-center p-4">
-              <CongratulationsText 
-                type="expired" 
-                message="Start Window Expired - Refunds Available!"
-              />
-              <Button
-                variant="warning"
-                size="lg"
-                onClick={() => handleCashOut('expired')}
-                className="px-5"
-              >
-                <DollarSign size={20} className="me-2" />
-                Claim Refund ({getCashOutAmounts().refundAmount} Tokens)
-              </Button>
-            </Card.Body>
-          </Card>
-        )}
-
         {/* Active Challenge Timer */}
         {challengeState === CHALLENGE_STATES.ACTIVE && (
-          <Card className="mb-4 border-success">
-            <Card.Header className="bg-success text-white">
-              <h5 className="mb-0 d-flex align-items-center">
-                <Timer size={20} className="me-2" />
-                Challenge Active
-              </h5>
-            </Card.Header>
-            <Card.Body>
+          <>
+            <Card className="mb-4 border-success">
+              <Card.Header className="bg-success text-white">
+                <h5 className="mb-0 d-flex align-items-center">
+                  <Timer size={20} className="me-2" />
+                  Challenge Active
+                </h5>
+              </Card.Header>
+              <Card.Body>
               <TimerDisplay 
                 timeLeft={timeLeft} 
                 label="Time Remaining" 
@@ -1181,12 +944,35 @@ const ChallengeDetails = () => {
                   Report your match results before time runs out!
                 </p>
                 <small className="text-muted">
-                  If no results are reported, both players will be refunded (4% less).
-                  If only one player reports, they automatically win.
+                  If no results are reported, both players will be refunded .
                 </small>
               </div>
             </Card.Body>
           </Card>
+          
+          {/* Instructions Card */}
+          <Card className="mb-4 border-info">
+            <Card.Header 
+              className="bg-info text-white d-flex align-items-center justify-content-between"
+              style={{ cursor: 'pointer' }}
+              onClick={() => setShowInstructions(!showInstructions)}
+            >
+              <h6 className="mb-0">How to Play</h6>
+              <span style={{ transform: showInstructions ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>
+                ▼
+              </span>
+            </Card.Header>
+            {showInstructions && (
+              <Card.Body>
+                <p className="mb-0">
+                  📱 <strong>Text your opponent</strong> on the private chats page to share match codes and decide play time.<br/>
+                  🎮 Play your matches and report results below.<br/>
+                  ⏰ You have 24 hours to complete all the three matches .
+                </p>
+              </Card.Body>
+            )}
+          </Card>
+        </>
         )}
 
         {/* Congratulations and Cash Out Section */}
@@ -1208,21 +994,21 @@ const ChallengeDetails = () => {
                       className="px-5"
                     >
                       <DollarSign size={20} className="me-2" />
-                      Take Cash Back ({getCashOutAmounts().drawAmount} Tokens)
+                       Cash Out ({getCashOutAmounts().drawAmount} Tokens)
                     </Button>
                   </>
                 ) : seriesScore.seriesWinner && seriesScore.seriesWinner.id === currentUserId ? (
                   // Only show win button to the actual winner
                   <>
-                    <CongratulationsText type="win" winner={seriesScore.seriesWinner} />
+                    <CongratulationsText type="winner" winner={seriesScore.seriesWinner} />
                     <Button
                       variant="success"
                       size="lg"
-                      onClick={() => handleCashOut('win')}
+                      onClick={() => handleCashOut('winner')}
                       className="px-5"
                     >
                       <Trophy size={20} className="me-2" />
-                      Cash Out Prize ({getCashOutAmounts().winAmount} Tokens)
+                      Cash Out Your Prize 
                     </Button>
                   </>
                 ) : seriesScore.seriesWinner ? (
@@ -1235,36 +1021,13 @@ const ChallengeDetails = () => {
                   </>
                 ) : null
               ) : challengeState === CHALLENGE_STATES.EXPIRED ? (
-                // Challenge expired
-                checkForfeitScenario && checkForfeitScenario.winner === currentUserId ? (
-                  // Won by forfeit
-                  <>
-                    <CongratulationsText type="forfeit" message="You Won by Default!" />
-                    <Button
-                      variant="success"
-                      size="lg"
-                      onClick={() => handleCashOut('win')}
-                      className="px-5"
-                    >
-                      <Trophy size={20} className="me-2" />
-                      Cash Out Prize ({getCashOutAmounts().winAmount} Tokens)
-                    </Button>
-                  </>
-                ) : (
-                  // Regular expiry refund
-                  <>
-                    <CongratulationsText type="expired" message="Challenge Time Expired!" />
-                    <Button
-                      variant="info"
-                      size="lg"
-                      onClick={() => handleCashOut('expired')}
-                      className="px-5"
-                    >
-                      <DollarSign size={20} className="me-2" />
-                      Claim Refund ({getCashOutAmounts().refundAmount} Tokens)
-                    </Button>
-                  </>
-                )
+                // Challenge expired - show message only, no manual buttons (automatic refund)
+                <>
+                  <CongratulationsText type="expired" message="Challenge Time Expired!" />
+                  <div className="text-center text-muted mt-3">
+                    <p>Your refund has been automatically processed and added to your wallet.</p>
+                  </div>
+                </>
               ) : null}
             </Card.Body>
           </Card>
@@ -1290,9 +1053,6 @@ const ChallengeDetails = () => {
             <Card.Body className="text-center p-4">
               <CheckCircle size={48} className="text-success mb-3" />
               <h4 className="text-success">Cash Out Successful!</h4>
-              <p className="text-muted">
-                {cashOutAmount} tokens have been added to your wallet balance.
-              </p>
             </Card.Body>
           </Card>
         )}
@@ -1312,8 +1072,8 @@ const ChallengeDetails = () => {
                 </div>
               </Card.Header>
               <Card.Body className="p-4">
-                <Row className="mb-3">
-                  <Col md={6} className="mb-3">
+                <Row className="mb-1">
+                  <Col md={6} className="mb-1">
                     <div className="d-flex align-items-center mb-1">
                       <Users size={18} className="me-2 text-info" />
                       <span className="fw-bold">Participants</span>
@@ -1324,7 +1084,7 @@ const ChallengeDetails = () => {
                       </span>
                     </div>
                   </Col>
-                  <Col md={6} className="mb-3">
+                  <Col md={6} className="mb-1">
                     <div className="d-flex align-items-center mb-1">
                       <Calendar size={18} className="me-2 text-warning" />
                       <span className="fw-bold">Scheduled Time</span>
@@ -1334,11 +1094,11 @@ const ChallengeDetails = () => {
                 </Row>
 
                 <Row className="mb-4">
-                  <Col md={6} className="mb-3">
+                  <Col md={6} className="mb-1">
                     <div className="fw-bold">Entry Fee</div>
                     <div className="h5 text-success">{challenge?.entry_fee || 0} Tokens</div>
                   </Col>
-                  <Col md={6} className="mb-3">
+                  <Col md={6} className="mb-1">
                     <div className="fw-bold">Prize Pool</div>
                     <div className="h5 text-success">
                       {(challenge?.prize_amount || (challenge?.entry_fee || 0) * 2)} Tokens
@@ -1355,10 +1115,10 @@ const ChallengeDetails = () => {
                         Winner: {seriesScore.seriesWinner.username || `User ${seriesScore.seriesWinner.id}`}
                       </Badge>
                       <Badge bg="dark" className="me-2">
-                        {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}: {seriesScore.p1Wins}
+                        {players.p1?.username || `User ${players.p1?.id || '1'}`}: {seriesScore.p1Wins}
                       </Badge>
                       <Badge bg="dark">
-                        {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}: {seriesScore.p2Wins}
+                        {players.p2?.username || `User ${players.p2?.id || '2'}`}: {seriesScore.p2Wins}
                       </Badge>
                     </div>
                   ) : seriesScore.isDraw ? (
@@ -1367,19 +1127,19 @@ const ChallengeDetails = () => {
                         Draw - Both players tied!
                       </Badge>
                       <Badge bg="dark" className="me-2">
-                        {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}: {seriesScore.p1Wins}
+                        {players.p1?.username || `User ${players.p1?.id || '1'}`}: {seriesScore.p1Wins}
                       </Badge>
                       <Badge bg="dark">
-                        {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}: {seriesScore.p2Wins}
+                        {players.p2?.username || `User ${players.p2?.id || '2'}`}: {seriesScore.p2Wins}
                       </Badge>
                     </div>
                   ) : (
                     <div>
                       <Badge bg="dark" className="me-2">
-                        {players.p1?.username || `User ${players.p1?.id}` || "Player 1"}: {seriesScore.p1Wins}
+                        {players.p1?.username || `User ${players.p1?.id || '1'}`}: {seriesScore.p1Wins}
                       </Badge>
                       <Badge bg="dark">
-                        {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}: {seriesScore.p2Wins}
+                        {players.p2?.username || `User ${players.p2?.id || '2'}`}: {seriesScore.p2Wins}
                       </Badge>
                       {!seriesScore.match3Needed && (
                         <div className="mt-2">
@@ -1390,12 +1150,6 @@ const ChallengeDetails = () => {
                   )}
                 </div>
 
-                {creatingMatches && (
-                  <div className="mb-3">
-                    <Spinner size="sm" className="me-2" />
-                    Preparing matches...
-                  </div>
-                )}
 
                 <div className="d-grid gap-3">
                   {matches.length === 0 ? (
@@ -1409,7 +1163,8 @@ const ChallengeDetails = () => {
                         status: m.status,
                         winner_user_id: m.winner_user_id,
                         player1_id: m.player1_id,
-                        player2_id: m.player2_id
+                        player2_id: m.player2_id,
+                        is_draw: m.is_draw || false
                       };
                       
                       const statusVariant =
@@ -1441,13 +1196,14 @@ const ChallengeDetails = () => {
                                 {players.p2?.username || `User ${players.p2?.id}` || "Player 2"}
                               </div>
                               <div className="mt-1">
-                                {cleanMatch.status === "completed" && cleanMatch.winner_user_id ? (
+                                {console.log(`🔍 Match ${cleanMatch.match_number} data:`, { status: cleanMatch.status, is_draw: cleanMatch.is_draw, winner_user_id: cleanMatch.winner_user_id })}
+                                {cleanMatch.status === "completed" ? (
                                   <div className="d-flex align-items-center">
-                                    {cleanMatch.winner_user_id === 'draw' ? (
+                                    {cleanMatch.is_draw ? (
                                       <span className="text-warning fw-bold">
                                         Result: Draw
                                       </span>
-                                    ) : (
+                                    ) : cleanMatch.winner_user_id ? (
                                       <>
                                         <Trophy size={16} className="me-1 text-warning" />
                                         <span className="text-success fw-bold">
@@ -1456,6 +1212,8 @@ const ChallengeDetails = () => {
                                             : (players.p2?.username || `User ${players.p2?.id}`)}
                                         </span>
                                       </>
+                                    ) : (
+                                      <span className="text-muted">Winner: TBD</span>
                                     )}
                                   </div>
                                 ) : cleanMatch.status === "disputed" ? (
@@ -1467,8 +1225,9 @@ const ChallengeDetails = () => {
                             </div>
                             <div className="d-flex align-items-center gap-2">
                               <Badge bg={statusVariant}>{(cleanMatch.status || "pending").toUpperCase()}</Badge>
-                              {/* Only show Report Results button if individual match is not completed AND challenge is not completed */}
+                              {/* Only show Report Results button if individual match is not completed, not expired, AND challenge is not completed */}
                               {cleanMatch.status !== 'completed' && 
+                               cleanMatch.status !== 'expired' &&
                                challenge?.status !== 'completed' && 
                                challengeState !== CHALLENGE_STATES.COMPLETED && (
                                 <Button
@@ -1483,12 +1242,6 @@ const ChallengeDetails = () => {
                               {cleanMatch.status === 'completed' && (
                                 <Badge bg="success" className="px-2 py-1">
                                   Match Complete
-                                </Badge>
-                              )}
-                              {/* Show challenge completion status for completed challenges */}
-                              {(challenge?.status === 'completed' || challengeState === CHALLENGE_STATES.COMPLETED) && (
-                                <Badge bg="info" className="px-2 py-1">
-                                  Challenge Complete
                                 </Badge>
                               )}
                             </div>
@@ -1509,7 +1262,7 @@ const ChallengeDetails = () => {
               </Card.Header>
               <Card.Body>
                 <div className="d-flex align-items-center mb-3">
-                  {players.p1?.avatar_url ? (
+                  {players.p1 && players.p1.avatar_url ? (
                     <img
                       src={players.p1.avatar_url}
                       alt="p1"
@@ -1608,46 +1361,29 @@ const ChallengeDetails = () => {
           <Modal.Body>
             <div className="text-center mb-4">
               <div className="display-4 mb-3">
-                {cashOutType === 'win' ? '🏆' : 
+                {cashOutType === 'winner' ? '🏆' : 
                  cashOutType === 'draw' ? '🤝' :
-                 cashOutType === 'expired' ? '⏰' :
+                 cashOutType === 'refund' ? '⏰' :
                  cashOutType === 'forfeit' ? '🏆' :
                  '🎊'}
               </div>
               <h4>
-                {cashOutType === 'win' ? 'Claim Your Prize!' : 
-                 cashOutType === 'draw' ? 'Take Cash Back' :
-                 cashOutType === 'expired' ? 'Claim Refund' :
+                {cashOutType === 'winner' ? 'Claim Your Prize!' : 
+                 cashOutType === 'draw' ? 'Claim Reward' :
+                 cashOutType === 'refund' ? 'Claim Refund' :
                  cashOutType === 'forfeit' ? 'Claim Victory Prize!' :
                  'Claim Amount'}
               </h4>
             </div>
-            
-            <div className="bg-light p-3 rounded mb-3">
-              <div className="d-flex justify-content-between mb-2">
-                <span>Amount:</span>
-                <span className="fw-bold">{cashOutAmount} Tokens</span>
-              </div>
-              <div className="d-flex justify-content-between mb-2">
-                <span>Current Balance:</span>
-                <span>{balance} Tokens</span>
-              </div>
-              <hr />
-              <div className="d-flex justify-content-between">
-                <span>New Balance:</span>
-                <span className="fw-bold text-success">{balance + cashOutAmount} Tokens</span>
-              </div>
-            </div>
+          
 
             <Alert variant="info">
               <strong>Confirm Cash Out</strong>
               <br />
-              {cashOutType === 'win' 
+              {cashOutType === 'winner' 
                 ? "You will receive the full prize pool for winning this challenge."
                 : cashOutType === 'draw'
-                ? "You will receive a cash back amount (4% less than your stake) for the draw."
-                : cashOutType === 'expired'
-                ? "You will receive a refund (4% less than your stake) as the challenge expired."
+                ? "You will receive the specified amount for the draw."
                 : cashOutType === 'forfeit'
                 ? "You will receive the full prize pool as your opponent forfeited."
                 : "You will receive the specified amount."}
@@ -1662,7 +1398,7 @@ const ChallengeDetails = () => {
               Cancel
             </Button>
             <Button 
-              variant={cashOutType === 'win' || cashOutType === 'forfeit' ? 'success' : 
+              variant={cashOutType === 'winner' || cashOutType === 'forfeit' ? 'success' : 
                       cashOutType === 'draw' ? 'warning' : 'info'}
               onClick={confirmCashOut}
               disabled={processingCashOut}

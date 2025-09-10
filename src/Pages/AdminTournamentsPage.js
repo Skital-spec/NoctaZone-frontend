@@ -74,8 +74,8 @@ const AdminTournamentsPage = () => {
                   <tr key={t.id}>
                     <td>{t.name}</td>
                     <td>{t.game_name}</td>
-                    <td>{t.seats}</td>
-                    <td>KSh {t.prize}</td>
+                    <td>{t.max_participants}</td>
+                    <td>KSh {t.prize_amount}</td>
                     <td>{t.status}</td>
                     <td>
                       <button

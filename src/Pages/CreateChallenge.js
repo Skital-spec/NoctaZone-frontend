@@ -14,9 +14,8 @@ const CreateChallenge = () => {
   
   const [formData, setFormData] = useState({
     entryFee: "",
-    participants: 2,
     playTime: "",
-    challengeType: "open",
+    challengeType: "public",
     gameType: "",
     rules: ""
   });
@@ -39,20 +38,21 @@ const CreateChallenge = () => {
 
   // Game types - you can edit this list to fit your games
   const gameTypes = [
-    { value: "konami", label: "Konami (Efootball)" },
-    { value: "dreamleague", label: "Dream League Soccer 2025" },
-    { value: "easportsfc", label: "EA SPORTS FC Mobile Football" },
-    { value: "footballleague", label: "Football League 2025" },
-    { value: "cod", label: "Call of Duty" },
-    { value: "pubg", label: "PUBG" },
-    { value: "realpool3d", label: "Real Pool 3D" },
-    { value: "fortnite", label: "Fortnite" },
-    { value: "chess", label: "Chess" },
-    {value: "needforspeed", label: "Need for Speed"},
-    { value: "asphaltlegends", label: "Asphalt Legends" },
-    { value: "minecraft", label: "Minecraft" },
-    { value: "valorant", label: "Valorant" },
-    { value: "leagueoflegends", label: "League of Legends" },   
+    { value: "Konami / Efootball", label: "Konami / Efootball" },
+    { value: "Dream League Soccer 2025", label: "Dream League Soccer 2025" },
+    { value: "EA SPORTS FC Mobile Football", label: "EA SPORTS FC Mobile Football" },
+    { value: "Football League 2025", label: "Football League 2025" },
+    { value: "COD Mobile", label: "COD Mobile" },
+    { value: "PUBG Mobile", label: "PUBG Mobile" },
+    { value: "Real Pool 3D 2", label: "Real Pool 3D 2" },
+    { value: "Fortnite", label: "Fortnite" },
+    { value: "Chess", label: "Chess" },
+    {value: "Need for Speed", label: "Need for Speed"},
+    { value: "Asphalt Legends", label: "Asphalt Legends" },
+    { value: "Minecraft", label: "Minecraft" },
+    { value: "Valorant", label: "Valorant" },
+    { value: "Free Fire", label: "Free Fire" },
+    { value: "League of Legends", label: "League of Legends" },   
   ];
 
   // ✅ Get logged-in user from Supabase and fetch balance
@@ -125,7 +125,7 @@ const CreateChallenge = () => {
       challengeType: type
     }));
     
-    if (type === "challenge" && !selectedUser) {
+    if (type === "private" && !selectedUser) {
       setShowUserModal(true);
     }
   };
@@ -133,7 +133,7 @@ const CreateChallenge = () => {
   // Calculate prize (85% of total stake)
   const calculatePrize = () => {
     const entryFee = parseFloat(formData.entryFee) || 0;
-    const totalStake = entryFee * formData.participants;
+    const totalStake = entryFee * 2;
     const prize = totalStake * 0.85;
     return prize.toFixed(2);
   };
@@ -180,29 +180,48 @@ const CreateChallenge = () => {
     setSearchResults([]);
   };
 
+  const scrollToField = (fieldName) => {
+    const element = document.querySelector(`[name="${fieldName}"], #${fieldName}, .${fieldName}`);
+    if (element) {
+      element.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+      });
+      // Focus the element if it's focusable
+      if (element.focus) {
+        setTimeout(() => element.focus(), 300);
+      }
+    }
+  };
+
   const validateForm = () => {
-    if (!formData.entryFee || formData.entryFee <= 0) {
-      setAlert({ type: "danger", message: "Please enter a valid entry fee" });
+    if (!formData.entryFee || formData.entryFee < 50) {
+      setAlert({ type: "danger", message: "Minimum entry fee is 50 tokens" });
+      scrollToField("entryFee");
       return false;
     }
     
     if (!formData.gameType) {
       setAlert({ type: "danger", message: "Please select a game type" });
+      scrollToField("gameType");
       return false;
     }
     
     if (!formData.playTime) {
       setAlert({ type: "danger", message: "Please select a time to play" });
+      scrollToField("playTime");
       return false;
     }
     
     if (!formData.rules.trim()) {
       setAlert({ type: "danger", message: "Please enter match rules" });
+      scrollToField("rules");
       return false;
     }
     
-    if (formData.challengeType === "challenge" && !selectedUser) {
+    if (formData.challengeType === "private" && !selectedUser) {
       setAlert({ type: "danger", message: "Please select a user to challenge" });
+      scrollToField("challengeType");
       return false;
     }
     
@@ -269,7 +288,7 @@ const CreateChallenge = () => {
           rules: formData.rules,
           challenge_type: formData.challengeType,
           target_user_id: selectedUser?.id || null,
-          participants: formData.participants
+          participants: 2
         }),
       });
 
@@ -325,7 +344,7 @@ const CreateChallenge = () => {
       
       // Show enhanced success message with updated balance
       const prize = calculatePrize();
-      const challengeTypeText = formData.challengeType === "challenge" 
+      const challengeTypeText = formData.challengeType === "private" 
         ? `sent to @${selectedUser.username}` 
         : "posted publicly";
       
@@ -336,7 +355,7 @@ const CreateChallenge = () => {
 
       // ✅ If it's a specific user challenge, the server already sends the message
       // We don't need to send another duplicate message from the frontend
-      if (formData.challengeType === "challenge" && selectedUser && result.challenge_id) {
+      if (formData.challengeType === "private" && selectedUser && result.challenge_id) {
         // Server already handles sending the message, so we just update the success message
         setAlert({ 
           type: "success", 
@@ -346,7 +365,7 @@ const CreateChallenge = () => {
       
       // ✅ If it's a public challenge, the server already sends the message
       // We don't need to send another duplicate message from the frontend
-      if (formData.challengeType === "open" && result.challenge_id) {
+      if (formData.challengeType === "public" && result.challenge_id) {
         // Server already handles sending the message, so we just update the success message
         setAlert({ 
           type: "success", 
@@ -356,7 +375,7 @@ const CreateChallenge = () => {
       
       // Navigate back after 3 seconds
       setTimeout(() => {
-        navigate("/myzone");
+        navigate(`/challenge/${result.challenge_id}`);
       }, 3000);
 
     } catch (err) {
@@ -463,7 +482,7 @@ const CreateChallenge = () => {
                           value={formData.entryFee}
                           onChange={handleInputChange}
                           placeholder="Enter entry cost amount"
-                          min="1"
+                          min="50"
                           step="0.01"
                           required
                         />
@@ -487,27 +506,6 @@ const CreateChallenge = () => {
                       </Col>
                     </Row>
                   )}
-
-                  {/* Number of Participants */}
-                  <Row className="mb-4">
-                    <Col>
-                      <Form.Group>
-                        <Form.Label className="d-flex align-items-center fw-bold">
-                          <Users size={18} className="me-2" />
-                          Number of Participants
-                        </Form.Label>
-                        <Form.Control
-                          type="number"
-                          value={formData.participants}
-                          disabled
-                          className="bg-light"
-                        />
-                        <Form.Text className="text-muted">
-                          Currently fixed at 2 participants
-                        </Form.Text>
-                      </Form.Group>
-                    </Col>
-                  </Row>
 
                   {/* Time to be Played */}
                   <Row className="mb-4">
@@ -559,26 +557,26 @@ const CreateChallenge = () => {
                         <div className="mt-2">
                           <Form.Check
                             type="radio"
-                            id="open-challenge"
+                            id="public-challenge"
                             name="challengeType"
-                            value="open"
-                            checked={formData.challengeType === "open"}
+                            value="public"
+                            checked={formData.challengeType === "public"}
                             onChange={(e) => handleChallengeTypeChange(e.target.value)}
-                            label="Open Challenge (Public)"
+                            label="Public Challenge"
                             className="mb-2"
                           />
                           <Form.Check
                             type="radio"
-                            id="challenge-user"
+                            id="private-challenge"
                             name="challengeType"
-                            value="challenge"
-                            checked={formData.challengeType === "challenge"}
+                            value="private"
+                            checked={formData.challengeType === "private"}
                             onChange={(e) => handleChallengeTypeChange(e.target.value)}
-                            label="Challenge Specific User (Private)"
+                            label="Private Challenge"
                           />
                         </div>
                         
-                        {formData.challengeType === "challenge" && (
+                        {formData.challengeType === "private" && (
                           <div className="mt-3">
                             <div className="p-3 bg-light rounded">
                               {selectedUser ? (
@@ -750,7 +748,7 @@ const CreateChallenge = () => {
               <span style={{color: '#000000ad', fontWeight: 700}}>  <strong>Prize: </strong></span><span style={{color: '#00ffcc', fontWeight: 700}}>{calculatePrize()} Tokens</span>
               </p>
               <p className="mb-3">
-              <span style={{color: '#000000ad', fontWeight: 700}}>  <strong>Type: </strong></span><span style={{color: '#00ffcc', fontWeight: 700}}>{formData.challengeType === "challenge" ? `Challenge to @${selectedUser?.username}` : "Open Challenge"}</span>
+              <span style={{color: '#000000ad', fontWeight: 700}}>  <strong>Type: </strong></span><span style={{color: '#00ffcc', fontWeight: 700}}>{formData.challengeType === "private" ? `Private Challenge to @${selectedUser?.username}` : "Public Challenge"}</span>
               </p>
               <p className="text-muted" style={{ fontSize: 14 }}>
                 Are you sure you want to create this challenge?

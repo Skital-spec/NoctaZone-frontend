@@ -1,7 +1,9 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef} from "react";
 import { Container, Form, Button, ListGroup, Spinner, Alert, Dropdown, Modal, Badge, Card } from "react-bootstrap";
 import { supabase } from "../supabaseClient";
 import { Trophy, Users, Clock, Eye, PlusCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { formatDateTime } from "../utils/dateUtils";
 
 const PublicChatModal = ({ currentUser, showModal, onClose }) => {
   const [messages, setMessages] = useState([]);
@@ -17,6 +19,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
   const [showChallengeModal, setShowChallengeModal] = useState(false);
   const [joiningChallenge, setJoiningChallenge] = useState(false);
   const messagesEndRef = useRef(null);
+  const navigate = useNavigate();
 
   // Get current user ID on component mount
   useEffect(() => {
@@ -157,8 +160,8 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           // and exclude challenges created by the current user
           const availableChallenges = result.data.filter(challenge => 
             challenge.creator_id !== currentUserId &&
-            (!challenge.player1_id || !challenge.player2_id) &&
-            challenge.status === "pending"
+            challenge.participants === 1 && // Only show challenges with exactly 1 participant (available to join)
+            challenge.status === "active"
           );
           
           // Check if current user has already joined any challenges
@@ -225,7 +228,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           "postgres_changes",
           { event: "INSERT", schema: "public", table: "challenges" },
           (payload) => {
-            if (payload.new.challenge_type === "open" && payload.new.status === "pending") {
+            if (payload.new.challenge_type === "public" && payload.new.status === "active") {
               // Fetch creator username for the new challenge
               supabase
                 .from("profiles")
@@ -247,7 +250,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
           { event: "UPDATE", schema: "public", table: "challenges" },
           (payload) => {
             // Remove challenges that are no longer open/pending or are full
-            if (payload.new.challenge_type !== "open" || payload.new.status !== "pending" ||
+            if (payload.new.challenge_type !== "public" || payload.new.status !== "active" ||
                 (payload.new.current_participants >= payload.new.participants)) {
               setChallenges(prev => prev.filter(c => c.id !== payload.new.id));
             }
@@ -498,7 +501,6 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
       }
       
       // Deduct entry fee and join challenge via backend API
-      // Deduct entry fee and join challenge via backend API
       const joinResponse = await fetch("https://safcom-payment.onrender.com/api/wallet/join-public-challenge", {
         method: "POST",
         headers: { 
@@ -545,6 +547,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
         message: `You've joined the ${selectedChallenge.game_type} challenge!`,
         created_at: new Date().toISOString()
       }]);
+      navigate(`/challenge/${selectedChallenge.id}`);
       
     } catch (err) {
       console.error("Error joining challenge:", err);
@@ -599,17 +602,22 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
             <div className="d-flex justify-content-between align-items-start">
               <div className="flex-grow-1">
                 <div className="d-flex align-items-center mb-2">
-                  {challenge.creator?.avatar_url && (
-                    <img 
-                      src={challenge.creator.avatar_url} 
-                      alt={challenge.creator?.username || challenge.creator_username}
-                      className="rounded-circle me-2"
-                      style={{ width: '32px', height: '32px', objectFit: 'cover' }}
-                    />
-                  )}
+                {challenge.game_image_url ? (
+                      <img 
+                        src={challenge.game_image_url} 
+                        alt={challenge.game_type}
+                        className="rounded me-2"
+                        style={{ width: '32px', height: '32px', objectFit: 'cover' }}
+                      />
+                    ) : (
+                      <div className="bg-secondary rounded me-2 d-flex align-items-center justify-content-center" 
+                           style={{ width: '32px', height: '32px' }}>
+                        <span className="text-white">{challenge.game_type?.charAt(0) || 'G'}</span>
+                      </div>
+                    )}
                   <div>
                     <h6 className="mb-0">{challenge.game_type} Challenge</h6>
-                    <small className="text-muted">by {challenge.creator?.username || challenge.creator_username || "Unknown"}</small>
+                    <small className="text-muted">by {challenge.creator?.username || challenge.creator_username || "Anonymous"}</small>
                   </div>
                 </div>
                 <div className="challenge-details">
@@ -619,7 +627,7 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
                   </small>
                   <small className="text-muted d-block">
                     👥 Players: <strong>{challenge.current_participants || challenge.participants}/2</strong> • 
-                    ⏰ Play Time: <strong>{challenge.play_time || 'Not specified'}</strong>
+                    ⏰ Play Time: <strong>{formatDateTime(challenge.play_time)}</strong>
                   </small>
                   <small className="text-muted d-block">
                     📅 Created: <strong>{new Date(challenge.created_at).toLocaleDateString()}</strong> at <strong>{new Date(challenge.created_at).toLocaleTimeString()}</strong>
@@ -806,16 +814,16 @@ const PublicChatModal = ({ currentUser, showModal, onClose }) => {
               </div>
               
               <div className="mb-3">
-                <strong>Prize Pool:</strong> {(selectedChallenge.entry_fee * selectedChallenge.participants * 0.85).toFixed(2)} tokens
+                <strong>Prize Pool:</strong> {selectedChallenge.prize_amount} tokens
               </div>
               
               <div className="mb-3">
-                <strong>Participants:</strong> {selectedChallenge.current_participants || 1} / {selectedChallenge.total_participants}
+                <strong>Participants:</strong> {selectedChallenge.current_participants || 1} / {selectedChallenge.total_participants || 2}
               </div>
               
               <div className="mb-3">
                 <Clock size={16} className="me-1" />
-                <strong>Play Time:</strong> {formatDate(selectedChallenge.play_time)}
+                <strong>Play Time:</strong> {formatDateTime(selectedChallenge.play_time)}
               </div>
               
               <div className="mb-3">

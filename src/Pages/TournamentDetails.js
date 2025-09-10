@@ -82,7 +82,7 @@ const TournamentDetails = () => {
 
   const prize = tournament.prize || 0;
   const prizeBreakdown =
-    tournament.seats >= 10
+    tournament.max_participants >= 10
       ? [
           { place: "1st", amount: tournament.first_place_prize },
           { place: "2nd", amount: tournament.second_place_prize },
@@ -202,7 +202,7 @@ const handleConfirmJoin = async () => {
     // ✅ Update tournament state with new seats count from backend
     setTournament((prev) => ({
       ...prev,
-      seats_taken: result.seats_taken || (prev.seats_taken || 0) + 1,
+      current_participants: result.current_participants || (prev.current_participants || 0) + 1,
     }));
 
     // Close modal and show success
@@ -313,7 +313,7 @@ const handleConfirmJoin = async () => {
             <p className="text-sm text-gray-400">Entry Cost : {tournament.entry_fee} Tokens</p>
           </div>
           <div>
-            <p className="text-sm text-gray-400">Seats : {tournament.seats_taken || "0"} / {tournament.seats}</p>
+            <p className="text-sm text-gray-400">Seats : {tournament.current_participants || "0"} / {tournament.max_participants}</p>
           </div>
         </div>
 
