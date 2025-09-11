@@ -135,7 +135,7 @@ const TournamentsCarousel = () => {
 
       {tournaments.length === 0 ? (
         <p style={{ color: "#888", textAlign: "center" }}>
-          No tournaments available.
+          Coming soon. Stay tuned ...
         </p>
       ) : (
         <>
