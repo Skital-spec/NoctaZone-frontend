@@ -35,7 +35,7 @@ function Home() {
 
 <div className="page-one no-video-bg"> 
   <div className="overlay-content">
-    <h1 className="animated-title">Turn Your Gaming Skill <br /> Into Instant Cash</h1>
+    <h1 className="animated-title">Monetize Your Gaming <br/> Talent Professionally</h1>
     <h2>
       C<span>
         <Typewriter
