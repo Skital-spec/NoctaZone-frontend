@@ -760,10 +760,17 @@ const MyZone = () => {
 @media (max-width: 768px) {
   .myzone-tabs {
     margin-bottom: 1.5rem;
+    margin-top: -1rem;
+    margin-left: -1.7rem;
+    margin-right: -2rem;
     border-radius: 8px 8px 0 0;
     box-shadow: 0 2px 15px rgba(0, 255, 204, 0.1);
   }
-  
+  .myzone-title{
+    margin-bottom: 1.5rem;
+    margin-top: -2rem;
+    margin-left: -1.5rem;
+  }
   .myzone-tab {
     padding: 1rem 0.8rem;
     font-size: 0.8rem;
@@ -825,7 +832,7 @@ const MyZone = () => {
 
         <Row>
           <Col>
-            <h2 className="mb-4" style={{
+            <h2 className="myzone-title mb-4" style={{
               color: '#00ffcc',
               fontWeight: '700',
               textTransform: 'uppercase',
